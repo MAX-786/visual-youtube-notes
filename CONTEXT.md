@@ -179,16 +179,24 @@ The single seeded account. No public signup.
 _Avoid_: Admin, user (in prose)
 
 **Device session**:
-One trusted PWA or extension device holding its own Token family; individually revocable.
+One trusted PWA or extension device and the revocation boundary for its Token family. A new authentication creates a new Device session rather than reviving an old one.
 _Avoid_: Login, client
 
 **Token family**:
-An access token plus rotating refresh token issued to one Device session. Reuse of a rotated refresh token revokes the family.
+The one live access token and single-use refresh-token lineage owned by a Device session. Reuse of a consumed refresh token revokes the whole family.
 _Avoid_: Session tokens, credentials
 
 **Pairing**:
 The challenge/verifier flow by which the extension obtains its own Token family without ever seeing the password.
 _Avoid_: Extension login, linking
+
+**Pairing request**:
+A five-minute Owner approval record binding one extension identity to a verifier challenge. Denial and successful exchange are terminal.
+_Avoid_: Pairing code, login request
+
+**Security event**:
+A retained, credential-free record of rejected or administrative authentication activity.
+_Avoid_: Audit log, request log
 
 ### Lifecycle
 
