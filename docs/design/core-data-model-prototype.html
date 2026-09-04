@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Core data model prototype — Visual YouTube Notes</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #667085;
+        --line: #d9dfeb;
+        --paper: #f7f8fb;
+        --accent: #5b5bd6;
+        --good: #087f5b;
+        --warn: #b54708;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 64px;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+      h1 {
+        margin-bottom: 8px;
+      }
+      h2 {
+        margin: 0 0 14px;
+        font-size: 18px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .lede {
+        color: var(--muted);
+        max-width: 78ch;
+      }
+      .notice {
+        padding: 12px 14px;
+        border-left: 4px solid var(--warn);
+        background: #fff7ed;
+        margin: 20px 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 3px 14px rgba(23, 32, 51, 0.05);
+      }
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .fact {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 10px 12px;
+      }
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .value {
+        display: block;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+      }
+      .good {
+        color: var(--good);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        color: var(--ink);
+        padding: 9px 11px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.primary {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .log {
+        border-radius: 8px;
+        background: #eef2ff;
+        color: #3730a3;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .tabs button.active {
+        color: white;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .steps {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .step {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 8px;
+        align-items: center;
+        text-align: left;
+      }
+      .step span:first-child {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #eef2ff;
+        color: #3730a3;
+        font-weight: 700;
+      }
+      .step.done {
+        opacity: 0.5;
+        text-decoration: line-through;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.92em;
+      }
+      @media (max-width: 800px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .facts {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Core data model prototype</h1>
+      <p class="lede">
+        Question: can one Note move through save, generation, regeneration,
+        manual edits, conflicts, and Trash while preserving immutable Revisions,
+        a user-owned Takeaway, read-only Source material, and an unambiguous
+        Active Revision?
+      </p>
+      <div class="notice">
+        <strong>Throwaway prototype.</strong> This page keeps everything in
+        memory. Its purpose is to expose awkward state transitions before the
+        PostgreSQL design is accepted.
+      </div>
+
+      <div class="grid">
+        <section class="stack">
+          <div class="card">
+            <h2>Current Note</h2>
+            <div id="last-change" class="log">Ready to explore.</div>
+            <div id="facts" class="facts"></div>
+          </div>
+
+          <div class="card">
+            <h2>Immutable Revisions</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Revision</th>
+                  <th>Origin</th>
+                  <th>Parent</th>
+                  <th>Summary</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="revisions"></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h2>Free play</h2>
+            <p class="lede">
+              Try actions in any order. Illegal transitions are rejected without
+              changing state.
+            </p>
+            <div id="free-play" class="buttons"></div>
+          </div>
+        </section>
+
+        <aside class="stack">
+          <div class="card">
+            <h2>Guided walkthroughs</h2>
+            <div id="tabs" class="tabs"></div>
+            <h3 id="scenario-title"></h3>
+            <p id="scenario-description" class="lede"></p>
+            <div id="scenario-steps" class="steps"></div>
+          </div>
+
+          <div class="card">
+            <h2>What the schema must preserve</h2>
+            <ul>
+              <li>One Note per owner and Video ID.</li>
+              <li>The Source and Transcript are read-only to the owner.</li>
+              <li>Every content change creates an immutable Revision.</li>
+              <li>The Note points to one Active Revision.</li>
+              <li>
+                The Takeaway is outside Revisions and survives generation.
+              </li>
+              <li>
+                Trash preserves Save time, topic, tags, and history until Purge.
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+      // Portable prototype logic: a pure reducer over a plain state object.
+      const initialState = () => ({
+        ownerId: "owner-1",
+        source: null,
+        transcript: null,
+        note: null,
+        takeaway: "",
+        revisions: [],
+        generation: null,
+        pendingActivationRevisionId: null,
+        nextRevision: 1,
+        lastChange: "Ready to explore.",
+      });
+
+      const clone = (value) => structuredClone(value);
+      const reject = (state, message) => ({
+        ...state,
+        lastChange: `Rejected: ${message}`,
+      });
+
+      function appendRevision(state, origin, parentId, summary, extra = {}) {
+        const id = `r${state.nextRevision}`;
+        state.revisions.push({ id, origin, parentId, summary, ...extra });
+        state.nextRevision += 1;
+        return id;
+      }
+
+      function reduce(input, action) {
+        if (action.type === "RESET") return initialState();
+        const state = clone(input);
+
+        switch (action.type) {
+          case "SAVE": {
+            if (state.note)
+              return reject(
+                input,
+                "this owner already has a Note for the Video ID.",
+              );
+            state.source = {
+              videoId: "dQw4w9WgXcQ",
+              title: "Example learning video",
+              readOnly: true,
+            };
+            state.note = {
+              processingState: "queued",
+              savedAt: "5 Sep, 10:00",
+              primaryTopic: null,
+              tags: [],
+              activeRevisionId: null,
+              trashedAt: null,
+              purgeAfter: null,
+            };
+            state.takeaway = "";
+            state.lastChange =
+              "Submission saved. The Source and Note now exist; no Revision exists yet.";
+            return state;
+          }
+          case "GENERATE": {
+            if (!state.note) return reject(input, "save the Source first.");
+            if (state.note.activeRevisionId)
+              return reject(input, "the initial generation already exists.");
+            state.transcript = { language: "en", readOnly: true, chunks: 2 };
+            const id = appendRevision(
+              state,
+              "generated",
+              null,
+              "Spaced recall strengthens memory.",
+              { fromTranscript: true },
+            );
+            Object.assign(state.note, {
+              processingState: "ready",
+              primaryTopic: "Learning Systems",
+              tags: ["Review", "Memory"],
+              activeRevisionId: id,
+            });
+            state.lastChange =
+              "Initial generated Revision became active; Source and Transcript remain read-only.";
+            return state;
+          }
+          case "SET_TAKEAWAY": {
+            if (!state.note)
+              return reject(input, "save a Note before writing a Takeaway.");
+            state.takeaway =
+              "Review difficult ideas after one day and one week.";
+            state.lastChange = "Takeaway updated outside Revision history.";
+            return state;
+          }
+          case "REGENERATE": {
+            if (!state.note?.activeRevisionId || state.note.trashedAt)
+              return reject(input, "a ready, non-Trash Note is required.");
+            const parentId = state.note.activeRevisionId;
+            const id = appendRevision(
+              state,
+              "generated",
+              parentId,
+              "Use a one-day and one-week recall schedule.",
+              { fromTranscript: true },
+            );
+            state.note.activeRevisionId = id;
+            state.lastChange = `Regeneration created ${id} from the Transcript and activated it; the Takeaway did not move.`;
+            return state;
+          }
+          case "EDIT": {
+            if (!state.note?.activeRevisionId || state.note.trashedAt)
+              return reject(input, "a ready, non-Trash Note is required.");
+            const parentId = state.note.activeRevisionId;
+            const id = appendRevision(
+              state,
+              "manual",
+              parentId,
+              "Use deliberate recall after one day and one week.",
+              { editedBlockProvenance: "user_edited" },
+            );
+            state.note.activeRevisionId = id;
+            state.lastChange = `Manual autosave created ${id}; edited content is user-owned and its Source refs are cleared.`;
+            return state;
+          }
+          case "START_REGENERATION": {
+            if (
+              !state.note?.activeRevisionId ||
+              state.generation ||
+              state.note.trashedAt
+            )
+              return reject(input, "regeneration cannot start now.");
+            state.generation = { baseRevisionId: state.note.activeRevisionId };
+            state.lastChange = `Regeneration started from base ${state.generation.baseRevisionId}.`;
+            return state;
+          }
+          case "COMPLETE_REGENERATION": {
+            if (!state.generation)
+              return reject(input, "start regeneration first.");
+            const base = state.generation.baseRevisionId;
+            const id = appendRevision(
+              state,
+              "generated",
+              base,
+              "A newly generated explanation.",
+              { fromTranscript: true },
+            );
+            if (state.note.activeRevisionId === base) {
+              state.note.activeRevisionId = id;
+              state.lastChange = `Regeneration created and activated ${id}.`;
+            } else {
+              state.pendingActivationRevisionId = id;
+              state.lastChange = `Regeneration created ${id}, but did not replace the newer Active Revision.`;
+            }
+            state.generation = null;
+            return state;
+          }
+          case "STALE_EDIT": {
+            if (!state.note?.activeRevisionId || state.revisions.length < 2)
+              return reject(input, "create at least two Revisions first.");
+            const staleBase = state.revisions[0].id;
+            if (staleBase === state.note.activeRevisionId)
+              return reject(input, "the chosen base is not stale.");
+            const id = appendRevision(
+              state,
+              "conflict",
+              staleBase,
+              "An offline edit based on stale content.",
+            );
+            state.pendingActivationRevisionId = id;
+            state.lastChange = `Stale edit created Conflict Revision ${id}; the server Active Revision stayed unchanged.`;
+            return state;
+          }
+          case "TRASH": {
+            if (!state.note || state.note.trashedAt)
+              return reject(input, "there is no active Note to move to Trash.");
+            state.note.trashedAt = "5 Sep, 10:30";
+            state.note.purgeAfter = "5 Oct, 10:30";
+            state.lastChange =
+              "Note moved to Trash for 30 days; Save time, topic, tags, Revisions, Transcript, and Takeaway remain.";
+            return state;
+          }
+          case "RESTORE_TRASH": {
+            if (!state.note?.trashedAt)
+              return reject(input, "the Note is not in Trash.");
+            state.note.trashedAt = null;
+            state.note.purgeAfter = null;
+            state.lastChange =
+              "Note restored with its original Save time and Primary Topic.";
+            return state;
+          }
+          default:
+            return reject(input, `unknown action ${action.type}.`);
+        }
+      }
+
+      const actions = [
+        ["SAVE", "Save Source"],
+        ["GENERATE", "Finish initial generation"],
+        ["SET_TAKEAWAY", "Write Takeaway"],
+        ["REGENERATE", "Regenerate"],
+        ["EDIT", "Edit generated content"],
+        ["START_REGENERATION", "Start slow regeneration"],
+        ["COMPLETE_REGENERATION", "Finish slow regeneration"],
+        ["STALE_EDIT", "Replay stale offline edit"],
+        ["TRASH", "Move to Trash"],
+        ["RESTORE_TRASH", "Restore from Trash"],
+        ["RESET", "Reset demo"],
+      ];
+
+      const scenarios = [
+        {
+          title: "Save → regenerate → edit → Trash",
+          description:
+            "The requested sample lifecycle. Watch the Active Revision move while Save time and Takeaway stay independent.",
+          steps: [
+            "SAVE",
+            "GENERATE",
+            "SET_TAKEAWAY",
+            "REGENERATE",
+            "EDIT",
+            "TRASH",
+          ],
+        },
+        {
+          title: "Edit wins a regeneration race",
+          description:
+            "A regeneration starts, then a manual edit becomes active before generation finishes. The late generated Revision must not overwrite it.",
+          steps: [
+            "SAVE",
+            "GENERATE",
+            "START_REGENERATION",
+            "EDIT",
+            "COMPLETE_REGENERATION",
+          ],
+        },
+        {
+          title: "Stale offline edit",
+          description:
+            "An edit based on an old Revision becomes a Conflict Revision while the server keeps its current Active Revision.",
+          steps: ["SAVE", "GENERATE", "REGENERATE", "STALE_EDIT"],
+        },
+        {
+          title: "Trash and restore",
+          description:
+            "Trash is orthogonal to processing state. Restoring removes the purge deadline without changing organization or history.",
+          steps: ["SAVE", "GENERATE", "SET_TAKEAWAY", "TRASH", "RESTORE_TRASH"],
+        },
+      ];
+
+      let state = initialState();
+      let selectedScenario = 0;
+      let scenarioStep = 0;
+
+      const dispatch = (type) => {
+        state = reduce(state, { type });
+        render();
+      };
+
+      function fact(label, value, tone = "") {
+        return `<div class="fact"><span class="label">${label}</span><span class="value ${tone}">${value ?? "—"}</span></div>`;
+      }
+
+      function render() {
+        document.querySelector("#last-change").textContent = state.lastChange;
+        const note = state.note;
+        document.querySelector("#facts").innerHTML = [
+          fact("Owner", state.ownerId),
+          fact("Video ID", state.source?.videoId),
+          fact("Source editing", state.source ? "Read-only" : "—"),
+          fact(
+            "Transcript",
+            state.transcript
+              ? `${state.transcript.chunks} chunks · read-only`
+              : "—",
+          ),
+          fact("Processing state", note?.processingState),
+          fact("Save time", note?.savedAt),
+          fact("Primary Topic", note?.primaryTopic),
+          fact("Tags", note?.tags?.join(", ") || "—"),
+          fact(
+            "Active Revision",
+            note?.activeRevisionId,
+            note?.activeRevisionId ? "good" : "",
+          ),
+          fact(
+            "Pending activation",
+            state.pendingActivationRevisionId,
+            state.pendingActivationRevisionId ? "warn" : "",
+          ),
+          fact("Takeaway", state.takeaway || "—"),
+          fact("Trash", note?.trashedAt ? `Until ${note.purgeAfter}` : "No"),
+        ].join("");
+
+        document.querySelector("#revisions").innerHTML = state.revisions.length
+          ? state.revisions
+              .map(
+                (r) =>
+                  `<tr><td><code>${r.id}</code></td><td>${r.origin}</td><td><code>${r.parentId ?? "—"}</code></td><td>${r.summary}</td><td>${r.id === note?.activeRevisionId ? '<strong class="good">Active</strong>' : r.id === state.pendingActivationRevisionId ? '<strong class="warn">Needs choice</strong>' : "History"}</td></tr>`,
+              )
+              .join("")
+          : '<tr><td colspan="5">No Revisions yet.</td></tr>';
+
+        document.querySelector("#free-play").innerHTML = actions
+          .map(
+            ([type, label]) =>
+              `<button class="${type === "RESET" ? "" : "primary"}" data-action="${type}">${label}</button>`,
+          )
+          .join("");
+        document
+          .querySelectorAll("[data-action]")
+          .forEach(
+            (button) =>
+              (button.onclick = () => dispatch(button.dataset.action)),
+          );
+
+        document.querySelector("#tabs").innerHTML = scenarios
+          .map(
+            (s, index) =>
+              `<button class="${index === selectedScenario ? "active" : ""}" data-tab="${index}">${index + 1}. ${s.title}</button>`,
+          )
+          .join("");
+        document.querySelectorAll("[data-tab]").forEach(
+          (button) =>
+            (button.onclick = () => {
+              selectedScenario = Number(button.dataset.tab);
+              scenarioStep = 0;
+              state = initialState();
+              render();
+            }),
+        );
+
+        const scenario = scenarios[selectedScenario];
+        document.querySelector("#scenario-title").textContent = scenario.title;
+        document.querySelector("#scenario-description").textContent =
+          scenario.description;
+        document.querySelector("#scenario-steps").innerHTML = scenario.steps
+          .map((type, index) => {
+            const label = actions.find(([candidate]) => candidate === type)[1];
+            const disabled = index !== scenarioStep;
+            return `<button class="step ${index < scenarioStep ? "done" : ""}" data-step="${index}" ${disabled ? "disabled" : ""}><span>${index + 1}</span><span>${label}</span></button>`;
+          })
+          .join("");
+        document.querySelectorAll("[data-step]").forEach(
+          (button) =>
+            (button.onclick = () => {
+              const type = scenario.steps[scenarioStep];
+              state = reduce(state, { type });
+              scenarioStep += 1;
+              render();
+            }),
+        );
+      }
+
+      render();
+    </script>
+  </body>
+</html>
