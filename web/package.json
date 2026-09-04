@@ -1,0 +1,27 @@
+{
+  "name": "@visual-notes/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev",
+    "prepare": "svelte-kit sync",
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@visual-notes/api-client": "workspace:*",
+    "@sveltejs/kit": "2.70.3",
+    "svelte": "5.57.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@sveltejs/adapter-static": "3.0.10",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    "svelte-check": "4.7.6",
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

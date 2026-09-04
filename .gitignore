@@ -5,12 +5,17 @@
 
 # Node / SvelteKit
 node_modules/
+.pnpm-store/
 .svelte-kit/
 build/
+coverage/
 dist/
+playwright-report/
+test-results/
 
 # Go
 bin/
+*.exe
 *.test
 *.out
 

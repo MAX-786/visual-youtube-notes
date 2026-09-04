@@ -1,0 +1,11 @@
+node_modules
+.pnpm-store
+.svelte-kit
+build
+coverage
+dist
+playwright-report
+test-results
+pnpm-lock.yaml
+backend/internal/httpapi/generated.gen.go
+packages/api-client/src/generated/schema.ts

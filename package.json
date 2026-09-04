@@ -1,0 +1,31 @@
+{
+  "name": "visual-youtube-notes",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.20.0 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "e2e": "pnpm --filter @visual-notes/web test:e2e",
+    "format": "prettier --write . && go -C backend fmt ./...",
+    "format:check": "prettier --check . && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 fmt --diff",
+    "generate": "pnpm --filter @visual-notes/api-client generate && go -C backend generate ./...",
+    "lint": "eslint . && go -C backend vet ./... && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run ./... && go -C backend run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...",
+    "test": "pnpm -r --if-present test && go -C backend test ./...",
+    "test:race": "go -C backend test -race ./...",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "eslint-plugin-svelte": "3.23.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.6",
+    "prettier-plugin-svelte": "4.1.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0"
+  }
+}

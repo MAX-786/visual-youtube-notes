@@ -14,4 +14,13 @@ Personal, self-hosted, single-user V1. See [docs/feature-spec.md](docs/feature-s
 
 ## Layout
 
-- `docs/` — product specification and design documents
+- `backend/` — one Go module with the API and worker commands
+- `web/` — SvelteKit PWA workspace
+- `extension/` — Chromium extension workspace; its MV3 structure is still to be designed
+- `packages/api-client/` — TypeScript client generated from OpenAPI
+- `deploy/` — deployment artifacts
+- `docs/` — product specification, ADRs, and design contracts
+
+## Development
+
+The pinned baseline is Go 1.27.1, Node 24.20.0, and pnpm 11.25.0. Install dependencies with `pnpm install`, then run `pnpm check`. The empty scaffold contains no product behavior; its purpose is to lock repository and toolchain conventions before implementation tickets are written.
