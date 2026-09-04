@@ -266,6 +266,9 @@
               <li>One Note per owner and Video ID.</li>
               <li>The Source and Transcript are read-only to the owner.</li>
               <li>Every content change creates an immutable Revision.</li>
+              <li>
+                Each Revision stores one atomic, schema-versioned JSON payload.
+              </li>
               <li>The Note points to one Active Revision.</li>
               <li>
                 The Takeaway is outside Revisions and survives generation.

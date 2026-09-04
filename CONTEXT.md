@@ -47,7 +47,7 @@ _Avoid_: Transcription service, ASR
 ### The note
 
 **Note**:
-The learning artifact for one Source: metadata, an Active Revision, and a Takeaway. Organized by Save time under one Primary Topic.
+The learning artifact for one Source, created by a Submission. A ready Note has an Active Revision and is organized by Save time under one Primary Topic; a processing or failed Note may not have either yet.
 _Avoid_: Card (that is the list rendering), document, page
 
 **Revision**:
@@ -55,7 +55,7 @@ An immutable snapshot of a Note's generated and edited content. Origin is `gener
 _Avoid_: Version, snapshot, draft
 
 **Active Revision**:
-The single Revision a Note currently points at and displays.
+The single Revision a ready Note currently points at and displays.
 _Avoid_: Current version, head
 
 **Regeneration**:
@@ -115,7 +115,7 @@ _Avoid_: Alt text, outline view
 ### Organization and search
 
 **Primary Topic**:
-The single required, user-owned, normalized topic each non-Trash Note files under.
+The single required, user-owned, normalized topic each ready, non-Trash Note files under.
 _Avoid_: Category, folder, subject
 
 **Tag**:

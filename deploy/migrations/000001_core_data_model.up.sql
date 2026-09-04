@@ -28,18 +28,6 @@ CREATE TYPE revision_origin AS ENUM (
     'restore'
 );
 
-CREATE TYPE content_block_kind AS ENUM (
-    'summary',
-    'key_point',
-    'important_detail',
-    'practical_action'
-);
-
-CREATE TYPE content_provenance AS ENUM (
-    'ai',
-    'user_edited'
-);
-
 CREATE FUNCTION set_updated_at() RETURNS trigger
 LANGUAGE plpgsql
 AS $$
@@ -192,10 +180,10 @@ CREATE TABLE note_revisions (
     parent_revision_id uuid,
     generated_from_transcript_id uuid,
     generation_instruction text,
-    diagram jsonb NOT NULL,
+    payload jsonb NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT note_revisions_number_positive CHECK (revision_number > 0),
-    CONSTRAINT note_revisions_diagram_object CHECK (jsonb_typeof(diagram) = 'object'),
+    CONSTRAINT note_revisions_payload_object CHECK (jsonb_typeof(payload) = 'object'),
     CONSTRAINT note_revisions_id_note_user_uq UNIQUE (id, note_id, user_id),
     CONSTRAINT note_revisions_note_number_uq UNIQUE (note_id, revision_number),
     CONSTRAINT note_revisions_note_owner_fk
@@ -222,42 +210,8 @@ ALTER TABLE notes
     REFERENCES note_revisions(id, note_id, user_id)
     DEFERRABLE INITIALLY DEFERRED;
 
-CREATE TABLE revision_content_blocks (
-    id uuid PRIMARY KEY,
-    revision_id uuid NOT NULL REFERENCES note_revisions(id) ON DELETE CASCADE,
-    kind content_block_kind NOT NULL,
-    position integer NOT NULL,
-    text text NOT NULL,
-    provenance content_provenance NOT NULL,
-    speaker_claim boolean NOT NULL DEFAULT false,
-    CONSTRAINT revision_content_blocks_position_nonnegative CHECK (position >= 0),
-    CONSTRAINT revision_content_blocks_text_nonempty CHECK (btrim(text) <> ''),
-    CONSTRAINT revision_content_blocks_summary_position CHECK (kind <> 'summary' OR position = 0),
-    CONSTRAINT revision_content_blocks_kind_position_uq UNIQUE (revision_id, kind, position)
-);
-
-CREATE TABLE content_block_source_refs (
-    content_block_id uuid NOT NULL REFERENCES revision_content_blocks(id) ON DELETE CASCADE,
-    transcript_chunk_id uuid NOT NULL REFERENCES transcript_chunks(id) ON DELETE CASCADE,
-    char_start integer NOT NULL,
-    char_end integer NOT NULL,
-    PRIMARY KEY (content_block_id, transcript_chunk_id, char_start, char_end),
-    CONSTRAINT content_block_source_refs_span_valid CHECK (char_start >= 0 AND char_end > char_start)
-);
-
-CREATE TABLE diagram_element_source_refs (
-    revision_id uuid NOT NULL REFERENCES note_revisions(id) ON DELETE CASCADE,
-    element_id text NOT NULL,
-    transcript_chunk_id uuid NOT NULL REFERENCES transcript_chunks(id) ON DELETE CASCADE,
-    char_start integer NOT NULL,
-    char_end integer NOT NULL,
-    PRIMARY KEY (revision_id, element_id, transcript_chunk_id, char_start, char_end),
-    CONSTRAINT diagram_element_source_refs_element_nonempty CHECK (btrim(element_id) <> ''),
-    CONSTRAINT diagram_element_source_refs_span_valid CHECK (char_start >= 0 AND char_end > char_start)
-);
-
-COMMENT ON TABLE diagram_element_source_refs IS
-    'Relational integrity for source refs whose element IDs also live in the revision diagram JSON.';
+COMMENT ON COLUMN note_revisions.payload IS
+    'Atomic, immutable, schema-versioned generated or edited content, including Content blocks, Diagram, Provenance, and Source refs. Validated by the application before insert.';
 
 CREATE TABLE note_takeaways (
     note_id uuid PRIMARY KEY,
