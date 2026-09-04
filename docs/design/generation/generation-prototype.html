@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Note generation: what happens when the model gets it wrong</title>
+<style>
+  :root {
+    --ink: #16181d; --dim: #6b7280; --line: #e3e6ec; --bg: #f7f8fa;
+    --card: #ffffff; --accent: #3b5bdb; --good: #1a7f5a; --bad: #b4232c;
+    --warn: #96601b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px 80px; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lede { color: var(--dim); margin: 0 0 32px; max-width: 66ch; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em;
+       color: var(--dim); margin: 36px 0 12px; font-weight: 600; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; padding: 20px 22px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 7px;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+  button.done { background: #eef1fb; border-color: #c7d0f2; color: var(--dim); }
+  .state { display: grid; grid-template-columns: 150px 1fr; gap: 10px 18px; }
+  .state dt { color: var(--dim); font-size: 13px; }
+  .state dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px;
+          font-size: 13px; font-weight: 600; }
+  .pill.ready { background: #e4f4ec; color: var(--good); }
+  .pill.reask { background: #fdf1de; color: var(--warn); }
+  .pill.failed { background: #fbe6e7; color: var(--bad); }
+  .pill.idle { background: #eef0f4; color: var(--dim); }
+  ul.findings { list-style: none; margin: 0; padding: 0; }
+  ul.findings li { padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  ul.findings li:first-child { border-top: 0; }
+  .tag { font-size: 11px; font-weight: 700; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 2px 7px; border-radius: 4px; margin-right: 8px; }
+  .tag.fix { background: #e4f4ec; color: var(--good); }
+  .tag.ask { background: #fdf1de; color: var(--warn); }
+  .where { color: var(--dim); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: -1px; }
+  .tabs button { border-radius: 8px 8px 0 0; border-bottom-color: transparent; }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--accent);
+    border-color: var(--line); border-bottom-color: var(--card); font-weight: 600; }
+  .panel { border-radius: 0 10px 10px 10px; }
+  .panel p { margin: 0 0 16px; color: var(--dim); max-width: 62ch; }
+  ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+  ol.steps li { counter-increment: s; display: flex; align-items: center;
+                gap: 12px; padding: 5px 0; }
+  ol.steps li::before { content: counter(s); flex: none; width: 22px; height: 22px;
+    border-radius: 50%; background: #eef0f4; color: var(--dim); font-size: 12px;
+    font-weight: 700; display: grid; place-items: center; }
+  .note { color: var(--dim); font-size: 13px; margin-top: 14px; }
+  code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #f0f2f6; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Note generation: what happens when the model gets it wrong</h1>
+  <p class="lede">
+    The note model is asked for one JSON object. Constrained decoding guarantees the
+    <em>shape</em> is right, but nothing more &mdash; not the word limits, not how many key
+    points, not whether the diagram is a real tree, and above all not whether the quotes it
+    cites were ever actually said. This demo asks: <strong>when the model gets one of those
+    wrong, can we fix it ourselves, or do we have to pay to ask again?</strong>
+    Everything below runs against a real transcript of a real 18-minute video.
+  </p>
+
+  <h2>Where things stand</h2>
+  <div class="card">
+    <dl class="state">
+      <dt>Model returned</dt><dd id="s-case">nothing yet</dd>
+      <dt>Verdict</dt><dd id="s-outcome"><span class="pill idle">not checked</span></dd>
+      <dt>Re-asks used</dt><dd id="s-reasks">0 of 1</dd>
+      <dt>Quotes checked</dt><dd id="s-refs">&mdash;</dd>
+    </dl>
+    <div id="s-detail"></div>
+  </div>
+
+  <h2>Try anything</h2>
+  <div class="card">
+    <div class="row" id="free"></div>
+    <div class="row" style="margin-top:12px" id="free2"></div>
+  </div>
+
+  <h2>Walkthroughs</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="card panel" id="panel"></div>
+</main>
+
+<script>
+// PROTOTYPE (ticket #15). Pure module — no DOM, no I/O. This is the part meant to survive
+// the prototype and be ported to Go in the worker.
+//
+// The request schema (note-request.schema.json) is all constrained decoding can enforce.
+// Everything the spec asks for beyond that lands here: word limits, array count ranges,
+// element caps, id shapes, order contiguity, graph structure, output language, and the
+// grounding check that a quote really does appear in the chunk it names.
+//
+// Every finding carries `repairable`. Repairable findings are fixed in process for free.
+// Anything left is a content problem only the model can fix, and costs a re-ask.
+
+const LIMITS = {
+  summaryWords: 40,
+  keyPoints: [5, 7],
+  importantDetails: [3, 8],
+  practicalActions: [0, 5],
+  visibleElements: 12,
+  totalElements: 24,
+  comparisonColumns: 4,
+  comparisonRows: 6,
+};
+
+const ID_SHAPE = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+const DEVANAGARI = /[ऀ-ॿ]/;
+
+const finding = (code, message, repairable, path) => ({
+  code,
+  message,
+  repairable,
+  path,
+});
+
+// ---------------------------------------------------------------- grounding
+
+/**
+ * Whitespace-tolerant index over a chunk, so a quote that differs from the chunk only in
+ * spacing still resolves. Returns the normalized text plus a map back to real offsets.
+ */
+function buildIndex(text) {
+  let norm = "";
+  const map = [];
+  let prevSpace = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (/\s/.test(ch)) {
+      if (prevSpace) continue;
+      norm += " ";
+      map.push(i);
+      prevSpace = true;
+    } else {
+      norm += ch;
+      map.push(i);
+      prevSpace = false;
+    }
+  }
+  return { norm, map };
+}
+
+const normalizeQuote = (q) => q.replace(/\s+/g, " ").trim();
+
+/**
+ * Turn {chunk, quote} into {chunk_id, char_start, char_end}. A quote the chunk does not
+ * contain is the one hallucination this design can prove, so it is reported, never guessed at.
+ */
+function resolveSourceRef(ref, transcript) {
+  const chunk = transcript.chunks.find(
+    (c) => handleFor(c) === ref.chunk || c.chunk_id === ref.chunk,
+  );
+  if (!chunk) {
+    return { error: finding("unknown_chunk", `no chunk ${ref.chunk}`, false) };
+  }
+  const { norm, map } = buildIndex(chunk.text);
+  const needle = normalizeQuote(ref.quote);
+  if (!needle) {
+    return { error: finding("empty_quote", "quote is empty", false) };
+  }
+  const at = norm.indexOf(needle);
+  if (at === -1) {
+    return {
+      error: finding(
+        "quote_not_found",
+        `quote not present in ${ref.chunk}: ${JSON.stringify(ref.quote.slice(0, 48))}`,
+        false,
+      ),
+    };
+  }
+  return {
+    resolved: {
+      chunk_id: chunk.chunk_id,
+      char_start: map[at],
+      char_end: map[at + needle.length - 1] + 1,
+    },
+  };
+}
+
+const handleFor = (chunk) => `c${chunk.index + 1}`;
+
+// ------------------------------------------------------------ diagram shape
+
+function diagramElements(diagram) {
+  if (!diagram) return [];
+  if (diagram.type === "timeline") return diagram.events ?? [];
+  if (diagram.type === "comparison") return [];
+  return diagram.nodes ?? [];
+}
+
+function groundedParts(diagram) {
+  // Everything that carries source_refs, paired with a readable path.
+  const out = [];
+  if (!diagram) return out;
+  if (diagram.type === "comparison") {
+    (diagram.columns ?? []).forEach((c, i) =>
+      out.push([c, `diagram.columns[${i}]`]),
+    );
+    (diagram.rows ?? []).forEach((r, i) => {
+      out.push([r, `diagram.rows[${i}]`]);
+      (r.cells ?? []).forEach((cell, j) =>
+        out.push([cell, `diagram.rows[${i}].cells[${j}]`]),
+      );
+    });
+    return out;
+  }
+  diagramElements(diagram).forEach((e, i) => out.push([e, `diagram[${i}]`]));
+  (diagram.edges ?? []).forEach((e, i) => {
+    if (e.label) out.push([e, `diagram.edges[${i}]`]);
+  });
+  return out;
+}
+
+const memberIds = (diagram) =>
+  new Set((diagram?.collapsed_groups ?? []).flatMap((g) => g.member_ids ?? []));
+
+// ----------------------------------------------------------------- validate
+
+function validateNote(note, transcript) {
+  const findings = [];
+  const add = (...args) => findings.push(finding(...args));
+
+  // --- counts and lengths the request schema cannot express
+  const words = (note.summary?.text ?? "").split(/\s+/).filter(Boolean).length;
+  if (words > LIMITS.summaryWords) {
+    add(
+      "summary_too_long",
+      `summary is ${words} words, limit ${LIMITS.summaryWords}`,
+      false,
+      "summary",
+    );
+  }
+  const ranges = [
+    ["key_points", note.key_points, LIMITS.keyPoints],
+    ["important_details", note.important_details, LIMITS.importantDetails],
+    ["practical_actions", note.practical_actions, LIMITS.practicalActions],
+  ];
+  for (const [name, arr, [lo, hi]] of ranges) {
+    const n = (arr ?? []).length;
+    // Too few is content only the model can supply. Too many in practical_actions is a
+    // safe truncation because the spec caps it; elsewhere truncation would drop a point
+    // the model judged worth making, so it is re-asked instead.
+    if (n < lo) add(`${name}_too_few`, `${n} < ${lo}`, false, name);
+    if (n > hi) {
+      add(
+        `${name}_too_many`,
+        `${n} > ${hi}`,
+        name === "practical_actions",
+        name,
+      );
+    }
+  }
+
+  // --- output language
+  const noteText = [
+    note.summary?.text ?? "",
+    ...(note.key_points ?? []).map((b) => b.text),
+    ...(note.important_details ?? []).map((b) => b.text),
+    ...(note.practical_actions ?? []).map((b) => b.text),
+    note.primary_topic ?? "",
+    ...diagramElements(note.diagram).map((e) => e.label ?? ""),
+  ].join(" ");
+  if (DEVANAGARI.test(noteText)) {
+    add(
+      "not_english",
+      "note text is not English; the transcript script leaked into the note",
+      false,
+      "note",
+    );
+  }
+
+  // --- grounding
+  const blocks = [
+    ["summary", note.summary],
+    ...(note.key_points ?? []).map((b, i) => [`key_points[${i}]`, b]),
+    ...(note.important_details ?? []).map((b, i) => [
+      `important_details[${i}]`,
+      b,
+    ]),
+    ...(note.practical_actions ?? []).map((b, i) => [
+      `practical_actions[${i}]`,
+      b,
+    ]),
+    ...groundedParts(note.diagram).map(([el, path]) => [path, el]),
+  ];
+  for (const [path, item] of blocks) {
+    if (!item) continue;
+    const refs = item.source_refs ?? [];
+    if (refs.length === 0) {
+      add("missing_source_refs", "AI content without grounding", false, path);
+      continue;
+    }
+    for (const ref of refs) {
+      const { error } = resolveSourceRef(ref, transcript);
+      if (error) findings.push({ ...error, path });
+    }
+  }
+
+  validateDiagram(note.diagram, findings);
+  return findings;
+}
+
+function validateDiagram(diagram, findings) {
+  const add = (...args) => findings.push(finding(...args));
+  if (!diagram) {
+    add("missing_diagram", "no diagram", false, "diagram");
+    return;
+  }
+
+  if (diagram.type === "comparison") {
+    const cols = diagram.columns ?? [];
+    const rows = diagram.rows ?? [];
+    if (cols.length > LIMITS.comparisonColumns) {
+      add(
+        "comparison_too_wide",
+        `${cols.length} columns > ${LIMITS.comparisonColumns}`,
+        false,
+        "diagram.columns",
+      );
+    }
+    if (rows.length > LIMITS.comparisonRows) {
+      add(
+        "comparison_too_tall",
+        `${rows.length} rows > ${LIMITS.comparisonRows}`,
+        false,
+        "diagram.rows",
+      );
+    }
+    const colIds = new Set(cols.map((c) => c.id));
+    rows.forEach((r, i) => {
+      const seen = new Set((r.cells ?? []).map((c) => c.column_id));
+      for (const cell of r.cells ?? []) {
+        if (!colIds.has(cell.column_id)) {
+          add(
+            "cell_unknown_column",
+            `cell names missing column ${cell.column_id}`,
+            false,
+            `diagram.rows[${i}]`,
+          );
+        }
+      }
+      for (const id of colIds) {
+        if (!seen.has(id)) {
+          add(
+            "row_missing_cell",
+            `row has no cell for column ${id}`,
+            false,
+            `diagram.rows[${i}]`,
+          );
+        }
+      }
+    });
+    checkOrders("columns", cols, findings);
+    checkOrders("rows", rows, findings);
+    checkIds([...cols, ...rows], findings);
+    return;
+  }
+
+  const elements = diagramElements(diagram);
+  const hidden = memberIds(diagram);
+  const visible = elements.filter((e) => !hidden.has(e.id));
+  if (elements.length > LIMITS.totalElements) {
+    add(
+      "too_many_total",
+      `${elements.length} elements > ${LIMITS.totalElements}`,
+      false,
+      "diagram",
+    );
+  } else if (visible.length > LIMITS.visibleElements) {
+    // Repairable: the spec already says overflow is grouped into collapsed branches, so
+    // the worker can do that deterministically without asking the model again.
+    add(
+      "too_many_visible",
+      `${visible.length} visible > ${LIMITS.visibleElements}`,
+      true,
+      "diagram",
+    );
+  }
+
+  // group integrity
+  const byId = new Map(elements.map((e) => [e.id, e]));
+  for (const g of diagram.collapsed_groups ?? []) {
+    if (!byId.has(g.anchor_id)) {
+      add(
+        "group_anchor_missing",
+        `anchor ${g.anchor_id} is not an element`,
+        false,
+        `group ${g.id}`,
+      );
+    }
+    if (hidden.has(g.anchor_id)) {
+      add(
+        "group_anchor_hidden",
+        `anchor ${g.anchor_id} is also a member`,
+        false,
+        `group ${g.id}`,
+      );
+    }
+    for (const m of g.member_ids ?? []) {
+      const el = byId.get(m);
+      if (!el) {
+        add(
+          "group_member_missing",
+          `member ${m} is not an element`,
+          false,
+          `group ${g.id}`,
+        );
+      } else if (el.group_id !== g.id) {
+        // Membership is the source of truth; stamping group_id from it is safe.
+        add(
+          "group_id_mismatch",
+          `${m} is in ${g.id} but group_id is ${el.group_id ?? "unset"}`,
+          true,
+          `group ${g.id}`,
+        );
+      }
+    }
+  }
+
+  checkIds([...elements, ...(diagram.edges ?? [])], findings);
+
+  if (diagram.type === "timeline") {
+    checkOrders("events", elements, findings);
+    return;
+  }
+
+  // graph: edges must resolve
+  for (const e of diagram.edges ?? []) {
+    if (!byId.has(e.from)) {
+      add(
+        "edge_endpoint_missing",
+        `edge ${e.id} from ${e.from}`,
+        false,
+        "diagram.edges",
+      );
+    }
+    if (!byId.has(e.to)) {
+      add(
+        "edge_endpoint_missing",
+        `edge ${e.id} to ${e.to}`,
+        false,
+        "diagram.edges",
+      );
+    }
+    if (e.label && (e.source_refs ?? []).length === 0) {
+      add(
+        "labelled_edge_ungrounded",
+        `edge ${e.id} has a label but no grounding`,
+        false,
+        "diagram.edges",
+      );
+    }
+  }
+
+  if (diagram.type === "process_flow") {
+    checkOrders("nodes", elements, findings);
+    return;
+  }
+
+  // mind map must be one tree rooted at the single root node
+  const roots = elements.filter((n) => n.kind === "root");
+  if (roots.length !== 1) {
+    add(
+      "mind_map_root_count",
+      `${roots.length} root nodes, expected 1`,
+      false,
+      "diagram",
+    );
+    return;
+  }
+  const incoming = new Map(elements.map((e) => [e.id, 0]));
+  for (const e of diagram.edges ?? []) {
+    if (incoming.has(e.to)) incoming.set(e.to, incoming.get(e.to) + 1);
+  }
+  for (const [id, n] of incoming) {
+    const expected = id === roots[0].id ? 0 : 1;
+    if (n !== expected) {
+      add(
+        "mind_map_not_tree",
+        `${id} has ${n} incoming edges, expected ${expected}`,
+        false,
+        "diagram",
+      );
+    }
+  }
+  const seen = new Set([roots[0].id]);
+  const queue = [roots[0].id];
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const e of diagram.edges ?? []) {
+      if (e.from === cur && !seen.has(e.to)) {
+        seen.add(e.to);
+        queue.push(e.to);
+      }
+    }
+  }
+  if (seen.size !== elements.length) {
+    add(
+      "mind_map_unreachable",
+      `${elements.length - seen.size} node(s) unreachable from root`,
+      false,
+      "diagram",
+    );
+  }
+}
+
+function checkIds(items, findings) {
+  const seen = new Set();
+  for (const item of items) {
+    if (!ID_SHAPE.test(item.id ?? "")) {
+      findings.push(
+        finding(
+          "bad_element_id",
+          `id ${JSON.stringify(item.id)} is not a valid id`,
+          true,
+          item.id,
+        ),
+      );
+    }
+    if (seen.has(item.id)) {
+      findings.push(
+        finding("duplicate_element_id", `id ${item.id} repeats`, true, item.id),
+      );
+    }
+    seen.add(item.id);
+  }
+}
+
+function checkOrders(label, items, findings) {
+  const orders = items.map((i) => i.order);
+  const expected = items.map((_, i) => i);
+  const sorted = [...orders].sort((a, b) => a - b);
+  if (JSON.stringify(sorted) !== JSON.stringify(expected)) {
+    findings.push(
+      finding(
+        "order_not_contiguous",
+        `${label} order is ${JSON.stringify(orders)}, expected a permutation of 0..${items.length - 1}`,
+        true,
+        `diagram.${label}`,
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------ repairs
+
+/** Deterministic, content-preserving fixes. Returns a new note plus what was done. */
+function repairNote(input, findings) {
+  const note = structuredClone(input);
+  const applied = [];
+  const codes = new Set(
+    findings.filter((f) => f.repairable).map((f) => f.code),
+  );
+
+  if (codes.has("practical_actions_too_many")) {
+    const dropped = note.practical_actions.length - LIMITS.practicalActions[1];
+    note.practical_actions = note.practical_actions.slice(
+      0,
+      LIMITS.practicalActions[1],
+    );
+    applied.push(`dropped ${dropped} practical action(s) beyond the cap of 5`);
+  }
+
+  if (codes.has("bad_element_id") || codes.has("duplicate_element_id")) {
+    applied.push(...renameIds(note.diagram));
+  }
+
+  if (codes.has("order_not_contiguous")) {
+    applied.push(...renumber(note.diagram));
+  }
+
+  if (codes.has("group_id_mismatch")) {
+    for (const g of note.diagram.collapsed_groups ?? []) {
+      for (const m of g.member_ids ?? []) {
+        const el = diagramElements(note.diagram).find((e) => e.id === m);
+        if (el) el.group_id = g.id;
+      }
+    }
+    applied.push("stamped group_id from collapsed-group membership");
+  }
+
+  if (codes.has("too_many_visible")) {
+    applied.push(...autoCollapse(note.diagram));
+  }
+
+  return { note, applied };
+}
+
+function renameIds(diagram) {
+  const applied = [];
+  const elements = diagramElements(diagram);
+  const all = [
+    ...elements,
+    ...(diagram.edges ?? []),
+    ...(diagram.columns ?? []),
+    ...(diagram.rows ?? []),
+  ];
+  const taken = new Set();
+  const rewrite = new Map();
+  all.forEach((item, i) => {
+    let id = item.id ?? "";
+    if (!ID_SHAPE.test(id) || taken.has(id)) {
+      const base = (id || "e").replace(/[^A-Za-z0-9_-]/g, "") || "e";
+      let next = /^[A-Za-z]/.test(base) ? base : `e${base}`;
+      while (taken.has(next)) next = `${next}_${i}`;
+      rewrite.set(id, next);
+      applied.push(`renamed id ${JSON.stringify(id)} to ${next}`);
+      item.id = next;
+      id = next;
+    }
+    taken.add(id);
+  });
+  if (rewrite.size) {
+    for (const e of diagram.edges ?? []) {
+      if (rewrite.has(e.from)) e.from = rewrite.get(e.from);
+      if (rewrite.has(e.to)) e.to = rewrite.get(e.to);
+    }
+    for (const g of diagram.collapsed_groups ?? []) {
+      if (rewrite.has(g.anchor_id)) g.anchor_id = rewrite.get(g.anchor_id);
+      g.member_ids = (g.member_ids ?? []).map((m) => rewrite.get(m) ?? m);
+    }
+    for (const r of diagram.rows ?? []) {
+      for (const c of r.cells ?? []) {
+        if (rewrite.has(c.column_id)) c.column_id = rewrite.get(c.column_id);
+      }
+    }
+  }
+  return applied;
+}
+
+function renumber(diagram) {
+  const groups =
+    diagram.type === "comparison"
+      ? [
+          ["columns", diagram.columns ?? []],
+          ["rows", diagram.rows ?? []],
+        ]
+      : [
+          [
+            diagram.type === "timeline" ? "events" : "nodes",
+            diagramElements(diagram),
+          ],
+        ];
+  const applied = [];
+  for (const [label, items] of groups) {
+    const before = items.map((i) => i.order);
+    [...items]
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach((item, i) => {
+        item.order = i;
+      });
+    const after = items.map((i) => i.order);
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      applied.push(
+        `renumbered ${label} order to 0..${items.length - 1}, sequence preserved`,
+      );
+    }
+  }
+  return applied;
+}
+
+/** Spec 7.2: overflow is grouped into collapsed branches. Keep the first 12, hide the rest. */
+function autoCollapse(diagram) {
+  const elements = diagramElements(diagram);
+  const hidden = memberIds(diagram);
+  const visible = elements.filter((e) => !hidden.has(e.id));
+  const overflow = visible.slice(LIMITS.visibleElements - 1);
+  const anchor = visible[LIMITS.visibleElements - 2];
+  if (!anchor || overflow.length === 0) return [];
+  const id = `grp_overflow`;
+  for (const el of overflow) el.group_id = id;
+  diagram.collapsed_groups = [
+    ...(diagram.collapsed_groups ?? []),
+    { id, anchor_id: anchor.id, member_ids: overflow.map((e) => e.id) },
+  ];
+  return [
+    `collapsed ${overflow.length} overflow element(s) behind ${anchor.id}`,
+  ];
+}
+
+// ------------------------------------------------------- the attempt machine
+
+const OUTCOME = {
+  READY: "ready",
+  REASK: "re-ask",
+  FAILED: "failed",
+};
+
+/**
+ * One pass of spec 8.3 steps 3-4. `maxReasks` is the in-process budget and is deliberately
+ * NOT the River attempt ladder: a schema-invalid response is a permanent validation failure
+ * under spec 8.4, so re-asking here must not consume the 30s/2min/10min transient budget.
+ */
+function runValidationCycle(
+  note,
+  transcript,
+  { reasksUsed = 0, maxReasks = 1 } = {},
+) {
+  const first = validateNote(note, transcript);
+  const steps = [{ stage: "validate", findings: first }];
+  if (first.length === 0) {
+    return { outcome: OUTCOME.READY, note, steps, reasksUsed };
+  }
+
+  const { note: repaired, applied } = repairNote(note, first);
+  if (applied.length) steps.push({ stage: "repair", applied });
+
+  const second = applied.length ? validateNote(repaired, transcript) : first;
+  if (applied.length) steps.push({ stage: "revalidate", findings: second });
+
+  if (second.length === 0) {
+    return { outcome: OUTCOME.READY, note: repaired, steps, reasksUsed };
+  }
+  if (reasksUsed < maxReasks) {
+    return {
+      outcome: OUTCOME.REASK,
+      note: repaired,
+      steps,
+      reasksUsed: reasksUsed + 1,
+      // Fed back to the model verbatim; the cached prefix means a re-ask is mostly cache reads.
+      feedback: second.map((f) => `${f.path}: ${f.message}`),
+    };
+  }
+  return {
+    outcome: OUTCOME.FAILED,
+    note: repaired,
+    steps,
+    reasksUsed,
+    findings: second,
+  };
+}
+
+// --------------------------------------------------- request-to-storage map
+
+/** Proves the request schema maps onto the normative diagram.schema.json shape. */
+function toStoredPayload(note, transcript) {
+  const stamp = (item) => {
+    const refs = (item.source_refs ?? [])
+      .map((r) => resolveSourceRef(r, transcript).resolved)
+      .filter(Boolean);
+    return {
+      provenance: "ai",
+      speaker_claim: item.speaker_claim === true,
+      source_refs: refs,
+    };
+  };
+  const d = note.diagram;
+  const hidden = memberIds(d);
+  const groups = (d.collapsed_groups ?? []).map((g) => ({
+    ...g,
+    initially_collapsed: true,
+  }));
+
+  let diagram;
+  if (d.type === "comparison") {
+    diagram = {
+      schema_version: 1,
+      type: "comparison",
+      columns: d.columns.map((c) => ({
+        id: c.id,
+        label: c.label,
+        order: c.order,
+        ...stamp(c),
+      })),
+      rows: d.rows.map((r) => ({
+        id: r.id,
+        label: r.label,
+        order: r.order,
+        ...stamp(r),
+        cells: Object.fromEntries(
+          (r.cells ?? []).map((c) => [
+            c.column_id,
+            { text: c.text, ...stamp(c) },
+          ]),
+        ),
+      })),
+    };
+  } else if (d.type === "timeline") {
+    diagram = {
+      schema_version: 1,
+      type: "timeline",
+      events: d.events.map((e) => ({
+        id: e.id,
+        label: e.label,
+        order: e.order,
+        ...(e.group_id ? { group_id: e.group_id } : {}),
+        initially_visible: !hidden.has(e.id),
+        ...stamp(e),
+      })),
+      collapsed_groups: groups,
+      layout: { orientation: d.orientation ?? "vertical" },
+    };
+  } else {
+    diagram = {
+      schema_version: 1,
+      type: d.type,
+      nodes: d.nodes.map((n) => ({
+        id: n.id,
+        label: n.label,
+        ...(d.type === "mind_map" ? { kind: n.kind } : { order: n.order }),
+        ...(n.group_id ? { group_id: n.group_id } : {}),
+        initially_visible: !hidden.has(n.id),
+        ...stamp(n),
+      })),
+      edges: d.edges.map((e) => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        ...(e.label ? { label: e.label, ...stamp(e) } : {}),
+        ...(e.order !== undefined ? { order: e.order } : {}),
+      })),
+      collapsed_groups: groups,
+      // Positions stay empty until the client runs its first automatic layout.
+      layout: {
+        engine: d.type === "mind_map" ? "radial" : "dagre",
+        positions: {},
+      },
+    };
+  }
+
+  const block = (b) => ({ id: b.id, text: b.text, ...stamp(b) });
+  return {
+    schema_version: 1,
+    detected_language: note.detected_language,
+    primary_topic: note.primary_topic,
+    tags: note.tags ?? [],
+    summary: block(note.summary),
+    key_points: (note.key_points ?? []).map(block),
+    important_details: (note.important_details ?? []).map(block),
+    practical_actions: (note.practical_actions ?? []).map(block),
+    diagram,
+  };
+}
+
+{ LIMITS };
+
+
+const TRANSCRIPT = {"video_id":"aircAruvnKk","language":"en","source":"captions","eligibility":{"words":3357,"repeated_line_ratio":0,"cues":286},"chunks":[{"chunk_id":"a3c250c0-47ea-535e-8c29-ed9f3487a082","index":0,"starts_at":"00:00:04.220","char_count":1238,"text":"This is a 3. It's sloppily written and rendered at an extremely low resolution of 28x28 pixels, but your brain has no trouble recognizing it as a 3. And I want you to take a moment to appreciate how crazy it is that brains can do this so effortlessly. I mean, this, this and this are also recognizable as 3s, even though the specific values of each pixel is very different from one image to the next. The particular light-sensitive cells in your eye that are firing when you see this 3 are very different from the ones firing when you see this 3. But something in that crazy-smart visual cortex of yours resolves these as representing the same idea, while at the same time recognizing other images as their own distinct ideas. But if I told you, hey, sit down and write for me a program that takes in a grid of 28x28 pixels like this and outputs a single number between 0 and 10, telling you what it thinks the digit is, well the task goes from comically trivial to dauntingly difficult. Unless you've been living under a rock, I think I hardly need to motivate the relevance and importance of machine learning and neural networks to the present and to the future. But what I want to do here is show you what a neural network actually is,"},{"chunk_id":"0ab4a7ae-2858-509d-93f7-b25aebd73a63","index":1,"starts_at":"00:01:18.950","char_count":1270,"text":"assuming no background, and to help visualize what it's doing, not as a buzzword but as a piece of math. My hope is that you come away feeling like the structure itself is motivated, and to feel like you know what it means when you read, or you hear about a neural network quote-unquote learning. This video is just going to be devoted to the structure component of that, and the following one is going to tackle learning. What we're going to do is put together a neural network that can learn to recognize handwritten digits. This is a somewhat classic example for introducing the topic, and I'm happy to stick with the status quo here, because at the end of the two videos I want to point you to a couple good resources where you can learn more, and where you can download the code that does this and play with it on your own computer. There are many many variants of neural networks, and in recent years there's been sort of a boom in research towards these variants, but in these two introductory videos you and I are just going to look at the simplest plain vanilla form with no added frills. This is kind of a necessary prerequisite for understanding any of the more powerful modern variants, and trust me it still has plenty of complexity for us to wrap our minds"},{"chunk_id":"ea2d9379-f63b-5ad9-8481-7fbcc2a2d054","index":2,"starts_at":"00:02:28.212","char_count":1270,"text":"around. But even in this simplest form it can learn to recognize handwritten digits, which is a pretty cool thing for a computer to be able to do. And at the same time you'll see how it does fall short of a couple hopes that we might have for it. As the name suggests neural networks are inspired by the brain, but let's break that down. What are the neurons, and in what sense are they linked together? Right now when I say neuron all I want you to think about is a thing that holds a number, specifically a number between 0 and 1. It's really not more than that. For example the network starts with a bunch of neurons corresponding to each of the 28x28 pixels of the input image, which is 784 neurons in total. Each one of these holds a number that represents the grayscale value of the corresponding pixel, ranging from 0 for black pixels up to 1 for white pixels. This number inside the neuron is called its activation, and the image you might have in mind here is that each neuron is lit up when its activation is a high number. So all of these 784 neurons make up the first layer of our network. Now jumping over to the last layer, this has 10 neurons, each representing one of the digits. The activation in these neurons, again some number that's between 0 and 1,"},{"chunk_id":"b05adfd8-16d2-56df-b0e3-783b66c4b467","index":3,"starts_at":"00:03:56.616","char_count":1271,"text":"represents how much the system thinks that a given image corresponds with a given digit. There's also a couple layers in between called the hidden layers, which for the time being should just be a giant question mark for how on earth this process of recognizing digits is going to be handled. In this network I chose two hidden layers, each one with 16 neurons, and admittedly that's kind of an arbitrary choice. To be honest I chose two layers based on how I want to motivate the structure in just a moment, and 16, well that was just a nice number to fit on the screen. In practice there is a lot of room for experiment with a specific structure here. The way the network operates, activations in one layer determine the activations of the next layer. And of course the heart of the network as an information processing mechanism comes down to exactly how those activations from one layer bring about activations in the next layer. It's meant to be loosely analogous to how in biological networks of neurons, some groups of neurons firing cause certain others to fire. Now the network I'm showing here has already been trained to recognize digits, and let me show you what I mean by that. It means if you feed in an image, lighting up all 784 neurons of the input layer"},{"chunk_id":"e909fb8f-b192-575c-b0f3-a38bef4a3b25","index":4,"starts_at":"00:05:08.294","char_count":1210,"text":"according to the brightness of each pixel in the image, that pattern of activations causes some very specific pattern in the next layer which causes some pattern in the one after it, which finally gives some pattern in the output layer. And the brightest neuron of that output layer is the network's choice, so to speak, for what digit this image represents. And before jumping into the math for how one layer influences the next, or how training works, let's just talk about why it's even reasonable to expect a layered structure like this to behave intelligently. What are we expecting here? What is the best hope for what those middle layers might be doing? Well, when you or I recognize digits, we piece together various components. A 9 has a loop up top and a line on the right. An 8 also has a loop up top, but it's paired with another loop down low. A 4 basically breaks down into three specific lines, and things like that. Now in a perfect world, we might hope that each neuron in the second to last layer corresponds with one of these subcomponents, that anytime you feed in an image with, say, a loop up top, like a 9 or an 8, there's some specific neuron whose activation is going to be close to 1."},{"chunk_id":"56d5d2da-424d-53d0-b912-42f4db0bb18e","index":5,"starts_at":"00:06:24.500","char_count":1209,"text":"And I don't mean this specific loop of pixels, the hope would be that any generally loopy pattern towards the top sets off this neuron. That way, going from the third layer to the last one just requires learning which combination of subcomponents corresponds to which digits. Of course, that just kicks the problem down the road, because how would you recognize these subcomponents, or even learn what the right subcomponents should be? And I still haven't even talked about how one layer influences the next, but run with me on this one for a moment. Recognizing a loop can also break down into subproblems. One reasonable way to do this would be to first recognize the various little edges that make it up. Similarly, a long line, like the kind you might see in the digits 1 or 4 or 7, is really just a long edge, or maybe you think of it as a certain pattern of several smaller edges. So maybe our hope is that each neuron in the second layer of the network corresponds with the various relevant little edges. Maybe when an image like this one comes in, it lights up all of the neurons associated with around 8 to 10 specific little edges, which in turn lights up the neurons associated with the upper loop"},{"chunk_id":"5b755859-f636-5b58-ad9e-79b74eb3a9d7","index":6,"starts_at":"00:07:35.156","char_count":1251,"text":"and a long vertical line, and those light up the neuron associated with a 9. Whether or not this is what our final network actually does is another question, one that I'll come back to once we see how to train the network, but this is a hope that we might have, a sort of goal with the layered structure like this. Moreover, you can imagine how being able to detect edges and patterns like this would be really useful for other image recognition tasks. And even beyond image recognition, there are all sorts of intelligent things you might want to do that break down into layers of abstraction. Parsing speech, for example, involves taking raw audio and picking out distinct sounds, which combine to make certain syllables, which combine to form words, which combine to make up phrases and more abstract thoughts, etc. But getting back to how any of this actually works, picture yourself right now designing how exactly the activations in one layer might determine the activations in the next. The goal is to have some mechanism that could conceivably combine pixels into edges, or edges into patterns, or patterns into digits. And to zoom in on one very specific example, let's say the hope is for one particular neuron in the second layer to pick up"},{"chunk_id":"d525f757-6558-5d8d-9708-3d9282b61b2e","index":7,"starts_at":"00:08:46.914","char_count":1264,"text":"on whether or not the image has an edge in this region here. The question at hand is what parameters should the network have? What dials and knobs should you be able to tweak so that it's expressive enough to potentially capture this pattern, or any other pixel pattern, or the pattern that several edges can make a loop, and other such things? Well, what we'll do is assign a weight to each one of the connections between our neuron and the neurons from the first layer. These weights are just numbers. Then take all of those activations from the first layer and compute their weighted sum according to these weights. I find it helpful to think of these weights as being organized into a little grid of their own, and I'm going to use green pixels to indicate positive weights, and red pixels to indicate negative weights, where the brightness of that pixel is some loose depiction of the weight's value. Now if we made the weights associated with almost all of the pixels zero except for some positive weights in this region that we care about, then taking the weighted sum of all the pixel values really just amounts to adding up the values of the pixel just in the region that we care about. And if you really wanted to pick up on whether there's an edge here,"},{"chunk_id":"c89a70e8-67f0-52c8-95df-42b2390d6d1c","index":8,"starts_at":"00:10:02.392","char_count":1208,"text":"what you might do is have some negative weights associated with the surrounding pixels. Then the sum is largest when those middle pixels are bright but the surrounding pixels are darker. When you compute a weighted sum like this, you might come out with any number, but for this network what we want is for activations to be some value between 0 and 1. So a common thing to do is to pump this weighted sum into some function that squishes the real number line into the range between 0 and 1. And a common function that does this is called the sigmoid function, also known as a logistic curve. Basically very negative inputs end up close to 0, positive inputs end up close to 1, and it just steadily increases around the input 0. So the activation of the neuron here is basically a measure of how positive the relevant weighted sum is. But maybe it's not that you want the neuron to light up when the weighted sum is bigger than 0. Maybe you only want it to be active when the sum is bigger than say 10. That is, you want some bias for it to be inactive. What we'll do then is just add in some other number like negative 10 to this weighted sum before plugging it through the sigmoid squishification function."},{"chunk_id":"7bc7797c-8f87-586b-9465-4634ccd22220","index":9,"starts_at":"00:11:20.580","char_count":1202,"text":"That additional number is called the bias. So the weights tell you what pixel pattern this neuron in the second layer is picking up on, and the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active. And that is just one neuron. Every other neuron in this layer is going to be connected to all 784 pixel neurons from the first layer, and each one of those 784 connections has its own weight associated with it. Also, each one has some bias, some other number that you add on to the weighted sum before squishing it with the sigmoid. And that's a lot to think about! With this hidden layer of 16 neurons, that's a total of 784 times 16 weights, along with 16 biases. And all of that is just the connections from the first layer to the second. The connections between the other layers also have a bunch of weights and biases associated with them. All said and done, this network has almost exactly 13,000 total weights and biases. 13,000 knobs and dials that can be tweaked and turned to make this network behave in different ways. So when we talk about learning, what that's referring to is getting the computer to find a valid setting for all of these"},{"chunk_id":"7698de75-b67c-58da-a480-ea7217091285","index":10,"starts_at":"00:12:37.647","char_count":1240,"text":"many many numbers so that it'll actually solve the problem at hand. One thought experiment that is at once fun and kind of horrifying is to imagine sitting down and setting all of these weights and biases by hand, purposefully tweaking the numbers so that the second layer picks up on edges, the third layer picks up on patterns, etc. I personally find this satisfying rather than just treating the network as a total black box, because when the network doesn't perform the way you anticipate, if you've built up a little bit of a relationship with what those weights and biases actually mean, you have a starting place for experimenting with how to change the structure to improve. Or when the network does work but not for the reasons you might expect, digging into what the weights and biases are doing is a good way to challenge your assumptions and really expose the full space of possible solutions. By the way, the actual function here is a little cumbersome to write down, don't you think? So let me show you a more notationally compact way that these connections are represented. This is how you'd see it if you choose to read up more about neural networks. Organize all of the activations from one layer into a column as a vector."},{"chunk_id":"68d4d73a-3872-58c1-be19-652391e37df5","index":11,"starts_at":"00:13:48.357","char_count":1200,"text":"Then organize all of the weights as a matrix, where each row of that matrix corresponds to the connections between one layer and a particular neuron in the next layer. What that means is that taking the weighted sum of the activations in the first layer according to these weights corresponds to one of the terms in the matrix vector product of everything we have on the left here. By the way, so much of machine learning just comes down to having a good grasp of linear algebra, so for any of you who want a nice visual understanding for matrices and what matrix vector multiplication means, take a look at the series I did on linear algebra, especially chapter 3. Back to our expression, instead of talking about adding the bias to each one of these values independently, we represent it by organizing all those biases into a vector, and adding the entire vector to the previous matrix vector product. Then as a final step, I'll wrap a sigmoid around the outside here, and what that's supposed to represent is that you're going to apply the sigmoid function to each specific component of the resulting vector inside. So once you write down this weight matrix and these vectors as their own symbols,"},{"chunk_id":"cae64f36-2d22-547a-8299-83d8cbf8a8a4","index":12,"starts_at":"00:15:00.478","char_count":1207,"text":"you can communicate the full transition of activations from one layer to the next in an extremely tight and neat little expression, and this makes the relevant code both a lot simpler and a lot faster, since many libraries optimize the heck out of matrix multiplication. Remember how earlier I said these neurons are simply things that hold numbers? Well of course the specific numbers that they hold depends on the image you feed in, so it's actually more accurate to think of each neuron as a function, one that takes in the outputs of all the neurons in the previous layer and spits out a number between 0 and 1. Really the entire network is just a function, one that takes in 784 numbers as an input and spits out 10 numbers as an output. It's an absurdly complicated function, one that involves 13,000 parameters in the forms of these weights and biases that pick up on certain patterns, and which involves iterating many matrix vector products and the sigmoid squishification function, but it's just a function nonetheless. And in a way it's kind of reassuring that it looks complicated. I mean if it were any simpler, what hope would we have that it could take on the challenge of recognizing digits?"},{"chunk_id":"0c97a378-73f2-58ad-9623-443c2f1ddec1","index":13,"starts_at":"00:16:13.340","char_count":1278,"text":"And how does it take on that challenge? How does this network learn the appropriate weights and biases just by looking at data? Well that's what I'll show in the next video, and I'll also dig a little more into what this particular network we're seeing is really doing. Now is the point I suppose I should say subscribe to stay notified about when that video or any new videos come out, but realistically most of you don't actually receive notifications from YouTube, do you? Maybe more honestly I should say subscribe so that the neural networks that underlie YouTube's recommendation algorithm are primed to believe that you want to see content from this channel get recommended to you. Anyway, stay posted for more. Thank you very much to everyone supporting these videos on Patreon. I've been a little slow to progress in the probability series this summer, but I'm jumping back into it after this project, so patrons you can look out for updates there. To close things off here I have with me Lisha Li who did her PhD work on the theoretical side of deep learning and who currently works at a venture capital firm called Amplify Partners who kindly provided some of the funding for this video. So Lisha one thing I think we should quickly bring up is this sigmoid function."},{"chunk_id":"b9ac4757-e36b-5df1-a5c2-255d78dc483b","index":14,"starts_at":"00:17:19.700","char_count":1098,"text":"As I understand it early networks use this to squish the relevant weighted sum into that interval between zero and one, you know kind of motivated by this biological analogy of neurons either being inactive or active. Exactly. But relatively few modern networks actually use sigmoid anymore. Yeah. It's kind of old school right? Yeah or rather ReLU seems to be much easier to train. And ReLU, ReLU stands for rectified linear unit? Yes it's this kind of function where you're just taking a max of zero and a where a is given by what you were explaining in the video and what this was sort of motivated from I think was a partially by a biological analogy with how neurons would either be activated or not. And so if it passes a certain threshold it would be the identity function but if it did not then it would just not be activated so it'd be zero so it's kind of a simplification. Using sigmoids didn't help training or it was very difficult to train at some point and people just tried ReLU and it happened to work very well for these incredibly deep neural networks. All right thank you Lisha."}]};
+const CASES = {"happy":{"label":"a clean note","blurb":"Everything the model returned is within limits and every quote is real.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"activations in one layer determine the activations of the next layer"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]},{"id":"kp5","text":"The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"},{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"kp6","text":"Learning means getting the computer to find a valid setting for all of those weights and biases.","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"n_edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"},{"id":"e11","from":"n_root","to":"n_edges"}],"collapsed_groups":[]}}},"repairable":{"label":"small mechanical mistakes","blurb":"Six practical actions instead of five, an element id starting with a digit, and a collapsed group whose member was never tagged. None of this needs the model.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"activations in one layer determine the activations of the next layer"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]},{"id":"kp5","text":"The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"},{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"kp6","text":"Learning means getting the computer to find a valid setting for all of those weights and biases.","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]},{"id":"pa2","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]},{"id":"pa3","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]},{"id":"pa4","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]},{"id":"pa5","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]},{"id":"pa6","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"9edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"},{"id":"e11","from":"n_root","to":"9edges"}],"collapsed_groups":[{"id":"grp_params","anchor_id":"n_params","member_ids":["n_learning"]}]}}},"hallucinated":{"label":"a made-up quote","blurb":"The model wrote a plausible sentence and cited it as if the speaker said it. He did not.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"each layer doubles the accuracy of the one before it"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]},{"id":"kp5","text":"The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"},{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"kp6","text":"Learning means getting the computer to find a valid setting for all of those weights and biases.","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"n_edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"},{"id":"e11","from":"n_root","to":"n_edges"}],"collapsed_groups":[]}}},"notEnglish":{"label":"the wrong language","blurb":"The note itself came back in the transcript's language instead of English.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"यह वीडियो बताता है कि न्यूरल नेटवर्क हस्तलिखित अंकों को कैसे पहचानता है।","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"activations in one layer determine the activations of the next layer"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]},{"id":"kp5","text":"The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"},{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"kp6","text":"Learning means getting the computer to find a valid setting for all of those weights and biases.","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"n_edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"},{"id":"e11","from":"n_root","to":"n_edges"}],"collapsed_groups":[]}}},"brokenTree":{"label":"a broken mind map","blurb":"One branch was left dangling, so the mind map is no longer a single tree from the root.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"activations in one layer determine the activations of the next layer"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]},{"id":"kp5","text":"The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"},{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"kp6","text":"Learning means getting the computer to find a valid setting for all of those weights and biases.","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"n_edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"}],"collapsed_groups":[]}}},"tooFewPoints":{"label":"not enough key points","blurb":"Four key points came back where the note needs five to seven.","note":{"detected_language":"en","primary_topic":"Neural networks","tags":["deep learning","machine learning","digit recognition","linear algebra"],"summary":{"id":"sum1","text":"A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"},{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},"key_points":[{"id":"kp1","text":"A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"a thing that holds a number, specifically a number between 0 and 1"},{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"kp2","text":"The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"},{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"kp3","text":"Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"activations in one layer determine the activations of the next layer"}]},{"id":"kp4","text":"Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"},{"chunk":"c10","quote":"the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"}]}],"important_details":[{"id":"d1","text":"The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.","speaker_claim":true,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"},{"chunk":"c4","quote":"that's kind of an arbitrary choice"}]},{"id":"d2","text":"Pixel grayscale values run from 0 for black up to 1 for white.","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"ranging from 0 for black pixels up to 1 for white pixels"}]},{"id":"d3","text":"Weight grids are drawn with green pixels for positive weights and red for negative ones.","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"green pixels to indicate positive weights, and red pixels to indicate negative weights"}]},{"id":"d4","text":"The network's answer is whichever neuron in the output layer is brightest.","speaker_claim":false,"source_refs":[{"chunk":"c5","quote":"the brightest neuron of that output layer is the network's choice"}]},{"id":"d5","text":"Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"organize all of the weights as a matrix"},{"chunk":"c12","quote":"adding the entire vector to the previous matrix vector product"}]}],"practical_actions":[{"id":"pa1","text":"Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.","speaker_claim":false,"source_refs":[{"chunk":"c12","quote":"take a look at the series I did on linear algebra, especially chapter 3"}]}],"diagram":{"type":"mind_map","nodes":[{"id":"n_root","label":"Neural network for digit recognition","kind":"root","speaker_claim":false,"source_refs":[{"chunk":"c2","quote":"put together a neural network that can learn to recognize handwritten digits"}]},{"id":"n_input","label":"Input layer: 784 pixel neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"784 neurons in total"}]},{"id":"n_hidden","label":"Two hidden layers of 16 neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c4","quote":"two hidden layers, each one with 16 neurons"}]},{"id":"n_output","label":"Output layer: 10 digit neurons","kind":"layer","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"this has 10 neurons, each representing one of the digits"}]},{"id":"n_activation","label":"Activation: a number from 0 to 1","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c3","quote":"This number inside the neuron is called its activation"}]},{"id":"n_sigmoid","label":"Sigmoid squishes the weighted sum","kind":"mechanism","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"the sigmoid function, also known as a logistic curve"}]},{"id":"n_relu","label":"ReLU has largely replaced sigmoid","kind":"mechanism","speaker_claim":true,"source_refs":[{"chunk":"c15","quote":"relatively few modern networks actually use sigmoid anymore"},{"chunk":"c15","quote":"ReLU seems to be much easier to train"}]},{"id":"n_weights","label":"Weights on every connection","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c8","quote":"assign a weight to each one of the connections"}]},{"id":"n_bias","label":"Bias sets the activation threshold","kind":"parameter","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"That additional number is called the bias."}]},{"id":"n_params","label":"About 13,000 weights and biases","kind":"quantity","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"this network has almost exactly 13,000 total weights and biases"}]},{"id":"n_learning","label":"Learning finds a valid setting","kind":"concept","speaker_claim":false,"source_refs":[{"chunk":"c10","quote":"when we talk about learning, what that's referring to is getting the computer to find a valid setting"}]},{"id":"n_edges","label":"Hope: hidden layers detect edges then patterns","kind":"hypothesis","speaker_claim":true,"source_refs":[{"chunk":"c6","quote":"each neuron in the second layer of the network corresponds with the various relevant little edges"}]}],"edges":[{"id":"e1","from":"n_root","to":"n_input"},{"id":"e2","from":"n_root","to":"n_hidden"},{"id":"e3","from":"n_root","to":"n_output"},{"id":"e4","from":"n_root","to":"n_activation"},{"id":"e5","from":"n_activation","to":"n_sigmoid","label":"produced by squishing","speaker_claim":false,"source_refs":[{"chunk":"c9","quote":"pump this weighted sum into some function that squishes the real number line"}]},{"id":"e6","from":"n_sigmoid","to":"n_relu"},{"id":"e7","from":"n_root","to":"n_weights"},{"id":"e8","from":"n_weights","to":"n_bias"},{"id":"e9","from":"n_root","to":"n_params"},{"id":"e10","from":"n_params","to":"n_learning"},{"id":"e11","from":"n_root","to":"n_edges"}],"collapsed_groups":[]}}}};
+
+// ---- page state (throwaway shell; the logic above is the part worth keeping)
+let S = { caseKey: null, note: null, result: null, reasksUsed: 0 };
+
+function reset() { S = { caseKey: null, note: null, result: null, reasksUsed: 0 }; render(); }
+
+function receive(key) {
+  S.caseKey = key;
+  S.note = structuredClone(CASES[key].note);
+  S.result = null;
+  render();
+}
+
+function check() {
+  if (!S.note) return;
+  S.result = runValidationCycle(S.note, TRANSCRIPT, { reasksUsed: S.reasksUsed, maxReasks: 1 });
+  S.reasksUsed = S.result.reasksUsed;
+  if (S.result.outcome === "ready") S.note = S.result.note;
+  render();
+}
+
+function reask(key) {
+  S.caseKey = key;
+  S.note = structuredClone(CASES[key].note);
+  S.result = null;
+  render();
+}
+
+function countRefs(note) {
+  let n = 0;
+  const walk = (o) => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (o && typeof o === "object") {
+      if (Array.isArray(o.source_refs)) n += o.source_refs.length;
+      Object.values(o).forEach(walk);
+    }
+  };
+  walk(note);
+  return n;
+}
+
+function render() {
+  const c = S.caseKey ? CASES[S.caseKey] : null;
+  document.getElementById("s-case").textContent = c ? c.label : "nothing yet";
+
+  const out = document.getElementById("s-outcome");
+  if (!S.result) {
+    out.innerHTML = '<span class="pill idle">not checked</span>';
+  } else if (S.result.outcome === "ready") {
+    out.innerHTML = '<span class="pill ready">ready to save</span>';
+  } else if (S.result.outcome === "re-ask") {
+    out.innerHTML = '<span class="pill reask">must ask the model again</span>';
+  } else {
+    out.innerHTML = '<span class="pill failed">generation failed</span>';
+  }
+
+  document.getElementById("s-reasks").textContent = S.reasksUsed + " of 1";
+  document.getElementById("s-refs").textContent = S.note
+    ? countRefs(S.note) + " quotes in this note"
+    : "\u2014";
+
+  const detail = document.getElementById("s-detail");
+  detail.innerHTML = "";
+  if (c && !S.result) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = c.blurb;
+    detail.appendChild(p);
+  }
+  if (S.result) {
+    const repairs = S.result.steps.flatMap((s) => s.applied ?? []);
+    const last = [...S.result.steps].reverse().find((s) => s.findings);
+    const findings = S.result.outcome === "ready" ? [] : (last?.findings ?? []);
+    if (repairs.length) {
+      detail.innerHTML += '<h2 style="margin-top:22px">Fixed without asking</h2>';
+      const ul = document.createElement("ul");
+      ul.className = "findings";
+      for (const r of repairs) {
+        ul.innerHTML += '<li><span class="tag fix">fixed</span>' + r + "</li>";
+      }
+      detail.appendChild(ul);
+    }
+    if (findings.length) {
+      detail.innerHTML += '<h2 style="margin-top:22px">Only the model can fix these</h2>';
+      const ul = document.createElement("ul");
+      ul.className = "findings";
+      for (const f of findings) {
+        ul.innerHTML +=
+          '<li><span class="tag ask">re-ask</span>' + f.message +
+          ' <span class="where">(' + f.path + ")</span></li>";
+      }
+      detail.appendChild(ul);
+    }
+    if (S.result.outcome === "ready" && !repairs.length) {
+      detail.innerHTML += '<p class="note">Nothing to fix. Every quote was found in the chunk it named.</p>';
+    }
+    if (S.result.outcome === "failed") {
+      detail.innerHTML +=
+        '<p class="note">The re-ask budget is spent. Under spec 8.4 this is a <em>validation</em> ' +
+        "failure, which is permanent: the stage fails now rather than waiting out the " +
+        "30 second, 2 minute and 10 minute retry ladder, which exists for network trouble.</p>";
+    }
+  }
+
+  // free play
+  const free = document.getElementById("free");
+  free.innerHTML = "";
+  for (const [k, v] of Object.entries(CASES)) {
+    const b = document.createElement("button");
+    b.textContent = "Model returns " + v.label;
+    b.onclick = () => receive(k);
+    free.appendChild(b);
+  }
+  const free2 = document.getElementById("free2");
+  free2.innerHTML = "";
+  const checkBtn = document.createElement("button");
+  checkBtn.className = "primary";
+  checkBtn.textContent = "Run the checks";
+  checkBtn.disabled = !S.note;
+  checkBtn.onclick = check;
+  free2.appendChild(checkBtn);
+  const resetBtn = document.createElement("button");
+  resetBtn.textContent = "Start over";
+  resetBtn.onclick = reset;
+  free2.appendChild(resetBtn);
+
+  renderPanel();
+}
+
+// ---- walkthroughs
+const WALKS = [
+  {
+    id: "clean",
+    name: "Clean run",
+    text:
+      "The ordinary case. The model returns a note that is already within every limit, and " +
+      "all 34 of its quotes are found verbatim in the chunks they cite. Watch the quote " +
+      "count: that number is the thing nobody has to take on trust.",
+    steps: [
+      ["Model returns a clean note", () => receive("happy")],
+      ["Run the checks", check],
+    ],
+  },
+  {
+    id: "free",
+    name: "Fixed for free",
+    text:
+      "Three mechanical mistakes at once: too many practical actions, an element id starting " +
+      "with a digit, and a collapsed group whose member was never tagged. Every one of these " +
+      "has exactly one correct fix, so the worker applies it and moves on. No second call, no cost.",
+    steps: [
+      ["Model returns small mechanical mistakes", () => receive("repairable")],
+      ["Run the checks", check],
+    ],
+  },
+  {
+    id: "quote",
+    name: "The made-up quote",
+    text:
+      "The interesting one. The model attributes a sentence to the speaker that he never said. " +
+      "No amount of local cleverness can repair an invented claim, but because the model had to " +
+      "quote rather than just point at a chunk, the worker can prove the quote is absent " +
+      "instead of trusting it. That proof is the whole reason grounding is quote-based.",
+    steps: [
+      ["Model returns a made-up quote", () => receive("hallucinated")],
+      ["Run the checks", check],
+      ["Ask the model again", () => reask("happy")],
+      ["Run the checks", check],
+    ],
+  },
+  {
+    id: "lang",
+    name: "Wrong language",
+    text:
+      "The transcript is Hindi or Hinglish and the note comes back in the source language " +
+      "instead of English. Translation is a content act, so it costs a re-ask.",
+    steps: [
+      ["Model returns the wrong language", () => receive("notEnglish")],
+      ["Run the checks", check],
+      ["Ask the model again", () => reask("happy")],
+      ["Run the checks", check],
+    ],
+  },
+  {
+    id: "shape",
+    name: "Broken diagram",
+    text:
+      "A mind map has to be one tree growing out of a single root. Here a branch was left " +
+      "dangling. Reattaching it would mean guessing where the model meant it to go, so this " +
+      "is a re-ask, not a repair.",
+    steps: [
+      ["Model returns a broken mind map", () => receive("brokenTree")],
+      ["Run the checks", check],
+    ],
+  },
+  {
+    id: "budget",
+    name: "Out of budget",
+    text:
+      "What failure looks like. A made-up quote, then a second attempt that is still wrong. " +
+      "The budget is one re-ask, so the stage fails immediately rather than sitting in the " +
+      "transient-error retry ladder that exists for network problems.",
+    steps: [
+      ["Model returns a made-up quote", () => receive("hallucinated")],
+      ["Run the checks", check],
+      ["Ask again, still wrong", () => reask("tooFewPoints")],
+      ["Run the checks", check],
+    ],
+  },
+];
+
+let walk = WALKS[0].id;
+let walkStep = 0;
+
+function renderPanel() {
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+  for (const w of WALKS) {
+    const b = document.createElement("button");
+    b.textContent = w.name;
+    b.setAttribute("aria-selected", String(w.id === walk));
+    b.onclick = () => { walk = w.id; walkStep = 0; reset(); };
+    tabs.appendChild(b);
+  }
+  const w = WALKS.find((x) => x.id === walk);
+  const panel = document.getElementById("panel");
+  panel.innerHTML = "<p>" + w.text + "</p>";
+  const ol = document.createElement("ol");
+  ol.className = "steps";
+  w.steps.forEach(([label, fn], i) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (i < walkStep) b.className = "done";
+    else if (i === walkStep) b.className = "primary";
+    b.disabled = i !== walkStep;
+    b.onclick = () => { walkStep = i + 1; fn(); };
+    li.appendChild(b);
+    ol.appendChild(li);
+  });
+  panel.appendChild(ol);
+  if (walkStep >= w.steps.length) {
+    panel.innerHTML += '<p class="note">Walkthrough finished. Pick another tab, or poke at it yourself above.</p>';
+  }
+}
+
+render();
+</script>
+</body>
+</html>

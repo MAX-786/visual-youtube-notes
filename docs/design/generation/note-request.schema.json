@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yt-track.mkhismkh.com/schemas/note-generation-request/v1",
+  "title": "Note generation request schema v1",
+  "description": "DERIVED artifact. The decode-safe subset of the note payload sent to the note model as output_config.format. It uses only the JSON Schema keywords Anthropic constrained decoding supports: additionalProperties false on every object, enum, const, anyOf, $ref, and minItems of 0 or 1. It deliberately CANNOT express the spec word limits, array count ranges, element caps, ID shapes, or char_end greater than char_start; those are enforced by validate-note.mjs and then repaired or re-asked. The normative storage contract remains ../diagram.schema.json; this is its reduced request-side twin. The model supplies meaning only: the worker synthesizes schema_version, provenance, initially_visible, initially_collapsed and layout, and resolves chunk handles plus quotes into chunk UUIDs and character spans.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "detected_language",
+    "primary_topic",
+    "tags",
+    "summary",
+    "key_points",
+    "important_details",
+    "practical_actions",
+    "diagram"
+  ],
+  "properties": {
+    "detected_language": {
+      "description": "Language of the TRANSCRIPT, not of this response. The response is always English.",
+      "enum": ["en", "hi", "hinglish"]
+    },
+    "primary_topic": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "summary": { "$ref": "#/$defs/block" },
+    "key_points": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/block" }
+    },
+    "important_details": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/block" }
+    },
+    "practical_actions": {
+      "description": "Empty unless the transcript states an explicit recommendation, procedure step, task, or decision rule.",
+      "type": "array",
+      "minItems": 0,
+      "items": { "$ref": "#/$defs/block" }
+    },
+    "diagram": {
+      "anyOf": [
+        { "$ref": "#/$defs/mindMap" },
+        { "$ref": "#/$defs/processFlow" },
+        { "$ref": "#/$defs/timeline" },
+        { "$ref": "#/$defs/comparison" }
+      ]
+    }
+  },
+
+  "$defs": {
+    "sourceRef": {
+      "description": "Grounding. chunk is the short handle printed in the transcript (c1, c2, ...), never a UUID. quote is copied character-for-character out of that chunk; the worker locates it to derive char_start and char_end, and a quote it cannot find is treated as ungrounded.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chunk", "quote"],
+      "properties": {
+        "chunk": { "type": "string" },
+        "quote": { "type": "string" }
+      }
+    },
+    "sourceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sourceRef" }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "speaker_claim", "source_refs"],
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "speaker_claim": {
+          "description": "true when the text carries the speaker opinion, prediction, or contested assertion rather than something presented as established fact.",
+          "type": "boolean"
+        },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "collapsedGroup": {
+      "description": "Only when the diagram genuinely needs more than 12 visible elements. anchor_id stays visible; every member_id is hidden behind it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "anchor_id", "member_ids"],
+      "properties": {
+        "id": { "type": "string" },
+        "anchor_id": { "type": "string" },
+        "member_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "mindMapNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "kind", "speaker_claim", "source_refs"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "kind": {
+          "description": "Exactly one node uses the kind root; every other node uses a short descriptive category.",
+          "type": "string"
+        },
+        "group_id": { "type": "string" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "processNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "order", "speaker_claim", "source_refs"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "order": {
+          "description": "Unique and contiguous from 0.",
+          "type": "integer"
+        },
+        "group_id": { "type": "string" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "edge": {
+      "description": "A structural edge may omit label and source_refs. A labelled edge must carry source_refs.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "label": { "type": "string" },
+        "order": { "type": "integer" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "timelineEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "order", "speaker_claim", "source_refs"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "order": { "type": "integer" },
+        "group_id": { "type": "string" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "comparisonColumn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "order", "speaker_claim", "source_refs"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "order": { "type": "integer" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "comparisonCell": {
+      "description": "column_id names the column this cell belongs to. The stored payload turns these into the row cells map.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column_id", "text", "speaker_claim", "source_refs"],
+      "properties": {
+        "column_id": { "type": "string" },
+        "text": { "type": "string" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      }
+    },
+    "comparisonRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "order",
+        "speaker_claim",
+        "source_refs",
+        "cells"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "order": { "type": "integer" },
+        "speaker_claim": { "type": "boolean" },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/comparisonCell" }
+        }
+      }
+    },
+    "mindMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "nodes", "edges", "collapsed_groups"],
+      "properties": {
+        "type": { "const": "mind_map" },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mindMapNode" }
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        }
+      }
+    },
+    "processFlow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "nodes", "edges", "collapsed_groups"],
+      "properties": {
+        "type": { "const": "process_flow" },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/processNode" }
+        },
+        "edges": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "events", "collapsed_groups", "orientation"],
+      "properties": {
+        "type": { "const": "timeline" },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timelineEvent" }
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        },
+        "orientation": { "enum": ["horizontal", "vertical"] }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "columns", "rows"],
+      "properties": {
+        "type": { "const": "comparison" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/comparisonColumn" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/comparisonRow" }
+        }
+      }
+    }
+  }
+}

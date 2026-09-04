@@ -1,0 +1,349 @@
+{
+  "detected_language": "en",
+  "primary_topic": "Neural networks",
+  "tags": [
+    "deep learning",
+    "machine learning",
+    "digit recognition",
+    "linear algebra"
+  ],
+  "summary": {
+    "id": "sum1",
+    "text": "A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.",
+    "speaker_claim": false,
+    "source_refs": [
+      {
+        "chunk": "c2",
+        "quote": "put together a neural network that can learn to recognize handwritten digits"
+      },
+      {
+        "chunk": "c10",
+        "quote": "this network has almost exactly 13,000 total weights and biases"
+      }
+    ]
+  },
+  "key_points": [
+    {
+      "id": "kp1",
+      "text": "A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c3",
+          "quote": "a thing that holds a number, specifically a number between 0 and 1"
+        },
+        {
+          "chunk": "c3",
+          "quote": "This number inside the neuron is called its activation"
+        }
+      ]
+    },
+    {
+      "id": "kp2",
+      "text": "The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.",
+      "speaker_claim": false,
+      "source_refs": [
+        { "chunk": "c3", "quote": "784 neurons in total" },
+        {
+          "chunk": "c3",
+          "quote": "this has 10 neurons, each representing one of the digits"
+        }
+      ]
+    },
+    {
+      "id": "kp3",
+      "text": "Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c4",
+          "quote": "activations in one layer determine the activations of the next layer"
+        }
+      ]
+    },
+    {
+      "id": "kp4",
+      "text": "Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c8",
+          "quote": "assign a weight to each one of the connections"
+        },
+        {
+          "chunk": "c10",
+          "quote": "the bias tells you how high the weighted sum needs to be before the neuron starts getting meaningfully active"
+        }
+      ]
+    },
+    {
+      "id": "kp5",
+      "text": "The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c9",
+          "quote": "the sigmoid function, also known as a logistic curve"
+        },
+        {
+          "chunk": "c9",
+          "quote": "pump this weighted sum into some function that squishes the real number line"
+        }
+      ]
+    },
+    {
+      "id": "kp6",
+      "text": "Learning means getting the computer to find a valid setting for all of those weights and biases.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c10",
+          "quote": "when we talk about learning, what that's referring to is getting the computer to find a valid setting"
+        }
+      ]
+    }
+  ],
+  "important_details": [
+    {
+      "id": "d1",
+      "text": "The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.",
+      "speaker_claim": true,
+      "source_refs": [
+        {
+          "chunk": "c4",
+          "quote": "two hidden layers, each one with 16 neurons"
+        },
+        { "chunk": "c4", "quote": "that's kind of an arbitrary choice" }
+      ]
+    },
+    {
+      "id": "d2",
+      "text": "Pixel grayscale values run from 0 for black up to 1 for white.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c3",
+          "quote": "ranging from 0 for black pixels up to 1 for white pixels"
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "text": "Weight grids are drawn with green pixels for positive weights and red for negative ones.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c8",
+          "quote": "green pixels to indicate positive weights, and red pixels to indicate negative weights"
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "text": "The network's answer is whichever neuron in the output layer is brightest.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c5",
+          "quote": "the brightest neuron of that output layer is the network's choice"
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "text": "Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.",
+      "speaker_claim": false,
+      "source_refs": [
+        { "chunk": "c12", "quote": "organize all of the weights as a matrix" },
+        {
+          "chunk": "c12",
+          "quote": "adding the entire vector to the previous matrix vector product"
+        }
+      ]
+    }
+  ],
+  "practical_actions": [
+    {
+      "id": "pa1",
+      "text": "Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk": "c12",
+          "quote": "take a look at the series I did on linear algebra, especially chapter 3"
+        }
+      ]
+    }
+  ],
+  "diagram": {
+    "type": "mind_map",
+    "nodes": [
+      {
+        "id": "n_root",
+        "label": "Neural network for digit recognition",
+        "kind": "root",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c2",
+            "quote": "put together a neural network that can learn to recognize handwritten digits"
+          }
+        ]
+      },
+      {
+        "id": "n_input",
+        "label": "Input layer: 784 pixel neurons",
+        "kind": "layer",
+        "speaker_claim": false,
+        "source_refs": [{ "chunk": "c3", "quote": "784 neurons in total" }]
+      },
+      {
+        "id": "n_hidden",
+        "label": "Two hidden layers of 16 neurons",
+        "kind": "layer",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c4",
+            "quote": "two hidden layers, each one with 16 neurons"
+          }
+        ]
+      },
+      {
+        "id": "n_output",
+        "label": "Output layer: 10 digit neurons",
+        "kind": "layer",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c3",
+            "quote": "this has 10 neurons, each representing one of the digits"
+          }
+        ]
+      },
+      {
+        "id": "n_activation",
+        "label": "Activation: a number from 0 to 1",
+        "kind": "concept",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c3",
+            "quote": "This number inside the neuron is called its activation"
+          }
+        ]
+      },
+      {
+        "id": "n_sigmoid",
+        "label": "Sigmoid squishes the weighted sum",
+        "kind": "mechanism",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c9",
+            "quote": "the sigmoid function, also known as a logistic curve"
+          }
+        ]
+      },
+      {
+        "id": "n_relu",
+        "label": "ReLU has largely replaced sigmoid",
+        "kind": "mechanism",
+        "speaker_claim": true,
+        "source_refs": [
+          {
+            "chunk": "c15",
+            "quote": "relatively few modern networks actually use sigmoid anymore"
+          },
+          { "chunk": "c15", "quote": "ReLU seems to be much easier to train" }
+        ]
+      },
+      {
+        "id": "n_weights",
+        "label": "Weights on every connection",
+        "kind": "parameter",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c8",
+            "quote": "assign a weight to each one of the connections"
+          }
+        ]
+      },
+      {
+        "id": "n_bias",
+        "label": "Bias sets the activation threshold",
+        "kind": "parameter",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c10",
+            "quote": "That additional number is called the bias."
+          }
+        ]
+      },
+      {
+        "id": "n_params",
+        "label": "About 13,000 weights and biases",
+        "kind": "quantity",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c10",
+            "quote": "this network has almost exactly 13,000 total weights and biases"
+          }
+        ]
+      },
+      {
+        "id": "n_learning",
+        "label": "Learning finds a valid setting",
+        "kind": "concept",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c10",
+            "quote": "when we talk about learning, what that's referring to is getting the computer to find a valid setting"
+          }
+        ]
+      },
+      {
+        "id": "n_edges",
+        "label": "Hope: hidden layers detect edges then patterns",
+        "kind": "hypothesis",
+        "speaker_claim": true,
+        "source_refs": [
+          {
+            "chunk": "c6",
+            "quote": "each neuron in the second layer of the network corresponds with the various relevant little edges"
+          }
+        ]
+      }
+    ],
+    "edges": [
+      { "id": "e1", "from": "n_root", "to": "n_input" },
+      { "id": "e2", "from": "n_root", "to": "n_hidden" },
+      { "id": "e3", "from": "n_root", "to": "n_output" },
+      { "id": "e4", "from": "n_root", "to": "n_activation" },
+      {
+        "id": "e5",
+        "from": "n_activation",
+        "to": "n_sigmoid",
+        "label": "produced by squishing",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk": "c9",
+            "quote": "pump this weighted sum into some function that squishes the real number line"
+          }
+        ]
+      },
+      { "id": "e6", "from": "n_sigmoid", "to": "n_relu" },
+      { "id": "e7", "from": "n_root", "to": "n_weights" },
+      { "id": "e8", "from": "n_weights", "to": "n_bias" },
+      { "id": "e9", "from": "n_root", "to": "n_params" },
+      { "id": "e10", "from": "n_params", "to": "n_learning" },
+      { "id": "e11", "from": "n_root", "to": "n_edges" }
+    ],
+    "collapsed_groups": []
+  }
+}
