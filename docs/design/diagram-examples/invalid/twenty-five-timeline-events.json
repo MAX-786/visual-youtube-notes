@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "type": "timeline",
+  "events": [
+    {
+      "id": "e00",
+      "label": "Event 0",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e01",
+      "label": "Event 1",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e02",
+      "label": "Event 2",
+      "order": 2,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e03",
+      "label": "Event 3",
+      "order": 3,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e04",
+      "label": "Event 4",
+      "order": 4,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e05",
+      "label": "Event 5",
+      "order": 5,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e06",
+      "label": "Event 6",
+      "order": 6,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e07",
+      "label": "Event 7",
+      "order": 7,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e08",
+      "label": "Event 8",
+      "order": 8,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e09",
+      "label": "Event 9",
+      "order": 9,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e10",
+      "label": "Event 10",
+      "order": 10,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e11",
+      "label": "Event 11",
+      "order": 11,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e12",
+      "label": "Event 12",
+      "order": 12,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e13",
+      "label": "Event 13",
+      "order": 13,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e14",
+      "label": "Event 14",
+      "order": 14,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e15",
+      "label": "Event 15",
+      "order": 15,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e16",
+      "label": "Event 16",
+      "order": 16,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e17",
+      "label": "Event 17",
+      "order": 17,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e18",
+      "label": "Event 18",
+      "order": 18,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e19",
+      "label": "Event 19",
+      "order": 19,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e20",
+      "label": "Event 20",
+      "order": 20,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e21",
+      "label": "Event 21",
+      "order": 21,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e22",
+      "label": "Event 22",
+      "order": 22,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e23",
+      "label": "Event 23",
+      "order": 23,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "e24",
+      "label": "Event 24",
+      "order": 24,
+      "group_id": "overflow",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "collapsed_groups": [
+    {
+      "id": "overflow",
+      "anchor_id": "e11",
+      "member_ids": [
+        "e12",
+        "e13",
+        "e14",
+        "e15",
+        "e16",
+        "e17",
+        "e18",
+        "e19",
+        "e20",
+        "e21",
+        "e22",
+        "e23",
+        "e24"
+      ],
+      "initially_collapsed": true
+    }
+  ],
+  "layout": { "orientation": "horizontal" }
+}

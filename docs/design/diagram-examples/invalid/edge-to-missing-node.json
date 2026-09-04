@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "type": "process_flow",
+  "nodes": [
+    {
+      "id": "start",
+      "label": "Start",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "finish",
+      "label": "Finish",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "edges": [{ "id": "bad-edge", "from": "start", "to": "missing" }],
+  "collapsed_groups": [],
+  "layout": { "engine": "dagre", "direction": "LR", "positions": {} }
+}

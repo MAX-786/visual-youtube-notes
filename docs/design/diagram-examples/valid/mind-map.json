@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "type": "mind_map",
+  "nodes": [
+    {
+      "id": "root",
+      "label": "Spaced recall",
+      "kind": "root",
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 0,
+          "char_end": 39
+        }
+      ]
+    },
+    {
+      "id": "schedule",
+      "label": "Review schedule",
+      "kind": "branch",
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    },
+    {
+      "id": "day-one",
+      "label": "After one day",
+      "kind": "detail",
+      "group_id": "later-reviews",
+      "initially_visible": false,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    },
+    {
+      "id": "week-one",
+      "label": "After one week",
+      "kind": "detail",
+      "group_id": "later-reviews",
+      "initially_visible": false,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "e-root-schedule", "from": "root", "to": "schedule", "order": 0 },
+    { "id": "e-schedule-day", "from": "schedule", "to": "day-one", "order": 0 },
+    {
+      "id": "e-schedule-week",
+      "from": "schedule",
+      "to": "week-one",
+      "order": 1
+    }
+  ],
+  "collapsed_groups": [
+    {
+      "id": "later-reviews",
+      "anchor_id": "schedule",
+      "member_ids": ["day-one", "week-one"],
+      "initially_collapsed": true
+    }
+  ],
+  "layout": {
+    "engine": "radial",
+    "positions": {
+      "root": { "x": 0, "y": 0 },
+      "schedule": { "x": 180, "y": 0 }
+    }
+  }
+}

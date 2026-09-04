@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "type": "process_flow",
+  "nodes": [
+    {
+      "id": "learn",
+      "label": "Learn",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 0,
+          "char_end": 39
+        }
+      ]
+    },
+    {
+      "id": "wait",
+      "label": "Wait one day",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    },
+    {
+      "id": "recall",
+      "label": "Recall without notes",
+      "order": 2,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "edges": [
+    { "id": "learn-wait", "from": "learn", "to": "wait", "order": 0 },
+    {
+      "id": "wait-recall",
+      "from": "wait",
+      "to": "recall",
+      "label": "When ready",
+      "order": 0,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    }
+  ],
+  "collapsed_groups": [],
+  "layout": {
+    "engine": "dagre",
+    "direction": "LR",
+    "positions": {}
+  }
+}

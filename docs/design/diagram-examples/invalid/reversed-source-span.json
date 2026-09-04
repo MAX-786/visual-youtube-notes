@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "type": "timeline",
+  "events": [
+    {
+      "id": "event",
+      "label": "Bad source span",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 20,
+          "char_end": 10
+        }
+      ]
+    }
+  ],
+  "collapsed_groups": [],
+  "layout": { "orientation": "horizontal" }
+}

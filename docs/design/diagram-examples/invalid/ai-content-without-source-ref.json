@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "type": "timeline",
+  "events": [
+    {
+      "id": "event",
+      "label": "Unsupported generated claim",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": []
+    }
+  ],
+  "collapsed_groups": [],
+  "layout": { "orientation": "horizontal" }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "type": "timeline",
+  "events": [
+    {
+      "id": "anchor",
+      "label": "Visible anchor",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "hidden",
+      "label": "Unclaimed hidden event",
+      "order": 1,
+      "group_id": "missing-group",
+      "initially_visible": false,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "collapsed_groups": [],
+  "layout": { "orientation": "horizontal" }
+}

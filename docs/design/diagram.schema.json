@@ -1,0 +1,467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yt-track.mkhismkh.com/schemas/diagram/v1",
+  "title": "Visual YouTube Notes Diagram v1",
+  "description": "Normative structural contract for the one canonical Diagram stored in a Revision payload. Cross-reference and graph invariants are defined in diagram-semantics.md and enforced by the companion semantic validator.",
+  "oneOf": [
+    { "$ref": "#/$defs/mindMap" },
+    { "$ref": "#/$defs/processFlow" },
+    { "$ref": "#/$defs/timeline" },
+    { "$ref": "#/$defs/comparison" }
+  ],
+  "$defs": {
+    "elementId": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+    },
+    "nonEmptyText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "sourceRef": {
+      "type": "object",
+      "properties": {
+        "chunk_id": { "$ref": "#/$defs/uuid" },
+        "char_start": { "type": "integer", "minimum": 0 },
+        "char_end": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["chunk_id", "char_start", "char_end"],
+      "additionalProperties": false
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceRef" },
+      "uniqueItems": true
+    },
+    "grounding": {
+      "type": "object",
+      "properties": {
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": ["provenance", "source_refs"],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "provenance": { "const": "ai" } },
+            "required": ["provenance"]
+          },
+          "then": {
+            "properties": { "source_refs": { "type": "array", "minItems": 1 } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "provenance": { "const": "user_edited" } },
+            "required": ["provenance"]
+          },
+          "then": {
+            "properties": { "source_refs": { "type": "array", "maxItems": 0 } }
+          }
+        }
+      ]
+    },
+    "position": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["x", "y"],
+      "additionalProperties": false
+    },
+    "graphLayout": {
+      "type": "object",
+      "properties": {
+        "engine": { "enum": ["dagre", "radial"] },
+        "direction": { "enum": ["TB", "BT", "LR", "RL"] },
+        "positions": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/elementId" },
+          "additionalProperties": { "$ref": "#/$defs/position" }
+        }
+      },
+      "required": ["engine", "positions"],
+      "additionalProperties": false
+    },
+    "linearLayout": {
+      "type": "object",
+      "properties": {
+        "orientation": { "enum": ["horizontal", "vertical"] }
+      },
+      "required": ["orientation"],
+      "additionalProperties": false
+    },
+    "collapsedGroup": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "anchor_id": { "$ref": "#/$defs/elementId" },
+        "member_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/elementId" },
+          "uniqueItems": true
+        },
+        "initially_collapsed": { "const": true }
+      },
+      "required": ["id", "anchor_id", "member_ids", "initially_collapsed"],
+      "additionalProperties": false
+    },
+    "mindMapNode": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/grounding" },
+        {
+          "if": {
+            "properties": { "initially_visible": { "const": false } },
+            "required": ["initially_visible"]
+          },
+          "then": {
+            "properties": { "group_id": { "$ref": "#/$defs/elementId" } },
+            "required": ["group_id"]
+          }
+        }
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "kind": { "$ref": "#/$defs/nonEmptyText" },
+        "group_id": { "$ref": "#/$defs/elementId" },
+        "initially_visible": { "type": "boolean" },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": [
+        "id",
+        "label",
+        "kind",
+        "initially_visible",
+        "provenance",
+        "source_refs"
+      ],
+      "unevaluatedProperties": false
+    },
+    "processNode": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/grounding" },
+        {
+          "if": {
+            "properties": { "initially_visible": { "const": false } },
+            "required": ["initially_visible"]
+          },
+          "then": {
+            "properties": { "group_id": { "$ref": "#/$defs/elementId" } },
+            "required": ["group_id"]
+          }
+        }
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "order": { "type": "integer", "minimum": 0 },
+        "group_id": { "$ref": "#/$defs/elementId" },
+        "initially_visible": { "type": "boolean" },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": [
+        "id",
+        "label",
+        "order",
+        "initially_visible",
+        "provenance",
+        "source_refs"
+      ],
+      "unevaluatedProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "from": { "$ref": "#/$defs/elementId" },
+        "to": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "order": { "type": "integer", "minimum": 0 },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": ["id", "from", "to"],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "label": { "$ref": "#/$defs/nonEmptyText" } },
+            "required": ["label"]
+          },
+          "then": {
+            "required": ["provenance", "source_refs"],
+            "properties": {
+              "provenance": { "enum": ["ai", "user_edited"] },
+              "source_refs": { "$ref": "#/$defs/sourceRefs" }
+            },
+            "allOf": [{ "$ref": "#/$defs/grounding" }]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "timelineEvent": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/grounding" },
+        {
+          "if": {
+            "properties": { "initially_visible": { "const": false } },
+            "required": ["initially_visible"]
+          },
+          "then": {
+            "properties": { "group_id": { "$ref": "#/$defs/elementId" } },
+            "required": ["group_id"]
+          }
+        }
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "order": { "type": "integer", "minimum": 0 },
+        "group_id": { "$ref": "#/$defs/elementId" },
+        "initially_visible": { "type": "boolean" },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": [
+        "id",
+        "label",
+        "order",
+        "initially_visible",
+        "provenance",
+        "source_refs"
+      ],
+      "unevaluatedProperties": false
+    },
+    "comparisonColumn": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/grounding" }],
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "order": { "type": "integer", "minimum": 0 },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": ["id", "label", "order", "provenance", "source_refs"],
+      "unevaluatedProperties": false
+    },
+    "comparisonCell": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/grounding" }],
+      "properties": {
+        "text": { "$ref": "#/$defs/nonEmptyText" },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" }
+      },
+      "required": ["text", "provenance", "source_refs"],
+      "unevaluatedProperties": false
+    },
+    "comparisonRow": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/grounding" }],
+      "properties": {
+        "id": { "$ref": "#/$defs/elementId" },
+        "label": { "$ref": "#/$defs/nonEmptyText" },
+        "order": { "type": "integer", "minimum": 0 },
+        "provenance": { "enum": ["ai", "user_edited"] },
+        "speaker_claim": { "type": "boolean", "default": false },
+        "source_refs": { "$ref": "#/$defs/sourceRefs" },
+        "cells": {
+          "type": "object",
+          "minProperties": 2,
+          "maxProperties": 4,
+          "propertyNames": { "$ref": "#/$defs/elementId" },
+          "additionalProperties": { "$ref": "#/$defs/comparisonCell" }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "order",
+        "provenance",
+        "source_refs",
+        "cells"
+      ],
+      "unevaluatedProperties": false
+    },
+    "mindMap": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "type": { "const": "mind_map" },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/mindMapNode" },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "kind": { "const": "root" } },
+                "required": ["kind"]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "initially_visible": { "const": true } },
+                "required": ["initially_visible"]
+              },
+              "minContains": 0,
+              "maxContains": 12
+            }
+          ]
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        },
+        "layout": {
+          "allOf": [
+            { "$ref": "#/$defs/graphLayout" },
+            {
+              "type": "object",
+              "properties": { "engine": { "const": "radial" } }
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "type",
+        "nodes",
+        "edges",
+        "collapsed_groups",
+        "layout"
+      ],
+      "additionalProperties": false
+    },
+    "processFlow": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "type": { "const": "process_flow" },
+        "nodes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/processNode" },
+          "contains": {
+            "type": "object",
+            "properties": { "initially_visible": { "const": true } },
+            "required": ["initially_visible"]
+          },
+          "minContains": 0,
+          "maxContains": 12
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge" }
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        },
+        "layout": {
+          "allOf": [
+            { "$ref": "#/$defs/graphLayout" },
+            {
+              "type": "object",
+              "properties": { "engine": { "const": "dagre" } }
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "type",
+        "nodes",
+        "edges",
+        "collapsed_groups",
+        "layout"
+      ],
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "type": { "const": "timeline" },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/timelineEvent" },
+          "contains": {
+            "type": "object",
+            "properties": { "initially_visible": { "const": true } },
+            "required": ["initially_visible"]
+          },
+          "minContains": 0,
+          "maxContains": 12
+        },
+        "collapsed_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/collapsedGroup" }
+        },
+        "layout": { "$ref": "#/$defs/linearLayout" }
+      },
+      "required": [
+        "schema_version",
+        "type",
+        "events",
+        "collapsed_groups",
+        "layout"
+      ],
+      "additionalProperties": false
+    },
+    "comparison": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "type": { "const": "comparison" },
+        "columns": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/comparisonColumn" }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/comparisonRow" }
+        }
+      },
+      "required": ["schema_version", "type", "columns", "rows"],
+      "additionalProperties": false
+    }
+  }
+}

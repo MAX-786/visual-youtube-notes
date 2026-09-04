@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "type": "comparison",
+  "columns": [
+    {
+      "id": "cramming",
+      "label": "Cramming",
+      "order": 0,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 0,
+          "char_end": 39
+        }
+      ]
+    },
+    {
+      "id": "spaced",
+      "label": "Spaced recall",
+      "order": 1,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "timing",
+      "label": "Timing",
+      "order": 0,
+      "provenance": "user_edited",
+      "source_refs": [],
+      "cells": {
+        "cramming": {
+          "text": "One long session",
+          "provenance": "user_edited",
+          "source_refs": []
+        },
+        "spaced": {
+          "text": "Several separated sessions",
+          "provenance": "ai",
+          "source_refs": [
+            {
+              "chunk_id": "41000000-0000-0000-0000-000000000002",
+              "char_start": 0,
+              "char_end": 61
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "effort",
+      "label": "Recall effort",
+      "order": 1,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 0,
+          "char_end": 39
+        }
+      ],
+      "cells": {
+        "cramming": {
+          "text": "Low between repetitions",
+          "provenance": "ai",
+          "source_refs": [
+            {
+              "chunk_id": "41000000-0000-0000-0000-000000000001",
+              "char_start": 0,
+              "char_end": 39
+            }
+          ]
+        },
+        "spaced": {
+          "text": "Higher after a delay",
+          "provenance": "ai",
+          "source_refs": [
+            {
+              "chunk_id": "41000000-0000-0000-0000-000000000002",
+              "char_start": 0,
+              "char_end": 61
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

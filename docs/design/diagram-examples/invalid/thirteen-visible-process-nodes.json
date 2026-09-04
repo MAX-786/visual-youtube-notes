@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "type": "process_flow",
+  "nodes": [
+    {
+      "id": "n00",
+      "label": "Step 0",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n01",
+      "label": "Step 1",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n02",
+      "label": "Step 2",
+      "order": 2,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n03",
+      "label": "Step 3",
+      "order": 3,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n04",
+      "label": "Step 4",
+      "order": 4,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n05",
+      "label": "Step 5",
+      "order": 5,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n06",
+      "label": "Step 6",
+      "order": 6,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n07",
+      "label": "Step 7",
+      "order": 7,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n08",
+      "label": "Step 8",
+      "order": 8,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n09",
+      "label": "Step 9",
+      "order": 9,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n10",
+      "label": "Step 10",
+      "order": 10,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n11",
+      "label": "Step 11",
+      "order": 11,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "n12",
+      "label": "Step 12",
+      "order": 12,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "edges": [],
+  "collapsed_groups": [],
+  "layout": { "engine": "dagre", "direction": "LR", "positions": {} }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "type": "process_flow",
+  "nodes": [
+    {
+      "id": "same",
+      "label": "First",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "same",
+      "label": "Second",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "edges": [],
+  "collapsed_groups": [],
+  "layout": { "engine": "dagre", "direction": "LR", "positions": {} }
+}

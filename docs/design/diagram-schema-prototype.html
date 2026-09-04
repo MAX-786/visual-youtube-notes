@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagram schema v1 prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #667085;
+        --line: #d9dfeb;
+        --paper: #f7f8fb;
+        --accent: #5b5bd6;
+        --good: #087f5b;
+        --bad: #b42318;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+      }
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 32px auto 64px;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+      }
+      h1 {
+        margin-bottom: 8px;
+      }
+      h2 {
+        margin: 0 0 14px;
+        font-size: 18px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .lede {
+        max-width: 82ch;
+        color: var(--muted);
+      }
+      .notice {
+        margin: 20px 0;
+        padding: 12px 14px;
+        border-left: 4px solid var(--accent);
+        background: #eef2ff;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .stack {
+        display: grid;
+        gap: 18px;
+      }
+      .card {
+        padding: 18px;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 3px 14px rgb(23 32 51 / 5%);
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .metric {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+      }
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .value {
+        display: block;
+        font-weight: 700;
+      }
+      .good {
+        color: var(--good);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      button {
+        padding: 9px 11px;
+        color: var(--ink);
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.primary,
+      .tabs button.active {
+        color: white;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+      .buttons,
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .log {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        color: #3730a3;
+        background: #eef2ff;
+        border-radius: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        white-space: pre-wrap;
+        background: #101828;
+        color: #f2f4f7;
+        border-radius: 8px;
+        font:
+          13px/1.5 ui-monospace,
+          monospace;
+      }
+      .steps {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .step {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 8px;
+        align-items: center;
+        text-align: left;
+      }
+      .step span:first-child {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        color: #3730a3;
+        background: #eef2ff;
+        font-weight: 700;
+      }
+      .step.done {
+        opacity: 0.5;
+        text-decoration: line-through;
+      }
+      @media (max-width: 800px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Diagram schema v1 prototype</h1>
+      <p class="lede">
+        Question: do the proposed visibility, collapsed-group, provenance,
+        layout, and Text alternative rules stay understandable when a Diagram
+        crosses its limits or is manually edited?
+      </p>
+      <div class="notice">
+        <strong>Throwaway prototype.</strong> It models the rules in memory; the
+        JSON Schema and semantic validator are the normative artifacts.
+      </div>
+
+      <div class="grid">
+        <section class="stack">
+          <div class="card">
+            <h2>Current Diagram</h2>
+            <div id="last-change" class="log"></div>
+            <div id="metrics" class="metrics"></div>
+          </div>
+
+          <div class="card">
+            <h2>Elements</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Text</th>
+                  <th>Initially</th>
+                  <th>Group</th>
+                  <th>Provenance</th>
+                  <th>Source refs</th>
+                </tr>
+              </thead>
+              <tbody id="elements"></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h2>Free play</h2>
+            <div id="free-play" class="buttons"></div>
+          </div>
+
+          <div class="card">
+            <h2>Derived Text alternative</h2>
+            <p class="lede">
+              Position, visibility, collapsed groups, Provenance, and Source
+              refs are deliberately absent. Hidden content remains present.
+            </p>
+            <pre id="text-alternative"></pre>
+          </div>
+        </section>
+
+        <aside class="stack">
+          <div class="card">
+            <h2>Guided walkthroughs</h2>
+            <div id="tabs" class="tabs"></div>
+            <h3 id="scenario-title"></h3>
+            <p id="scenario-description" class="lede"></p>
+            <div id="scenario-steps" class="steps"></div>
+          </div>
+
+          <div class="card">
+            <h2>Proposed interpretation</h2>
+            <ul>
+              <li>
+                The 12/24 limit counts nodes or timeline events, not edges or
+                group metadata.
+              </li>
+              <li>
+                A collapsed group uses one visible anchor and hidden member IDs.
+              </li>
+              <li>A user edit clears Source refs immediately.</li>
+              <li>Coordinates live in the immutable Revision payload.</li>
+              <li>
+                The Text alternative is derived, deterministic, and includes
+                hidden content.
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+      // Portable prototype logic: pure state transitions, validation, and Text alternative derivation.
+      const ref = {
+        chunk_id: "41000000-0000-0000-0000-000000000001",
+        char_start: 0,
+        char_end: 39,
+      };
+      const makeElement = (index, visible = true) => ({
+        id: `node-${index}`,
+        label: `Learning idea ${index}`,
+        initially_visible: visible,
+        group_id: visible ? null : "overflow",
+        provenance: "ai",
+        source_refs: [ref],
+      });
+
+      const initialState = () => ({
+        type: "mind_map",
+        elements: [makeElement(1), makeElement(2), makeElement(3)],
+        columns: 2,
+        rows: 2,
+        layoutPositions: 0,
+        lastChange: "A small valid mind map is ready.",
+      });
+
+      const clone = (value) => structuredClone(value);
+      const validate = (state) => {
+        const errors = [];
+        if (state.type === "comparison") {
+          if (state.columns > 4)
+            errors.push("Comparison has more than four columns.");
+          if (state.rows > 6) errors.push("Comparison has more than six rows.");
+          return errors;
+        }
+        const visible = state.elements.filter(
+          (element) => element.initially_visible,
+        ).length;
+        if (visible > 12)
+          errors.push("More than twelve elements are initially visible.");
+        if (state.elements.length > 24)
+          errors.push("More than twenty-four elements exist.");
+        for (const element of state.elements) {
+          if (!element.initially_visible && element.group_id !== "overflow")
+            errors.push(`${element.id} is hidden without a collapsed group.`);
+          if (element.provenance === "ai" && element.source_refs.length === 0)
+            errors.push(`${element.id} is AI-authored without a Source ref.`);
+          if (
+            element.provenance === "user_edited" &&
+            element.source_refs.length > 0
+          )
+            errors.push(
+              `${element.id} is user-edited but still has a Source ref.`,
+            );
+        }
+        return errors;
+      };
+
+      function reduce(input, action) {
+        if (action === "RESET") return initialState();
+        const state = clone(input);
+        if (action === "FILL_VISIBLE") {
+          if (state.type === "comparison")
+            return {
+              ...input,
+              lastChange: "Rejected: load a graph Diagram first.",
+            };
+          while (state.elements.length < 12)
+            state.elements.push(makeElement(state.elements.length + 1));
+          state.lastChange =
+            "Filled the initial view to its twelve-element limit.";
+        } else if (action === "ADD_VISIBLE") {
+          if (state.type === "comparison")
+            return {
+              ...input,
+              lastChange: "Rejected: comparisons add columns or rows instead.",
+            };
+          state.elements.push(makeElement(state.elements.length + 1));
+          state.lastChange =
+            "Added another initially visible element. Watch validation at thirteen.";
+        } else if (action === "COLLAPSE_LAST") {
+          if (state.type === "comparison" || state.elements.length === 0)
+            return {
+              ...input,
+              lastChange: "Rejected: there is no graph element to collapse.",
+            };
+          const element = state.elements.at(-1);
+          element.initially_visible = false;
+          element.group_id = "overflow";
+          state.lastChange = `${element.id} moved behind the collapsed group; it remains in Text alternative output.`;
+        } else if (action === "EDIT_FIRST") {
+          if (state.type === "comparison" || state.elements.length === 0)
+            return {
+              ...input,
+              lastChange: "Rejected: load a graph Diagram first.",
+            };
+          const element = state.elements[0];
+          element.label = "My clearer wording";
+          element.provenance = "user_edited";
+          element.source_refs = [];
+          state.lastChange =
+            "Manual text edit flipped Provenance and cleared misleading grounding.";
+        } else if (action === "SAVE_LAYOUT") {
+          if (state.type === "comparison")
+            return {
+              ...input,
+              lastChange:
+                "Rejected: comparison order, not coordinates, controls layout.",
+            };
+          state.layoutPositions = state.elements.length;
+          state.lastChange =
+            "Coordinates were persisted for this immutable Revision payload.";
+        } else if (action === "COMPARISON") {
+          Object.assign(state, {
+            type: "comparison",
+            elements: [],
+            columns: 4,
+            rows: 6,
+            lastChange: "Loaded the maximum valid 4×6 comparison.",
+          });
+        } else if (action === "ADD_COLUMN") {
+          if (state.type !== "comparison")
+            return {
+              ...input,
+              lastChange: "Rejected: load a comparison first.",
+            };
+          state.columns += 1;
+          state.lastChange =
+            "Added a fifth comparison column. The matrix is now invalid.";
+        }
+        return state;
+      }
+
+      function deriveTextAlternative(state) {
+        if (state.type === "comparison") {
+          return [
+            `Criterion | ${Array.from({ length: state.columns }, (_, i) => `Option ${i + 1}`).join(" | ")}`,
+            ...Array.from(
+              { length: state.rows },
+              (_, i) =>
+                `Criterion ${i + 1} | ${Array.from({ length: state.columns }, (_, j) => `Value ${i + 1}.${j + 1}`).join(" | ")}`,
+            ),
+          ].join("\n");
+        }
+        return state.elements
+          .map((element, index) => `${index + 1}. ${element.label}`)
+          .join("\n");
+      }
+
+      const actions = [
+        ["FILL_VISIBLE", "Fill to 12 visible"],
+        ["ADD_VISIBLE", "Add visible element"],
+        ["COLLAPSE_LAST", "Collapse last element"],
+        ["EDIT_FIRST", "Edit first element"],
+        ["SAVE_LAYOUT", "Persist layout positions"],
+        ["COMPARISON", "Load 4×6 comparison"],
+        ["ADD_COLUMN", "Add comparison column"],
+        ["RESET", "Reset demo"],
+      ];
+
+      const scenarios = [
+        {
+          title: "Thirteenth visible element",
+          description:
+            "Cross the visible limit, then move the overflow behind a collapsed anchor without deleting it.",
+          steps: ["FILL_VISIBLE", "ADD_VISIBLE", "COLLAPSE_LAST"],
+        },
+        {
+          title: "Manual edit and grounding",
+          description:
+            "Editing AI text changes ownership and removes Source refs rather than preserving misleading evidence.",
+          steps: ["EDIT_FIRST"],
+        },
+        {
+          title: "Maximum comparison",
+          description:
+            "A 4×6 matrix is valid; adding a fifth column crosses the independent comparison limit.",
+          steps: ["COMPARISON", "ADD_COLUMN"],
+        },
+        {
+          title: "Position-free alternative",
+          description:
+            "Persist coordinates and collapse content. The derived Text alternative remains ordered and complete.",
+          steps: [
+            "FILL_VISIBLE",
+            "SAVE_LAYOUT",
+            "ADD_VISIBLE",
+            "COLLAPSE_LAST",
+          ],
+        },
+      ];
+
+      let state = initialState();
+      let selectedScenario = 0;
+      let scenarioStep = 0;
+
+      function render() {
+        const errors = validate(state);
+        const visible = state.elements.filter(
+          (element) => element.initially_visible,
+        ).length;
+        document.querySelector("#last-change").textContent = state.lastChange;
+        document.querySelector("#metrics").innerHTML =
+          state.type === "comparison"
+            ? [
+                metric("Type", "Comparison"),
+                metric("Columns", `${state.columns} / 4`, state.columns <= 4),
+                metric("Rows", `${state.rows} / 6`, state.rows <= 6),
+              ].join("")
+            : [
+                metric("Type", "Mind map"),
+                metric("Visible", `${visible} / 12`, visible <= 12),
+                metric(
+                  "Total",
+                  `${state.elements.length} / 24`,
+                  state.elements.length <= 24,
+                ),
+                metric("Collapsed", state.elements.length - visible),
+                metric("Saved positions", state.layoutPositions),
+                metric(
+                  "Validation",
+                  errors.length ? errors.join(" ") : "Valid",
+                  errors.length === 0,
+                ),
+              ].join("");
+
+        document.querySelector("#elements").innerHTML =
+          state.type === "comparison"
+            ? `<tr><td colspan="6">${state.columns} columns × ${state.rows} rows</td></tr>`
+            : state.elements
+                .map(
+                  (element) =>
+                    `<tr><td>${element.id}</td><td>${element.label}</td><td>${element.initially_visible ? "Visible" : "Hidden"}</td><td>${element.group_id ?? "—"}</td><td>${element.provenance}</td><td>${element.source_refs.length}</td></tr>`,
+                )
+                .join("");
+        document.querySelector("#text-alternative").textContent =
+          deriveTextAlternative(state);
+        document.querySelector("#free-play").innerHTML = actions
+          .map(
+            ([type, label]) =>
+              `<button class="${type === "RESET" ? "" : "primary"}" data-action="${type}">${label}</button>`,
+          )
+          .join("");
+        document.querySelectorAll("[data-action]").forEach((button) => {
+          button.onclick = () => {
+            state = reduce(state, button.dataset.action);
+            render();
+          };
+        });
+
+        document.querySelector("#tabs").innerHTML = scenarios
+          .map(
+            (scenario, index) =>
+              `<button class="${index === selectedScenario ? "active" : ""}" data-tab="${index}">${index + 1}. ${scenario.title}</button>`,
+          )
+          .join("");
+        document.querySelectorAll("[data-tab]").forEach((button) => {
+          button.onclick = () => {
+            selectedScenario = Number(button.dataset.tab);
+            scenarioStep = 0;
+            state = initialState();
+            render();
+          };
+        });
+        const scenario = scenarios[selectedScenario];
+        document.querySelector("#scenario-title").textContent = scenario.title;
+        document.querySelector("#scenario-description").textContent =
+          scenario.description;
+        document.querySelector("#scenario-steps").innerHTML = scenario.steps
+          .map((type, index) => {
+            const label = actions.find(([candidate]) => candidate === type)[1];
+            return `<button class="step ${index < scenarioStep ? "done" : ""}" data-step="${index}" ${index !== scenarioStep ? "disabled" : ""}><span>${index + 1}</span><span>${label}</span></button>`;
+          })
+          .join("");
+        document.querySelectorAll("[data-step]").forEach((button) => {
+          button.onclick = () => {
+            state = reduce(state, scenario.steps[scenarioStep]);
+            scenarioStep += 1;
+            render();
+          };
+        });
+      }
+
+      function metric(label, value, valid) {
+        const tone = valid === undefined ? "" : valid ? "good" : "bad";
+        return `<div class="metric"><span class="label">${label}</span><span class="value ${tone}">${value}</span></div>`;
+      }
+
+      render();
+    </script>
+  </body>
+</html>

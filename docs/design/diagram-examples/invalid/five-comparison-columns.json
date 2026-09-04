@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "type": "comparison",
+  "columns": [
+    {
+      "id": "c0",
+      "label": "A",
+      "order": 0,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "c1",
+      "label": "B",
+      "order": 1,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "c2",
+      "label": "C",
+      "order": 2,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "c3",
+      "label": "D",
+      "order": 3,
+      "provenance": "user_edited",
+      "source_refs": []
+    },
+    {
+      "id": "c4",
+      "label": "E",
+      "order": 4,
+      "provenance": "user_edited",
+      "source_refs": []
+    }
+  ],
+  "rows": [
+    {
+      "id": "r0",
+      "label": "Criterion",
+      "order": 0,
+      "provenance": "user_edited",
+      "source_refs": [],
+      "cells": {
+        "c0": { "text": "A", "provenance": "user_edited", "source_refs": [] },
+        "c1": { "text": "B", "provenance": "user_edited", "source_refs": [] },
+        "c2": { "text": "C", "provenance": "user_edited", "source_refs": [] },
+        "c3": { "text": "D", "provenance": "user_edited", "source_refs": [] },
+        "c4": { "text": "E", "provenance": "user_edited", "source_refs": [] }
+      }
+    }
+  ]
+}

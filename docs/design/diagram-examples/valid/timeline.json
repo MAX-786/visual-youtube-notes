@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "type": "timeline",
+  "events": [
+    {
+      "id": "learn",
+      "label": "Learn the idea",
+      "order": 0,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000001",
+          "char_start": 0,
+          "char_end": 39
+        }
+      ]
+    },
+    {
+      "id": "day-one",
+      "label": "Review after one day",
+      "order": 1,
+      "initially_visible": true,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    },
+    {
+      "id": "week-one",
+      "label": "Review after one week",
+      "order": 2,
+      "group_id": "later-reviews",
+      "initially_visible": false,
+      "provenance": "ai",
+      "source_refs": [
+        {
+          "chunk_id": "41000000-0000-0000-0000-000000000002",
+          "char_start": 0,
+          "char_end": 61
+        }
+      ]
+    }
+  ],
+  "collapsed_groups": [
+    {
+      "id": "later-reviews",
+      "anchor_id": "day-one",
+      "member_ids": ["week-one"],
+      "initially_collapsed": true
+    }
+  ],
+  "layout": { "orientation": "horizontal" }
+}
