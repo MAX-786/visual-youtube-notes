@@ -1,0 +1,62 @@
+# Visual YouTube Notes -- origin edge.
+#
+# Cloudflare sits in front in SSL mode Full, which encrypts to the origin
+# without validating its certificate, so `tls internal` is the documented
+# pairing and needs no ACME reachability in the boot path. Moving Cloudflare to
+# Full (strict) later requires a Cloudflare Origin CA certificate here.
+
+{
+	# Deliberately NOT set: `write`. In Go that is a deadline on the whole
+	# response write, which would guillotine every SSE stream. It defaults to
+	# no timeout; leave it there.
+	servers {
+		timeouts {
+			idle 5m
+		}
+	}
+}
+
+yt-track.mkhismkh.com {
+	tls internal
+
+	log {
+		output stderr
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# The SSE stream, matched before the general API route so no compression
+	# handler ever sees it. Caddy needs no flush_interval: it unbuffers
+	# automatically for Content-Type: text/event-stream. Setting -1 here would
+	# be worse, not better -- its documented behaviour is to keep the upstream
+	# request alive after the client disconnects, leaking a goroutine every
+	# time a tablet sleeps.
+	handle /api/events {
+		reverse_proxy api:8080 {
+			# Give in-flight streams a graceful window on redeploy instead of
+			# cutting them the instant the config unloads.
+			stream_close_delay 30s
+		}
+	}
+
+	handle /api/* {
+		encode zstd gzip
+		reverse_proxy api:8080
+	}
+
+	# The PWA owns the entire remaining URL space, so a client-side route can
+	# never collide with an API path -- including the share_target GET.
+	handle {
+		encode zstd gzip
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

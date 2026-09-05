@@ -1,0 +1,358 @@
+# Visual YouTube Notes -- single-host Docker Compose stack.
+#
+# Decisions and their reasoning: docs/adr/0008-deployment-topology.md
+# Operational procedures: see ticket #21 (runbook).
+#
+# Seven services. No two of them share a volume: the backup sidecar reaches
+# PostgreSQL over the network with pg_dump, and Gotenberg receives HTML over
+# HTTP, so nothing contends for a filesystem and any one service can be
+# rebuilt alone.
+#
+# On the OCI host this file only ever pulls: images are built by CI and pushed
+# to GHCR, and the host runs `docker compose pull && docker compose up -d`.
+# The `build:` blocks exist so local development can still `docker compose
+# build` from a checkout; the host never does.
+
+name: visual-youtube-notes
+
+x-logging: &logging
+  # The `local` driver rotates by default; json-file does not unless BOTH
+  # max-size and max-file are set, and max-file alone silently does nothing.
+  # Bounds are stated here anyway rather than inherited from a default.
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: vyn
+      POSTGRES_USER: vyn
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Starting values for an 8 GB ceiling, not a tuned answer. Hybrid search
+    # (ADR 0005) does exact vector scans, so it leans on shared_buffers and
+    # the OS cache rather than on an index.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - work_mem=32MB
+      - -c
+      - max_connections=60
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vyn -d vyn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 8G
+
+  # ---------------------------------------------------------------------------
+  # Schema migrations -- one shot, gates everything that touches the database
+  # ---------------------------------------------------------------------------
+  migrate:
+    image: migrate/migrate:v4.19.0
+    # Must stay `no`: service_completed_successfully waits for an exited
+    # container and reads its code, so a restarting container never settles.
+    restart: "no"
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    secrets:
+      - postgres_password
+    # golang-migrate skips any file failing its {version}_{title}.{up|down}.{ext}
+    # regex, so the repo's *.test.sql siblings are ignored rather than misread.
+    # Never name one *.up.test.sql -- that DOES match, as a duplicate `up`, and
+    # fails the whole run. See the CI guard in ADR 0008.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        migrate -path=/migrations
+        -database "postgres://vyn:$$(cat /run/secrets/postgres_password)@postgres:5432/vyn?sslmode=disable"
+        up
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # API
+  # ---------------------------------------------------------------------------
+  api:
+    image: ghcr.io/max-786/visual-youtube-notes/api:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/api/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      VYN_DATABASE_HOST: postgres
+      VYN_DATABASE_NAME: vyn
+      VYN_DATABASE_USER: vyn
+      VYN_DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      VYN_MASTER_KEY_FILE: /run/secrets/master_key
+      VYN_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
+      VYN_PUBLIC_ORIGIN: https://yt-track.mkhismkh.com
+      VYN_LISTEN: ":8080"
+      # SSE comment heartbeat, comfortably inside Cloudflare's documented
+      # 125 s Proxy Read Timeout (which has no free-plan override).
+      VYN_SSE_HEARTBEAT: 30s
+    secrets:
+      - postgres_password
+      - master_key
+      - vapid_private_key
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "--max-time",
+          "5",
+          "http://localhost:8080/healthz",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Worker -- yt-dlp, Deno and FFmpeg live here and nowhere else
+  # ---------------------------------------------------------------------------
+  worker:
+    # Second tag names the yt-dlp CalVer, so a yt-dlp rollback is a tag change
+    # rather than a rebuild (ticket #4: pin, never self-update).
+    image: ghcr.io/max-786/visual-youtube-notes/worker:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/worker/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      gotenberg:
+        condition: service_healthy
+    environment:
+      VYN_DATABASE_HOST: postgres
+      VYN_DATABASE_NAME: vyn
+      VYN_DATABASE_USER: vyn
+      VYN_DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
+      VYN_MASTER_KEY_FILE: /run/secrets/master_key
+      VYN_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
+      VYN_GOTENBERG_URL: http://gotenberg:3000
+      VYN_BACKUP_STATUS_URL: http://backup:8080/healthz
+      VYN_HEALTH_LISTEN: ":8081"
+      VYN_TEMP_DIR: /var/lib/vyn/tmp
+      # Queue shape is fixed by ADR 0006: FFmpeg and STT are serialised by
+      # living alone on the `media` queue, not by a CPU threshold.
+      VYN_QUEUE_DEFAULT_WORKERS: "2"
+      VYN_QUEUE_MEDIA_WORKERS: "1"
+      # Preflight floor for the transcribing Stage. A two-hour job needs about
+      # 120 MB; the real risk is accumulation when the six-hour sweep fails.
+      VYN_TEMP_MIN_FREE_BYTES: "2147483648"
+      YTDLP_CACHE_DIR: /var/cache/yt-dlp
+    secrets:
+      - postgres_password
+      - master_key
+      - vapid_private_key
+    volumes:
+      - worker_tmp:/var/lib/vyn/tmp
+      - ytdlp_cache:/var/cache/yt-dlp
+    healthcheck:
+      # The worker serves this on an internal port only, never through Caddy.
+      # A heartbeat file would prove the process is scheduled; it would not
+      # notice a wedged pool or a River client that stopped consuming.
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "--max-time",
+          "5",
+          "http://localhost:8081/healthz",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 6G
+
+  # ---------------------------------------------------------------------------
+  # PDF rendering -- Chromium, kept out of the worker image
+  # ---------------------------------------------------------------------------
+  gotenberg:
+    # Pinned to an exact patch, never the floating `8-chromium`: the font set
+    # was cut from 30+ packages to 8 at 8.30, and Devanagari rides on
+    # fonts-noto-core. Verified present in this digest:
+    #   NotoSansDevanagari-{Regular,Bold}.ttf, NotoSerifDevanagari-{Regular,Bold}.ttf
+    image: gotenberg/gotenberg:8.36.0-chromium@sha256:a40f92d7419adbf98fd2ab2e4211f6186c9fd44f196a5aadbd2769bf237faae6
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      # The image ships no HEALTHCHECK of its own, so it is declared here.
+      # curl is present at /usr/bin/curl; wget is not.
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "--max-time",
+          "5",
+          "http://localhost:3000/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Edge -- TLS, static PWA, reverse proxy
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: ghcr.io/max-786/visual-youtube-notes/caddy:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/caddy/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ---------------------------------------------------------------------------
+  # Backups -- restic, on its own schedule
+  # ---------------------------------------------------------------------------
+  backup:
+    image: ghcr.io/max-786/visual-youtube-notes/backup:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/backup/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: vyn
+      PGUSER: vyn
+      PGPASSFILE: /run/secrets/postgres_password
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_password
+      RESTIC_LOCAL_REPO: /var/lib/restic
+      # Off-server copy target; the identity is a mounted secret.
+      RESTIC_SFTP_REPO: ${RESTIC_SFTP_REPO:-}
+      BACKUP_SCHEDULE: "0 3 * * *"
+      COPY_SCHEDULE: "0 4 * * 0"
+      KEEP_DAILY: "7"
+      KEEP_WEEKLY: "4"
+      STATUS_LISTEN: ":8080"
+    secrets:
+      - postgres_password
+      - restic_password
+      - restic_sftp_key
+    volumes:
+      - restic_local:/var/lib/restic
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "--max-time",
+          "5",
+          "http://localhost:8080/healthz",
+        ]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  ytdlp_cache:
+  worker_tmp:
+  restic_local:
+
+secrets:
+  # Files, never environment: env leaks into `docker inspect` and into every
+  # child process, and the worker spawns yt-dlp, Deno and FFmpeg constantly.
+  postgres_password:
+    file: ./secrets/postgres_password
+  master_key:
+    file: ./secrets/master_key
+  restic_password:
+    file: ./secrets/restic_password
+  restic_sftp_key:
+    file: ./secrets/restic_sftp_key
+  vapid_private_key:
+    file: ./secrets/vapid_private_key
