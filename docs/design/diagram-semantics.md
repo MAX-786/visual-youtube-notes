@@ -19,9 +19,9 @@
 
 ## Layout
 
-- Mind maps use radial layout; process flows use Dagre; timelines declare horizontal or vertical orientation.
-- Graph `positions` may be empty before the first automatic layout and may contain a subset while an edit is in progress. Every stored key must resolve to a node in the Diagram.
-- Coordinates are part of the immutable Revision payload. Persisting a layout adjustment therefore creates a manual Revision; the Revision/conflict design owns the compare-and-set behavior.
+- Mind maps use radial layout; process flows use Dagre; timelines declare horizontal or vertical orientation. The engine choice is semantic and stays in the Revision payload.
+- Coordinates are **not** in the payload. [ADR 0004](../adr/0004-revision-mutation-and-conflict-model.md) hoists them into the mutable `note_diagram_layouts` table, keyed by Note and last-write-wins, so the first automatic layout does not manufacture a manual Revision on merely opening a Note and a position nudge on a second device does not become a Conflict Revision. `additionalProperties: false` on the layout object rejects a payload that still carries them.
+- Positions may be empty or partial. The renderer drops keys that do not resolve to an element in the Diagram it is drawing, which is how coordinates left behind by a Regeneration prune themselves.
 - Layout never changes semantic order and is ignored by the Text alternative.
 
 ## Text alternative derivation

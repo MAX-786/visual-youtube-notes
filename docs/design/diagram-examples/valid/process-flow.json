@@ -60,7 +60,6 @@
   "collapsed_groups": [],
   "layout": {
     "engine": "dagre",
-    "direction": "LR",
-    "positions": {}
+    "direction": "LR"
   }
 }

@@ -67,27 +67,14 @@
         }
       ]
     },
-    "position": {
-      "type": "object",
-      "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" }
-      },
-      "required": ["x", "y"],
-      "additionalProperties": false
-    },
     "graphLayout": {
+      "description": "Engine selection only. Coordinates live outside the Revision in note_diagram_layouts (ADR 0004); additionalProperties:false rejects a payload that still carries them.",
       "type": "object",
       "properties": {
         "engine": { "enum": ["dagre", "radial"] },
-        "direction": { "enum": ["TB", "BT", "LR", "RL"] },
-        "positions": {
-          "type": "object",
-          "propertyNames": { "$ref": "#/$defs/elementId" },
-          "additionalProperties": { "$ref": "#/$defs/position" }
-        }
+        "direction": { "enum": ["TB", "BT", "LR", "RL"] }
       },
-      "required": ["engine", "positions"],
+      "required": ["engine"],
       "additionalProperties": false
     },
     "linearLayout": {

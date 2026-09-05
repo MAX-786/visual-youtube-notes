@@ -119,9 +119,8 @@ function checkGraph(diagram, errors) {
       errors.push(`edge ${edge.id} has unknown target ${edge.to}`);
   }
 
-  for (const id of Object.keys(diagram.layout.positions)) {
-    if (!nodeIds.has(id)) errors.push(`layout position has unknown node ${id}`);
-  }
+  // Coordinates are no longer part of the payload (ADR 0004). Stale keys in
+  // note_diagram_layouts are pruned by the renderer, not validated here.
 
   checkCollapsedGroups(diagram.nodes, diagram.collapsed_groups, errors);
 
