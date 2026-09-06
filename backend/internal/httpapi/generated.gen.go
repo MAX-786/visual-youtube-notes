@@ -197,127 +197,127 @@ func (e DeviceSessionKind) Valid() bool {
 
 // Defines values for ErrorCode.
 const (
-	CostHoldAbsent              ErrorCode = "cost_hold_absent"
-	CsrfRejected                ErrorCode = "csrf_rejected"
-	DimensionMismatch           ErrorCode = "dimension_mismatch"
-	EndpointNotAllowed          ErrorCode = "endpoint_not_allowed"
-	InternalError               ErrorCode = "internal_error"
-	InvalidRequest              ErrorCode = "invalid_request"
-	InvalidRequestOptions       ErrorCode = "invalid_request_options"
-	MixedTransport              ErrorCode = "mixed_transport"
-	MutationExpired             ErrorCode = "mutation_expired"
-	NoActiveRevision            ErrorCode = "no_active_revision"
-	NoReindexInProgress         ErrorCode = "no_reindex_in_progress"
-	NotFound                    ErrorCode = "not_found"
-	NoteNotFailed               ErrorCode = "note_not_failed"
-	NoteNotReady                ErrorCode = "note_not_ready"
-	NoteNotTrashed              ErrorCode = "note_not_trashed"
-	NotePurged                  ErrorCode = "note_purged"
-	NoteTrashed                 ErrorCode = "note_trashed"
-	OriginRejected              ErrorCode = "origin_rejected"
-	PairingDecided              ErrorCode = "pairing_decided"
-	PairingDenied               ErrorCode = "pairing_denied"
-	PairingExpired              ErrorCode = "pairing_expired"
-	PairingNotApproved          ErrorCode = "pairing_not_approved"
-	PairingRejected             ErrorCode = "pairing_rejected"
-	RateLimited                 ErrorCode = "rate_limited"
-	RegenerationInFlight        ErrorCode = "regeneration_in_flight"
-	ReindexInProgress           ErrorCode = "reindex_in_progress"
-	ReindexIncomplete           ErrorCode = "reindex_incomplete"
-	RendererUnavailable         ErrorCode = "renderer_unavailable"
-	RevisionNotActive           ErrorCode = "revision_not_active"
-	RevisionNotAwaitingDecision ErrorCode = "revision_not_awaiting_decision"
-	RolesUnconfigured           ErrorCode = "roles_unconfigured"
-	RunInFlight                 ErrorCode = "run_in_flight"
-	TagExists                   ErrorCode = "tag_exists"
-	TakeawayStale               ErrorCode = "takeaway_stale"
-	TopicExists                 ErrorCode = "topic_exists"
-	TopicInUse                  ErrorCode = "topic_in_use"
-	Unauthenticated             ErrorCode = "unauthenticated"
-	UrlUnsupported              ErrorCode = "url_unsupported"
-	ValidationFailed            ErrorCode = "validation_failed"
+	ErrorCodeCostHoldAbsent              ErrorCode = "cost_hold_absent"
+	ErrorCodeCsrfRejected                ErrorCode = "csrf_rejected"
+	ErrorCodeDimensionMismatch           ErrorCode = "dimension_mismatch"
+	ErrorCodeEndpointNotAllowed          ErrorCode = "endpoint_not_allowed"
+	ErrorCodeInternalError               ErrorCode = "internal_error"
+	ErrorCodeInvalidRequest              ErrorCode = "invalid_request"
+	ErrorCodeInvalidRequestOptions       ErrorCode = "invalid_request_options"
+	ErrorCodeMixedTransport              ErrorCode = "mixed_transport"
+	ErrorCodeMutationExpired             ErrorCode = "mutation_expired"
+	ErrorCodeNoActiveRevision            ErrorCode = "no_active_revision"
+	ErrorCodeNoReindexInProgress         ErrorCode = "no_reindex_in_progress"
+	ErrorCodeNotFound                    ErrorCode = "not_found"
+	ErrorCodeNoteNotFailed               ErrorCode = "note_not_failed"
+	ErrorCodeNoteNotReady                ErrorCode = "note_not_ready"
+	ErrorCodeNoteNotTrashed              ErrorCode = "note_not_trashed"
+	ErrorCodeNotePurged                  ErrorCode = "note_purged"
+	ErrorCodeNoteTrashed                 ErrorCode = "note_trashed"
+	ErrorCodeOriginRejected              ErrorCode = "origin_rejected"
+	ErrorCodePairingDecided              ErrorCode = "pairing_decided"
+	ErrorCodePairingDenied               ErrorCode = "pairing_denied"
+	ErrorCodePairingExpired              ErrorCode = "pairing_expired"
+	ErrorCodePairingNotApproved          ErrorCode = "pairing_not_approved"
+	ErrorCodePairingRejected             ErrorCode = "pairing_rejected"
+	ErrorCodeRateLimited                 ErrorCode = "rate_limited"
+	ErrorCodeRegenerationInFlight        ErrorCode = "regeneration_in_flight"
+	ErrorCodeReindexInProgress           ErrorCode = "reindex_in_progress"
+	ErrorCodeReindexIncomplete           ErrorCode = "reindex_incomplete"
+	ErrorCodeRendererUnavailable         ErrorCode = "renderer_unavailable"
+	ErrorCodeRevisionNotActive           ErrorCode = "revision_not_active"
+	ErrorCodeRevisionNotAwaitingDecision ErrorCode = "revision_not_awaiting_decision"
+	ErrorCodeRolesUnconfigured           ErrorCode = "roles_unconfigured"
+	ErrorCodeRunInFlight                 ErrorCode = "run_in_flight"
+	ErrorCodeTagExists                   ErrorCode = "tag_exists"
+	ErrorCodeTakeawayStale               ErrorCode = "takeaway_stale"
+	ErrorCodeTopicExists                 ErrorCode = "topic_exists"
+	ErrorCodeTopicInUse                  ErrorCode = "topic_in_use"
+	ErrorCodeUnauthenticated             ErrorCode = "unauthenticated"
+	ErrorCodeUrlUnsupported              ErrorCode = "url_unsupported"
+	ErrorCodeValidationFailed            ErrorCode = "validation_failed"
 )
 
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
-	case CostHoldAbsent:
+	case ErrorCodeCostHoldAbsent:
 		return true
-	case CsrfRejected:
+	case ErrorCodeCsrfRejected:
 		return true
-	case DimensionMismatch:
+	case ErrorCodeDimensionMismatch:
 		return true
-	case EndpointNotAllowed:
+	case ErrorCodeEndpointNotAllowed:
 		return true
-	case InternalError:
+	case ErrorCodeInternalError:
 		return true
-	case InvalidRequest:
+	case ErrorCodeInvalidRequest:
 		return true
-	case InvalidRequestOptions:
+	case ErrorCodeInvalidRequestOptions:
 		return true
-	case MixedTransport:
+	case ErrorCodeMixedTransport:
 		return true
-	case MutationExpired:
+	case ErrorCodeMutationExpired:
 		return true
-	case NoActiveRevision:
+	case ErrorCodeNoActiveRevision:
 		return true
-	case NoReindexInProgress:
+	case ErrorCodeNoReindexInProgress:
 		return true
-	case NotFound:
+	case ErrorCodeNotFound:
 		return true
-	case NoteNotFailed:
+	case ErrorCodeNoteNotFailed:
 		return true
-	case NoteNotReady:
+	case ErrorCodeNoteNotReady:
 		return true
-	case NoteNotTrashed:
+	case ErrorCodeNoteNotTrashed:
 		return true
-	case NotePurged:
+	case ErrorCodeNotePurged:
 		return true
-	case NoteTrashed:
+	case ErrorCodeNoteTrashed:
 		return true
-	case OriginRejected:
+	case ErrorCodeOriginRejected:
 		return true
-	case PairingDecided:
+	case ErrorCodePairingDecided:
 		return true
-	case PairingDenied:
+	case ErrorCodePairingDenied:
 		return true
-	case PairingExpired:
+	case ErrorCodePairingExpired:
 		return true
-	case PairingNotApproved:
+	case ErrorCodePairingNotApproved:
 		return true
-	case PairingRejected:
+	case ErrorCodePairingRejected:
 		return true
-	case RateLimited:
+	case ErrorCodeRateLimited:
 		return true
-	case RegenerationInFlight:
+	case ErrorCodeRegenerationInFlight:
 		return true
-	case ReindexInProgress:
+	case ErrorCodeReindexInProgress:
 		return true
-	case ReindexIncomplete:
+	case ErrorCodeReindexIncomplete:
 		return true
-	case RendererUnavailable:
+	case ErrorCodeRendererUnavailable:
 		return true
-	case RevisionNotActive:
+	case ErrorCodeRevisionNotActive:
 		return true
-	case RevisionNotAwaitingDecision:
+	case ErrorCodeRevisionNotAwaitingDecision:
 		return true
-	case RolesUnconfigured:
+	case ErrorCodeRolesUnconfigured:
 		return true
-	case RunInFlight:
+	case ErrorCodeRunInFlight:
 		return true
-	case TagExists:
+	case ErrorCodeTagExists:
 		return true
-	case TakeawayStale:
+	case ErrorCodeTakeawayStale:
 		return true
-	case TopicExists:
+	case ErrorCodeTopicExists:
 		return true
-	case TopicInUse:
+	case ErrorCodeTopicInUse:
 		return true
-	case Unauthenticated:
+	case ErrorCodeUnauthenticated:
 		return true
-	case UrlUnsupported:
+	case ErrorCodeUrlUnsupported:
 		return true
-	case ValidationFailed:
+	case ErrorCodeValidationFailed:
 		return true
 	default:
 		return false
@@ -755,16 +755,16 @@ func (e RevisionPayloadSchemaVersion) Valid() bool {
 
 // Defines values for RevokedEventReason.
 const (
-	SessionExpired RevokedEventReason = "session_expired"
-	SessionRevoked RevokedEventReason = "session_revoked"
+	RevokedEventReasonSessionExpired RevokedEventReason = "session_expired"
+	RevokedEventReasonSessionRevoked RevokedEventReason = "session_revoked"
 )
 
 // Valid indicates whether the value is a known member of the RevokedEventReason enum.
 func (e RevokedEventReason) Valid() bool {
 	switch e {
-	case SessionExpired:
+	case RevokedEventReasonSessionExpired:
 		return true
-	case SessionRevoked:
+	case RevokedEventReasonSessionRevoked:
 		return true
 	default:
 		return false
@@ -825,18 +825,63 @@ func (e SearchChildKind) Valid() bool {
 	}
 }
 
+// Defines values for SecurityEventType.
+const (
+	SecurityEventTypeAiRoleChanged   SecurityEventType = "ai_role_changed"
+	SecurityEventTypeLoginFailed     SecurityEventType = "login_failed"
+	SecurityEventTypeOriginRejected  SecurityEventType = "origin_rejected"
+	SecurityEventTypePairingDenied   SecurityEventType = "pairing_denied"
+	SecurityEventTypePairingReplay   SecurityEventType = "pairing_replay"
+	SecurityEventTypePasswordChanged SecurityEventType = "password_changed"
+	SecurityEventTypePasswordReset   SecurityEventType = "password_reset"
+	SecurityEventTypeRateLimited     SecurityEventType = "rate_limited"
+	SecurityEventTypeRefreshReuse    SecurityEventType = "refresh_reuse"
+	SecurityEventTypeSessionRevoked  SecurityEventType = "session_revoked"
+)
+
+// Valid indicates whether the value is a known member of the SecurityEventType enum.
+func (e SecurityEventType) Valid() bool {
+	switch e {
+	case SecurityEventTypeAiRoleChanged:
+		return true
+	case SecurityEventTypeLoginFailed:
+		return true
+	case SecurityEventTypeOriginRejected:
+		return true
+	case SecurityEventTypePairingDenied:
+		return true
+	case SecurityEventTypePairingReplay:
+		return true
+	case SecurityEventTypePasswordChanged:
+		return true
+	case SecurityEventTypePasswordReset:
+		return true
+	case SecurityEventTypeRateLimited:
+		return true
+	case SecurityEventTypeRefreshReuse:
+		return true
+	case SecurityEventTypeSessionRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SemanticUnavailableReason.
 const (
-	ProviderError SemanticUnavailableReason = "provider_error"
-	SoftCap       SemanticUnavailableReason = "soft_cap"
+	SemanticUnavailableReasonProviderError SemanticUnavailableReason = "provider_error"
+	SemanticUnavailableReasonRateLimited   SemanticUnavailableReason = "rate_limited"
+	SemanticUnavailableReasonSoftCap       SemanticUnavailableReason = "soft_cap"
 )
 
 // Valid indicates whether the value is a known member of the SemanticUnavailableReason enum.
 func (e SemanticUnavailableReason) Valid() bool {
 	switch e {
-	case ProviderError:
+	case SemanticUnavailableReasonProviderError:
 		return true
-	case SoftCap:
+	case SemanticUnavailableReasonRateLimited:
+		return true
+	case SemanticUnavailableReasonSoftCap:
 		return true
 	default:
 		return false
@@ -1490,7 +1535,7 @@ type ErrorBody struct {
 	// | `validation_failed` | 422 | `rule`, `element_id` |
 	// | `invalid_request_options` | 422 | `field`, `reason` |
 	// | `endpoint_not_allowed` | 422 | `reason` |
-	// | `rate_limited` | 429 | `retry_after_seconds` |
+	// | `rate_limited` | 429 | `class`, `retry_after_seconds` |
 	// | `internal_error` | 500 | -- |
 	// | `renderer_unavailable` | 502 | -- |
 	Code ErrorCode `json:"code"`
@@ -1542,7 +1587,7 @@ type ErrorBody struct {
 // | `validation_failed` | 422 | `rule`, `element_id` |
 // | `invalid_request_options` | 422 | `field`, `reason` |
 // | `endpoint_not_allowed` | 422 | `reason` |
-// | `rate_limited` | 429 | `retry_after_seconds` |
+// | `rate_limited` | 429 | `class`, `retry_after_seconds` |
 // | `internal_error` | 500 | -- |
 // | `renderer_unavailable` | 502 | -- |
 type ErrorCode string
@@ -2362,7 +2407,31 @@ type SearchResult struct {
 	Score float64  `json:"score"`
 }
 
-// SemanticUnavailableReason `provider_error` is a fault; `soft_cap` is a budget the Owner chose. Word them differently.
+// SecurityEvent Never a credential, a verifier, a password, a request body, or a user agent (ADR 0003).
+type SecurityEvent struct {
+	DeviceSessionId *openapi_types.UUID `json:"device_session_id"`
+	EventType       SecurityEventType   `json:"event_type"`
+	ExtensionId     *string             `json:"extension_id"`
+	Id              int64               `json:"id"`
+
+	// OccurredAt RFC 3339, UTC.
+	OccurredAt Timestamp `json:"occurred_at"`
+
+	// ReasonCode A safe code, never a value. For `rate_limited`, the rate-limit class.
+	ReasonCode *string `json:"reason_code"`
+	SourceIp   *string `json:"source_ip"`
+}
+
+// SecurityEventList defines model for SecurityEventList.
+type SecurityEventList struct {
+	Events     []SecurityEvent `json:"events"`
+	NextCursor *string         `json:"next_cursor"`
+}
+
+// SecurityEventType defines model for SecurityEventType.
+type SecurityEventType string
+
+// SemanticUnavailableReason `provider_error` is a fault; `soft_cap` is a budget the Owner chose; `rate_limited` is the `query_embedding` class refusing this one call while lexical results still return. Word all three differently.
 type SemanticUnavailableReason string
 
 // SessionGrant What a cookie-transport login, refresh, or password change returns.
@@ -2801,6 +2870,13 @@ type TopicId = Uuid
 
 // Error defines model for Error.
 type Error = ErrorResponse
+
+// ListSecurityEventsParams defines parameters for ListSecurityEvents.
+type ListSecurityEventsParams struct {
+	// Cursor Opaque keyset cursor from a previous page's `next_cursor`.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
 
 // ListEventsSinceParams defines parameters for ListEventsSince.
 type ListEventsSinceParams struct {
@@ -3604,6 +3680,9 @@ type ServerInterface interface {
 	// LogoutViaRefresh Sign out even after the access cookie has expired
 	// (POST /auth/refresh/logout)
 	LogoutViaRefresh(w http.ResponseWriter, r *http.Request)
+	// ListSecurityEvents Recent Security events
+	// (GET /auth/security-events)
+	ListSecurityEvents(w http.ResponseWriter, r *http.Request, params ListSecurityEventsParams)
 	// GetSession The foreground session gate
 	// (GET /auth/session)
 	GetSession(w http.ResponseWriter, r *http.Request)
@@ -3856,6 +3935,12 @@ func (_ Unimplemented) RecoverCsrfToken(w http.ResponseWriter, r *http.Request) 
 // LogoutViaRefresh Sign out even after the access cookie has expired
 // (POST /auth/refresh/logout)
 func (_ Unimplemented) LogoutViaRefresh(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListSecurityEvents Recent Security events
+// (GET /auth/security-events)
+func (_ Unimplemented) ListSecurityEvents(w http.ResponseWriter, r *http.Request, params ListSecurityEventsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -4373,6 +4458,52 @@ func (siw *ServerInterfaceWrapper) LogoutViaRefresh(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LogoutViaRefresh(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSecurityEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListSecurityEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSecurityEventsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSecurityEvents(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6281,6 +6412,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/auth/sessions/revoke-all", wrapper.RevokeAllSessions)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/security-events", wrapper.ListSecurityEvents)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/pairing/requests", wrapper.CreatePairingRequest)
 	})
 	r.Group(func(r chi.Router) {
@@ -6835,6 +6969,49 @@ type LogoutViaRefreshdefaultJSONResponse struct {
 }
 
 func (response LogoutViaRefreshdefaultJSONResponse) VisitLogoutViaRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecurityEventsRequestObject struct {
+	Params ListSecurityEventsParams
+}
+
+type ListSecurityEventsResponseObject interface {
+	VisitListSecurityEventsResponse(w http.ResponseWriter) error
+}
+
+type ListSecurityEvents200JSONResponse SecurityEventList
+
+func (response ListSecurityEvents200JSONResponse) VisitListSecurityEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecurityEventsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListSecurityEventsdefaultJSONResponse) VisitListSecurityEventsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -9760,6 +9937,9 @@ type StrictServerInterface interface {
 	// LogoutViaRefresh Sign out even after the access cookie has expired
 	// (POST /auth/refresh/logout)
 	LogoutViaRefresh(ctx context.Context, request LogoutViaRefreshRequestObject) (LogoutViaRefreshResponseObject, error)
+	// ListSecurityEvents Recent Security events
+	// (GET /auth/security-events)
+	ListSecurityEvents(ctx context.Context, request ListSecurityEventsRequestObject) (ListSecurityEventsResponseObject, error)
 	// GetSession The foreground session gate
 	// (GET /auth/session)
 	GetSession(ctx context.Context, request GetSessionRequestObject) (GetSessionResponseObject, error)
@@ -10208,6 +10388,32 @@ func (sh *strictHandler) LogoutViaRefresh(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LogoutViaRefreshResponseObject); ok {
 		if err := validResponse.VisitLogoutViaRefreshResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSecurityEvents operation middleware
+func (sh *strictHandler) ListSecurityEvents(w http.ResponseWriter, r *http.Request, params ListSecurityEventsParams) {
+	var request ListSecurityEventsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSecurityEvents(ctx, request.(ListSecurityEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSecurityEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSecurityEventsResponseObject); ok {
+		if err := validResponse.VisitListSecurityEventsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

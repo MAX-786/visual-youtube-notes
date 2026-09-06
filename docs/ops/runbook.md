@@ -470,3 +470,26 @@ webpage` is a network failure and retries on its own.
 Redeploy the previous worker tag. The yt-dlp CalVer travels in the tag, so there is nothing else to
 undo. Note that rolling back yt-dlp rarely fixes extractor breakage — the old version is the one
 YouTube broke — so this is for the case where a _new_ pin regressed something that previously worked.
+
+## Rate limits
+
+Every API operation draws on a rate-limit class declared in `docs/design/openapi.yaml` under
+`x-rate-limit-classes`; the API builds its buckets from that table at boot (ADR 0016). There is no
+environment override. To change a value, edit the table, let `pnpm test:openapi` check its shape,
+commit, and deploy.
+
+A refused burst leaves a `rate_limited` Security event carrying the class in `reason_code`, written
+once per transition into the limited state rather than per refused request. Read them from
+Settings → Account, or directly:
+
+```sql
+SELECT occurred_at, reason_code AS class, source_ip, device_session_id
+  FROM auth_security_events
+ WHERE event_type = 'rate_limited'
+ ORDER BY occurred_at DESC
+ LIMIT 20;
+```
+
+A run of `login` events from one address is a guessing attempt and needs no action beyond noticing
+it. A run of `mutation` or `read` events from a Device session is a client bug worth a look, because
+no legitimate device reaches those ceilings.

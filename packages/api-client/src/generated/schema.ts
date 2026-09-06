@@ -242,6 +242,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/security-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Security events
+         * @description The credential-free record of rejected and administrative authentication activity
+         *     (ADR 0003), newest first, retained ninety days. Rate limiting appears here as
+         *     `rate_limited` with the class name in `reason_code`, written once per transition into the
+         *     limited state rather than per refused request (ADR 0016).
+         */
+        get: operations["listSecurityEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pairing/requests": {
         parameters: {
             query?: never;
@@ -1588,7 +1611,7 @@ export interface components {
          *     | `validation_failed` | 422 | `rule`, `element_id` |
          *     | `invalid_request_options` | 422 | `field`, `reason` |
          *     | `endpoint_not_allowed` | 422 | `reason` |
-         *     | `rate_limited` | 429 | `retry_after_seconds` |
+         *     | `rate_limited` | 429 | `class`, `retry_after_seconds` |
          *     | `internal_error` | 500 | -- |
          *     | `renderer_unavailable` | 502 | -- |
          * @enum {string}
@@ -1681,6 +1704,25 @@ export interface components {
         };
         RefreshTokensRequest: {
             refresh_token: string;
+        };
+        /** @enum {string} */
+        SecurityEventType: "login_failed" | "refresh_reuse" | "origin_rejected" | "pairing_denied" | "pairing_replay" | "password_changed" | "password_reset" | "session_revoked" | "ai_role_changed" | "rate_limited";
+        /** @description Never a credential, a verifier, a password, a request body, or a user agent (ADR 0003). */
+        SecurityEvent: {
+            /** Format: int64 */
+            id: number;
+            event_type: components["schemas"]["SecurityEventType"];
+            /** Format: uuid */
+            device_session_id: string | null;
+            source_ip: string | null;
+            /** @description A safe code, never a value. For `rate_limited`, the rate-limit class. */
+            reason_code: string | null;
+            extension_id: string | null;
+            occurred_at: components["schemas"]["Timestamp"];
+        };
+        SecurityEventList: {
+            events: components["schemas"]["SecurityEvent"][];
+            next_cursor: string | null;
         };
         PairingRequestCreate: {
             challenge: components["schemas"]["Base64Url256"];
@@ -2345,10 +2387,10 @@ export interface components {
         /** @enum {string} */
         SearchChildKind: "metadata" | "summary" | "key_point" | "diagram" | "takeaway" | "important_detail" | "practical_action" | "transcript_chunk";
         /**
-         * @description `provider_error` is a fault; `soft_cap` is a budget the Owner chose. Word them differently.
+         * @description `provider_error` is a fault; `soft_cap` is a budget the Owner chose; `rate_limited` is the `query_embedding` class refusing this one call while lexical results still return. Word all three differently.
          * @enum {string}
          */
-        SemanticUnavailableReason: "provider_error" | "soft_cap";
+        SemanticUnavailableReason: "provider_error" | "soft_cap" | "rate_limited";
         Excerpt: {
             chunk_id: components["schemas"]["Uuid"];
             text: string;
@@ -2979,6 +3021,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listSecurityEvents: {
+        parameters: {
+            query?: {
+                /** @description Opaque keyset cursor from a previous page's `next_cursor`. */
+                cursor?: components["parameters"]["cursor"];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityEventList"];
+                };
             };
             default: components["responses"]["Error"];
         };

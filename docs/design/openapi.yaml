@@ -31,8 +31,13 @@ info:
     - **Live updates.** `GET /events` is documented here but excluded from Go code generation, since
       a Server-Sent Events stream needs per-frame flushing that a generated handler cannot provide.
       Its frame schemas are `SyncEvent`, `ProgressEvent`, `ResyncEvent`, and `RevokedEvent`.
-    - **Rate limits** are a separate design (ticket #29). This contract fixes only that a limited
-      request answers `429` with code `rate_limited` and a `Retry-After` header.
+    - **Rate limits.** Every operation names an `x-rate-limit` class; the classes and their values
+      are declared once under `x-rate-limit-classes` and read by the API at boot (ADR 0016). A
+      limited request answers `429` with code `rate_limited`, a `Retry-After` header, and the class
+      in `details`; it can come from any operation, so it is not repeated per operation. Clients treat
+      it as a pause, never a drop: the PWA drainer waits `Retry-After` and resends the same entry.
+      Search is the one exception: past the `query_embedding` class it degrades to lexical results
+      with `semantic_unavailable: rate_limited` rather than failing.
 servers:
   - url: https://yt-track.mkhismkh.com/api
     description: Production origin. Caddy proxies `/api/*` to the API service (ADR 0008).
@@ -60,6 +65,116 @@ tags:
 security:
   - cookieSession: []
 
+x-rate-limit-classes:
+  # Token buckets, read by the API at boot (ADR 0016). `key` is what a bucket is
+  # partitioned by; every class also has a global bucket over all keys, which is
+  # the guarantee. The per-key bucket is only a fair-share partition, because a
+  # client that forges CF-Connecting-IP can escape it and nothing more.
+  # `burst` is the bucket size and `refill_seconds` the seconds to regain one
+  # token; `concurrency` caps in-flight requests where the cost is memory or a
+  # scarce backend rather than a rate. Values are starting points chosen against
+  # the usage envelope in the ADR, not measurements.
+  login:
+    key: ip
+    burst: 10
+    refill_seconds: 60
+    global_burst: 30
+    global_refill_seconds: 6
+    concurrency: 2
+    note: Argon2id at 64 MiB per verification is the resource being protected. Concurrency bounds memory; the buckets bound guessing.
+  credential:
+    key: session
+    burst: 3
+    refill_seconds: 300
+    global_burst: 6
+    global_refill_seconds: 60
+    concurrency: 2
+    note: A password change verifies the current password at the same Argon2id cost as a login.
+  refresh:
+    key: ip
+    burst: 30
+    refill_seconds: 2
+    global_burst: 120
+    global_refill_seconds: 1
+    note: Legitimate use is one refresh per device per fifteen minutes. The limit exists for a client stuck in a refresh loop.
+  pairing_request:
+    key: ip
+    burst: 5
+    refill_seconds: 60
+    global_burst: 20
+    global_refill_seconds: 15
+    note: Each request is a row that lives five minutes and is purged after a day.
+  pairing_exchange:
+    key: ip
+    burst: 60
+    refill_seconds: 1
+    global_burst: 240
+    global_refill_seconds: 1
+    note: The extension polls exchange every two seconds for up to five minutes (ADR 0013). The limit must admit that, and does.
+  submission:
+    key: session
+    burst: 20
+    refill_seconds: 15
+    global_burst: 40
+    global_refill_seconds: 6
+    note: Spec 15 job creation. A burst of twenty covers an offline holding pen draining; the refill bounds a client submitting in a loop.
+  run:
+    key: session
+    burst: 5
+    refill_seconds: 60
+    global_burst: 10
+    global_refill_seconds: 30
+    note: Retry, Regeneration, cost confirmation and the bulk retry after a yt-dlp bump each start a run that will spend money.
+  mutation:
+    key: session
+    burst: 300
+    refill_seconds: 1
+    global_burst: 600
+    global_refill_seconds: 1
+    note: Sized for the write-through queue (ADR 0012) draining an offline editing session as fast as the server answers. Past the burst the drainer is slowed to one per second, never refused for good.
+  search:
+    key: session
+    burst: 30
+    refill_seconds: 1
+    global_burst: 60
+    global_refill_seconds: 1
+    note: The request itself. The query embedding inside it draws on query_embedding.
+  query_embedding:
+    key: session
+    burst: 10
+    refill_seconds: 2
+    global_burst: 20
+    global_refill_seconds: 1
+    mode: degrade
+    note: Consulted by the search handler before the embedding call, which costs money and a provider round trip. Over the limit the handler skips the embedding and answers lexically with semantic_unavailable rate_limited. It never answers 429.
+  export:
+    key: session
+    burst: 3
+    refill_seconds: 10
+    global_burst: 3
+    global_refill_seconds: 10
+    concurrency: 1
+    note: Gotenberg has one CPU and two gigabytes (ADR 0008). One render at a time; a second waits up to ten seconds before rate_limited.
+  stream:
+    key: session
+    concurrency: 2
+    global_concurrency: 10
+    note: One EventSource per browser profile (ADR 0012), with room for the overlap of a reconnect. No bucket, since a stream is held rather than repeated.
+  admin:
+    key: session
+    burst: 30
+    refill_seconds: 2
+    global_burst: 60
+    global_refill_seconds: 1
+    note: Settings, topic and tag, push, session and lifecycle writes. Owner-paced clicks.
+  read:
+    key: session
+    burst: 300
+    refill_seconds: 1
+    global_burst: 600
+    global_refill_seconds: 1
+    note: Every read. A PWA boot is about a dozen calls and the polling fallback is six a minute.
+
 paths:
   # ---------------------------------------------------------------------------
   # /auth
@@ -68,6 +183,8 @@ paths:
     post:
       tags: [auth]
       operationId: login
+
+      x-rate-limit: login
       summary: Password login for the PWA
       description: |
         Creates a fresh Device session of kind `pwa` (ADR 0003: a new authentication never revives an
@@ -75,7 +192,7 @@ paths:
         token, which the PWA keeps in memory only. Every credential failure -- unknown user, wrong
         password, revoked session -- answers the same `unauthenticated`.
       security: []
-      x-error-codes: [unauthenticated, invalid_request, rate_limited]
+      x-error-codes: [unauthenticated, invalid_request]
       requestBody:
         required: true
         content:
@@ -101,6 +218,8 @@ paths:
     post:
       tags: [auth]
       operationId: refreshSession
+
+      x-rate-limit: refresh
       summary: Rotate the PWA's Token family
       description: |
         Cookie transport only; the extension refreshes at `POST /pairing/refresh`. Consumes the
@@ -109,7 +228,7 @@ paths:
         whole Device session with no grace window (ADR 0003), so the PWA serializes refresh with Web
         Locks. No request body.
       security: []
-      x-error-codes: [unauthenticated, rate_limited]
+      x-error-codes: [unauthenticated]
       responses:
         "200":
           description: Rotated. Cookies are set on this response.
@@ -129,6 +248,8 @@ paths:
     get:
       tags: [auth]
       operationId: recoverCsrfToken
+
+      x-rate-limit: refresh
       summary: Recover the CSRF token after a reload
       description: |
         The CSRF token lives in memory and is never persisted (ADR 0012). This no-store endpoint
@@ -154,6 +275,8 @@ paths:
     post:
       tags: [auth]
       operationId: logoutViaRefresh
+
+      x-rate-limit: refresh
       summary: Sign out even after the access cookie has expired
       description: Revokes the calling Device session using the refresh cookie, and clears both cookies.
       security: []
@@ -168,6 +291,8 @@ paths:
     post:
       tags: [auth]
       operationId: logout
+
+      x-rate-limit: admin
       summary: Sign out this PWA device
       description: Revokes the calling Device session with reason `signed_out` and clears both cookies.
       x-error-codes: [unauthenticated, csrf_rejected]
@@ -181,6 +306,8 @@ paths:
     get:
       tags: [auth]
       operationId: getSession
+
+      x-rate-limit: read
       summary: The foreground session gate
       description: |
         Called by the PWA on every foreground while online (ADR 0012). A `200` reveals the cached
@@ -200,6 +327,8 @@ paths:
     get:
       tags: [auth]
       operationId: getAccount
+
+      x-rate-limit: read
       summary: The Owner account
       responses:
         "200":
@@ -213,6 +342,8 @@ paths:
     patch:
       tags: [auth]
       operationId: updateAccount
+
+      x-rate-limit: admin
       summary: Change display name or timezone
       description: |
         Changing the timezone changes how Save times group from now on. It never rewrites
@@ -238,13 +369,14 @@ paths:
     post:
       tags: [auth]
       operationId: changePassword
+
+      x-rate-limit: credential
       summary: Change the password
       description: |
         Keeps the calling Device session, rotates both of its credentials (so the response carries
         new cookies and a new CSRF token), and revokes every other Device session with reason
         `password_changed` (ADR 0003).
-      x-error-codes:
-        [unauthenticated, invalid_request, csrf_rejected, rate_limited]
+      x-error-codes: [unauthenticated, invalid_request, csrf_rejected]
       requestBody:
         required: true
         content:
@@ -270,6 +402,8 @@ paths:
     get:
       tags: [auth]
       operationId: listSessions
+
+      x-rate-limit: read
       summary: List live Device sessions
       description: PWA and extension sessions alike, for the Settings account page.
       responses:
@@ -288,6 +422,8 @@ paths:
     delete:
       tags: [auth]
       operationId: revokeSession
+
+      x-rate-limit: admin
       summary: Revoke one Device session
       description: |
         Immediate for both tokens. Revoking an extension session drops that browser to unpaired on
@@ -305,12 +441,45 @@ paths:
     post:
       tags: [auth]
       operationId: revokeAllSessions
+
+      x-rate-limit: admin
       summary: Sign out all devices
       description: Revokes every Device session including the caller's, with reason `all_devices_revoked`.
       x-error-codes: [csrf_rejected]
       responses:
         "204":
           description: Every session revoked; the caller's cookies are cleared.
+        default:
+          $ref: "#/components/responses/Error"
+
+  /auth/security-events:
+    get:
+      tags: [auth]
+      operationId: listSecurityEvents
+      x-rate-limit: read
+      summary: Recent Security events
+      description: |
+        The credential-free record of rejected and administrative authentication activity
+        (ADR 0003), newest first, retained ninety days. Rate limiting appears here as
+        `rate_limited` with the class name in `reason_code`, written once per transition into the
+        limited state rather than per refused request (ADR 0016).
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      x-error-codes: [invalid_request]
+      responses:
+        "200":
+          description: A page of events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityEventList"
         default:
           $ref: "#/components/responses/Error"
 
@@ -321,6 +490,8 @@ paths:
     post:
       tags: [pairing]
       operationId: createPairingRequest
+
+      x-rate-limit: pairing_request
       summary: Create a Pairing request (extension)
       description: |
         Unauthenticated, CORS-enabled for the allowlisted extension origin only. The extension sends
@@ -329,7 +500,7 @@ paths:
         `approval_url` in the PWA.
       security: []
       x-extension-callable: true
-      x-error-codes: [origin_rejected, invalid_request, rate_limited]
+      x-error-codes: [origin_rejected, invalid_request]
       requestBody:
         required: true
         content:
@@ -352,6 +523,8 @@ paths:
     get:
       tags: [pairing]
       operationId: getPairingRequest
+
+      x-rate-limit: read
       summary: Read a Pairing request for the approval page
       x-error-codes: [not_found]
       responses:
@@ -370,6 +543,8 @@ paths:
     post:
       tags: [pairing]
       operationId: approvePairingRequest
+
+      x-rate-limit: admin
       summary: Approve the named browser
       x-error-codes:
         [not_found, pairing_decided, pairing_expired, csrf_rejected]
@@ -389,6 +564,8 @@ paths:
     post:
       tags: [pairing]
       operationId: denyPairingRequest
+
+      x-rate-limit: admin
       summary: Deny a Pairing request
       description: Terminal. Records a `pairing_denied` security event.
       x-error-codes:
@@ -407,6 +584,8 @@ paths:
     post:
       tags: [pairing]
       operationId: exchangePairingVerifier
+
+      x-rate-limit: pairing_exchange
       summary: Exchange the verifier for a Token family (extension)
       description: |
         Unauthenticated, CORS-enabled. The extension polls this every two seconds until the Owner
@@ -424,7 +603,6 @@ paths:
           pairing_rejected,
           origin_rejected,
           invalid_request,
-          rate_limited,
         ]
       requestBody:
         required: true
@@ -446,6 +624,8 @@ paths:
     post:
       tags: [pairing]
       operationId: refreshExtensionTokens
+
+      x-rate-limit: refresh
       summary: Rotate the extension's Token family
       description: |
         Bearer transport only. The body carries the single-use refresh token; the response carries the
@@ -453,8 +633,7 @@ paths:
         why the extension runs every refresh under a `navigator.locks` lock (ADR 0013).
       security: []
       x-extension-callable: true
-      x-error-codes:
-        [unauthenticated, origin_rejected, invalid_request, rate_limited]
+      x-error-codes: [unauthenticated, origin_rejected, invalid_request]
       requestBody:
         required: true
         content:
@@ -475,6 +654,8 @@ paths:
     post:
       tags: [pairing]
       operationId: logoutExtension
+
+      x-rate-limit: admin
       summary: Unpair this browser
       description: Revokes the calling extension Device session. The extension clears its local storage afterwards, never before.
       security:
@@ -494,6 +675,8 @@ paths:
     post:
       tags: [submissions]
       operationId: createSubmission
+
+      x-rate-limit: submission
       summary: Submit a YouTube URL
       description: |
         Accepts every URL form spec 8.1 admits and normalizes it to a Video ID; the server is the sole
@@ -523,7 +706,6 @@ paths:
           invalid_request,
           csrf_rejected,
           origin_rejected,
-          rate_limited,
         ]
       requestBody:
         required: true
@@ -547,6 +729,8 @@ paths:
     delete:
       tags: [submissions]
       operationId: undoSubmission
+
+      x-rate-limit: submission
       summary: Undo a Submission
       description: |
         A Submission has no row of its own; it is addressed by the Note it created. If the first
@@ -575,6 +759,8 @@ paths:
     get:
       tags: [notes]
       operationId: listNotes
+
+      x-rate-limit: read
       summary: List Notes as cards
       description: |
         Ordered by Save time descending, then id ascending. Today groups the page by `saved_at` in the
@@ -651,6 +837,8 @@ paths:
     get:
       tags: [notes]
       operationId: getNote
+
+      x-rate-limit: read
       summary: Read a Note in full
       description: |
         Everything the note canvas needs in one round trip: card fields, the Active Revision with its
@@ -670,6 +858,8 @@ paths:
     delete:
       tags: [notes]
       operationId: trashNote
+
+      x-rate-limit: admin
       summary: Move a Note to Trash
       description: |
         Trash for thirty days, restorable to its original Save time and Primary Topic. A Note still
@@ -692,6 +882,8 @@ paths:
     post:
       tags: [notes]
       operationId: restoreNote
+
+      x-rate-limit: admin
       summary: Restore a Note from Trash
       x-error-codes: [not_found, note_not_trashed, csrf_rejected]
       responses:
@@ -710,6 +902,8 @@ paths:
     post:
       tags: [notes]
       operationId: purgeNote
+
+      x-rate-limit: admin
       summary: Purge a trashed Note now
       description: |
         The manual form of the hourly Purge: removes the Note and all dependent data. Its spend stays
@@ -727,6 +921,8 @@ paths:
     post:
       tags: [notes]
       operationId: retryNote
+
+      x-rate-limit: run
       summary: Retry a failed Note
       description: |
         Starts a new run (`processing_version + 1`) at the failed Stage, carrying earlier Stages'
@@ -757,6 +953,8 @@ paths:
     post:
       tags: [notes]
       operationId: regenerateNote
+
+      x-rate-limit: run
       summary: Regenerate from the Transcript
       description: |
         Records the Active Revision as the base and produces a new `generated` Revision from the
@@ -793,6 +991,8 @@ paths:
     post:
       tags: [notes]
       operationId: confirmNoteCost
+
+      x-rate-limit: run
       summary: Confirm a held run's spend
       description: |
         Clears the hold on the named run, recomputes the estimate against the price set in force now,
@@ -822,6 +1022,8 @@ paths:
     post:
       tags: [notes]
       operationId: mutateNote
+
+      x-rate-limit: mutation
       summary: Apply an operation set to the Active Revision
       description: |
         The mutation envelope of `docs/design/mutation-protocol.md`. Operations are applied in array
@@ -846,7 +1048,6 @@ paths:
           validation_failed,
           invalid_request,
           csrf_rejected,
-          rate_limited,
         ]
       requestBody:
         required: true
@@ -870,6 +1071,8 @@ paths:
     get:
       tags: [notes]
       operationId: listRevisions
+
+      x-rate-limit: read
       summary: Version history
       description: |
         Every Revision of the Note, newest first, without payloads. History is a tree: each entry
@@ -894,6 +1097,8 @@ paths:
     get:
       tags: [notes]
       operationId: getRevision
+
+      x-rate-limit: read
       summary: Preview one Revision
       x-error-codes: [not_found]
       responses:
@@ -913,6 +1118,8 @@ paths:
     post:
       tags: [notes]
       operationId: activateRevision
+
+      x-rate-limit: mutation
       summary: Activate a never-active Revision
       description: |
         Moves the pointer, with no copy, to a `generated` Revision that lost its compare-and-set and
@@ -936,6 +1143,8 @@ paths:
     post:
       tags: [notes]
       operationId: restoreRevision
+
+      x-rate-limit: mutation
       summary: Restore a past Revision
       description: |
         Copies the named Revision's payload into a new `restore` Revision whose parent is the current
@@ -959,6 +1168,8 @@ paths:
     post:
       tags: [notes]
       operationId: discardRevision
+
+      x-rate-limit: mutation
       summary: Dismiss a Revision awaiting a decision
       description: Clears the decision flag. The Revision stays in history until Purge.
       x-error-codes: [not_found, revision_not_awaiting_decision, csrf_rejected]
@@ -978,6 +1189,8 @@ paths:
     put:
       tags: [notes]
       operationId: setTakeaway
+
+      x-rate-limit: mutation
       summary: Write the Takeaway
       description: |
         Compare-and-set on `base_cursor`, the `updated_cursor` the client last saw (0 for a Takeaway
@@ -990,7 +1203,6 @@ paths:
           takeaway_stale,
           invalid_request,
           csrf_rejected,
-          rate_limited,
         ]
       requestBody:
         required: true
@@ -1014,12 +1226,13 @@ paths:
     put:
       tags: [notes]
       operationId: setPrimaryTopic
+
+      x-rate-limit: mutation
       summary: Set the Primary Topic
       description: |
         By id, or by name -- a name that does not exist yet creates the Topic. Last write wins; a
         non-Trash ready Note can never be left without a Primary Topic, so there is no clear.
-      x-error-codes:
-        [not_found, note_trashed, invalid_request, csrf_rejected, rate_limited]
+      x-error-codes: [not_found, note_trashed, invalid_request, csrf_rejected]
       requestBody:
         required: true
         content:
@@ -1042,10 +1255,11 @@ paths:
     put:
       tags: [notes]
       operationId: setTags
+
+      x-rate-limit: mutation
       summary: Replace the Note's Tags
       description: Set membership by name; unknown names create Tags. Last write wins.
-      x-error-codes:
-        [not_found, note_trashed, invalid_request, csrf_rejected, rate_limited]
+      x-error-codes: [not_found, note_trashed, invalid_request, csrf_rejected]
       requestBody:
         required: true
         content:
@@ -1068,13 +1282,14 @@ paths:
     patch:
       tags: [notes]
       operationId: updateLayout
+
+      x-rate-limit: mutation
       summary: Merge diagram positions
       description: |
         Positions are presentation state outside the Revision (ADR 0004): last write wins, never a
         history entry, never a conflict. The write merges into the stored map rather than replacing
         it, so a Regeneration's fresh ids and a restore's old ids can coexist (ADR 0011).
-      x-error-codes:
-        [not_found, note_trashed, invalid_request, csrf_rejected, rate_limited]
+      x-error-codes: [not_found, note_trashed, invalid_request, csrf_rejected]
       requestBody:
         required: true
         content:
@@ -1097,6 +1312,8 @@ paths:
     get:
       tags: [notes]
       operationId: getTranscript
+
+      x-rate-limit: read
       summary: Read the Transcript
       description: |
         Fetched only when the Owner explicitly opens it (spec 9). Read-only in V1. Chunk spans are
@@ -1119,6 +1336,8 @@ paths:
     get:
       tags: [search]
       operationId: search
+
+      x-rate-limit: search
       summary: Hybrid search
       description: |
         Lexical and semantic ranks fused per child, aggregated per Note, 25 per page
@@ -1166,7 +1385,7 @@ paths:
             type: integer
             minimum: 0
         - $ref: "#/components/parameters/cursor"
-      x-error-codes: [invalid_request, rate_limited]
+      x-error-codes: [invalid_request]
       responses:
         "200":
           description: A page of results.
@@ -1184,6 +1403,8 @@ paths:
     get:
       tags: [topics]
       operationId: listTopics
+
+      x-rate-limit: read
       summary: List Primary Topics
       responses:
         "200":
@@ -1197,6 +1418,8 @@ paths:
     post:
       tags: [topics]
       operationId: createTopic
+
+      x-rate-limit: admin
       summary: Create a Topic
       description: Names normalize before uniqueness; an existing normalized name answers `topic_exists` with the existing id in the details.
       x-error-codes: [topic_exists, invalid_request, csrf_rejected]
@@ -1222,6 +1445,8 @@ paths:
     patch:
       tags: [topics]
       operationId: updateTopic
+
+      x-rate-limit: admin
       summary: Rename a Topic
       x-error-codes: [not_found, topic_exists, invalid_request, csrf_rejected]
       requestBody:
@@ -1242,6 +1467,8 @@ paths:
     delete:
       tags: [topics]
       operationId: deleteTopic
+
+      x-rate-limit: admin
       summary: Delete an unused Topic
       description: Refused with `topic_in_use` while any Note files under it; merge first.
       x-error-codes: [not_found, topic_in_use, csrf_rejected]
@@ -1257,6 +1484,8 @@ paths:
     post:
       tags: [topics]
       operationId: mergeTopic
+
+      x-rate-limit: admin
       summary: Merge this Topic into another
       description: Moves every Note to the target Topic, emits a Sync event per moved Note, and deletes this one.
       x-error-codes: [not_found, invalid_request, csrf_rejected]
@@ -1280,6 +1509,8 @@ paths:
     get:
       tags: [topics]
       operationId: listTags
+
+      x-rate-limit: read
       summary: List Tags
       responses:
         "200":
@@ -1297,6 +1528,8 @@ paths:
     patch:
       tags: [topics]
       operationId: updateTag
+
+      x-rate-limit: admin
       summary: Rename a Tag
       x-error-codes: [not_found, tag_exists, invalid_request, csrf_rejected]
       requestBody:
@@ -1317,6 +1550,8 @@ paths:
     delete:
       tags: [topics]
       operationId: deleteTag
+
+      x-rate-limit: admin
       summary: Delete a Tag everywhere
       description: Removes it from every Note, emitting a Sync event per affected Note.
       x-error-codes: [not_found, csrf_rejected]
@@ -1337,6 +1572,8 @@ paths:
     get:
       tags: [exports]
       operationId: exportNotePdf
+
+      x-rate-limit: export
       summary: Export one Note as PDF
       description: |
         A4 portrait, vector diagram, `Content-Disposition: attachment`. Rendered by Gotenberg from a
@@ -1367,6 +1604,8 @@ paths:
     get:
       tags: [exports]
       operationId: exportNoteMarkdown
+
+      x-rate-limit: export
       summary: Export one Note as a Markdown ZIP
       description: |
         `note.md` with YAML front matter, `diagram.svg` beside it for a mind map or process flow, and
@@ -1391,6 +1630,8 @@ paths:
     get:
       tags: [exports]
       operationId: exportLibrary
+
+      x-rate-limit: export
       summary: The Library backup
       description: |
         One streamed JSON document described by `docs/design/library-archive.schema.json`, with
@@ -1419,6 +1660,8 @@ paths:
     get:
       tags: [settings]
       operationId: getAiSettings
+
+      x-rate-limit: read
       summary: Processing role configuration
       description: Every role's provider, model, endpoint, request options and key status. Never a key.
       responses:
@@ -1437,6 +1680,8 @@ paths:
     put:
       tags: [settings]
       operationId: updateAiRole
+
+      x-rate-limit: admin
       summary: Configure a Processing role
       description: |
         `request_options` are validated against the provider's validator on save and passed through
@@ -1473,6 +1718,8 @@ paths:
     delete:
       tags: [settings]
       operationId: clearAiRoleKey
+
+      x-rate-limit: admin
       summary: Remove a role's stored key
       description: Leaves the role unconfigured, which for `note_generation` and `embeddings` blocks new Submissions.
       x-error-codes: [not_found, csrf_rejected]
@@ -1492,12 +1739,14 @@ paths:
     post:
       tags: [settings]
       operationId: verifyAiRole
+
+      x-rate-limit: admin
       summary: Verify a role's key against its provider
       description: |
         The cheapest authenticated read the provider offers. Where none is free the call is billable
         and writes a ledger row like any other spend; `charged` says which happened. A failure warns
         rather than blocks.
-      x-error-codes: [not_found, csrf_rejected, rate_limited]
+      x-error-codes: [not_found, csrf_rejected]
       responses:
         "200":
           description: The verification outcome.
@@ -1512,6 +1761,8 @@ paths:
     get:
       tags: [settings]
       operationId: getUsage
+
+      x-rate-limit: read
       summary: Monthly AI usage
       description: |
         Month-to-date charged spend beside the three counts it cannot include -- crashed calls,
@@ -1539,6 +1790,8 @@ paths:
     get:
       tags: [settings]
       operationId: getCostSettings
+
+      x-rate-limit: read
       summary: The Soft cap and semantic override
       responses:
         "200":
@@ -1552,6 +1805,8 @@ paths:
     put:
       tags: [settings]
       operationId: updateCostSettings
+
+      x-rate-limit: admin
       summary: Change the Soft cap
       description: Takes effect at the next gate. Holds already placed stay held; raising the cap does not resume them.
       x-error-codes: [invalid_request, csrf_rejected]
@@ -1575,6 +1830,8 @@ paths:
     post:
       tags: [settings]
       operationId: enableSemanticForMonth
+
+      x-rate-limit: admin
       summary: Re-enable semantic search for the current month
       description: Stamps the override with the current month; it lapses on its own at month end (ADR 0007).
       x-error-codes: [csrf_rejected]
@@ -1592,6 +1849,8 @@ paths:
     get:
       tags: [settings]
       operationId: listPriceSets
+
+      x-rate-limit: read
       summary: List price sets
       description: Every version of every model's prices, newest first.
       responses:
@@ -1606,6 +1865,8 @@ paths:
     post:
       tags: [settings]
       operationId: createPriceSet
+
+      x-rate-limit: admin
       summary: Append a price set version
       description: Never an in-place edit. A correction is a new row with a later `effective_from`; charges already snapshotted are unmoved (ADR 0007).
       x-error-codes: [invalid_request, csrf_rejected]
@@ -1629,6 +1890,8 @@ paths:
     get:
       tags: [settings]
       operationId: getSearchIndex
+
+      x-rate-limit: read
       summary: The search index state
       responses:
         "200":
@@ -1644,6 +1907,8 @@ paths:
     post:
       tags: [settings]
       operationId: startReindex
+
+      x-rate-limit: admin
       summary: Start reindexing into another embedding model
       description: |
         Embeds every child under the new model via the Batch API, alongside the old vectors, which
@@ -1674,6 +1939,8 @@ paths:
     delete:
       tags: [settings]
       operationId: abandonReindex
+
+      x-rate-limit: admin
       summary: Abandon the reindex in progress
       description: Deletes the incoming model's vectors. Costs only the embedding spend already made.
       x-error-codes: [no_reindex_in_progress, csrf_rejected]
@@ -1691,6 +1958,8 @@ paths:
     post:
       tags: [settings]
       operationId: activateReindex
+
+      x-rate-limit: admin
       summary: Flip search to the reindexed model
       description: Gated on completeness; `reindex_incomplete` carries how many Notes still lack vectors. The old model's rows are deleted after the flip.
       x-error-codes: [no_reindex_in_progress, reindex_incomplete, csrf_rejected]
@@ -1708,6 +1977,8 @@ paths:
     get:
       tags: [settings]
       operationId: getHealth
+
+      x-rate-limit: read
       summary: Operational health
       description: |
         Every `system_health` row with `unknown` computed by the reader when `checked_at` is older
@@ -1727,6 +1998,8 @@ paths:
     post:
       tags: [settings]
       operationId: recordRestoreDrill
+
+      x-rate-limit: admin
       summary: Record a completed restore drill
       description: Append-only. `restore_seconds` is the only measured RTO this project has.
       x-error-codes: [invalid_request, csrf_rejected]
@@ -1750,6 +2023,8 @@ paths:
     post:
       tags: [settings]
       operationId: retryBlockedNotes
+
+      x-rate-limit: run
       summary: Retry every Note blocked by extractor breakage
       description: The last step of the yt-dlp update procedure, selecting on `notes_blocked_by_tooling`. Each Note starts a new run at its failed Stage.
       x-error-codes: [roles_unconfigured, csrf_rejected]
@@ -1770,6 +2045,8 @@ paths:
     get:
       tags: [events]
       operationId: streamEvents
+
+      x-rate-limit: stream
       summary: The live-update stream
       description: |
         `text/event-stream`, cookie-authenticated, one per browser profile. Excluded from Go code
@@ -1816,6 +2093,8 @@ paths:
     get:
       tags: [events]
       operationId: listEventsSince
+
+      x-rate-limit: read
       summary: Polling fallback
       description: |
         The same payloads as `sync` frames, batched in cursor order. Progress is not in the outbox, so
@@ -1856,6 +2135,8 @@ paths:
     get:
       tags: [push]
       operationId: getVapidPublicKey
+
+      x-rate-limit: read
       summary: The VAPID public key
       description: Derived at boot from the mounted private key and served rather than baked into the bundle, which CI builds before the key exists.
       responses:
@@ -1872,6 +2153,8 @@ paths:
     get:
       tags: [push]
       operationId: listPushSubscriptions
+
+      x-rate-limit: read
       summary: List this Owner's push subscriptions
       responses:
         "200":
@@ -1885,6 +2168,8 @@ paths:
     put:
       tags: [push]
       operationId: upsertPushSubscription
+
+      x-rate-limit: admin
       summary: Register or replace this device's subscription
       description: |
         Keyed by endpoint, which is the subscription's identity. Bound to the calling PWA Device
@@ -1914,6 +2199,8 @@ paths:
     patch:
       tags: [push]
       operationId: updatePushSubscription
+
+      x-rate-limit: admin
       summary: Toggle note or ops notifications
       x-error-codes: [not_found, invalid_request, csrf_rejected]
       requestBody:
@@ -1934,6 +2221,8 @@ paths:
     delete:
       tags: [push]
       operationId: deletePushSubscription
+
+      x-rate-limit: admin
       summary: Remove a subscription
       x-error-codes: [not_found, csrf_rejected]
       responses:
@@ -2125,7 +2414,7 @@ components:
         | `validation_failed` | 422 | `rule`, `element_id` |
         | `invalid_request_options` | 422 | `field`, `reason` |
         | `endpoint_not_allowed` | 422 | `reason` |
-        | `rate_limited` | 429 | `retry_after_seconds` |
+        | `rate_limited` | 429 | `class`, `retry_after_seconds` |
         | `internal_error` | 500 | -- |
         | `renderer_unavailable` | 502 | -- |
       enum:
@@ -2355,6 +2644,59 @@ components:
           type: string
           minLength: 1
       required: [refresh_token]
+
+    SecurityEventType:
+      type: string
+      enum:
+        - login_failed
+        - refresh_reuse
+        - origin_rejected
+        - pairing_denied
+        - pairing_replay
+        - password_changed
+        - password_reset
+        - session_revoked
+        - ai_role_changed
+        - rate_limited
+    SecurityEvent:
+      type: object
+      description: Never a credential, a verifier, a password, a request body, or a user agent (ADR 0003).
+      properties:
+        id:
+          type: integer
+          format: int64
+        event_type:
+          $ref: "#/components/schemas/SecurityEventType"
+        device_session_id:
+          type: [string, "null"]
+          format: uuid
+        source_ip:
+          type: [string, "null"]
+        reason_code:
+          type: [string, "null"]
+          description: A safe code, never a value. For `rate_limited`, the rate-limit class.
+        extension_id:
+          type: [string, "null"]
+        occurred_at:
+          $ref: "#/components/schemas/Timestamp"
+      required:
+        - id
+        - event_type
+        - device_session_id
+        - source_ip
+        - reason_code
+        - extension_id
+        - occurred_at
+    SecurityEventList:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityEvent"
+        next_cursor:
+          type: [string, "null"]
+      required: [events, next_cursor]
 
     # -- pairing --------------------------------------------------------------
     PairingRequestCreate:
@@ -3739,8 +4081,8 @@ components:
         - transcript_chunk
     SemanticUnavailableReason:
       type: string
-      description: "`provider_error` is a fault; `soft_cap` is a budget the Owner chose. Word them differently."
-      enum: [provider_error, soft_cap]
+      description: "`provider_error` is a fault; `soft_cap` is a budget the Owner chose; `rate_limited` is the `query_embedding` class refusing this one call while lexical results still return. Word all three differently."
+      enum: [provider_error, soft_cap, rate_limited]
     Excerpt:
       type: object
       properties:

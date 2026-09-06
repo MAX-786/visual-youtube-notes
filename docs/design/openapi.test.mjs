@@ -209,3 +209,93 @@ assert.ok(
 console.log(
   `openapi contract: ${operations.length} operations, ${errorCodes.size} error codes, mirror holds`,
 );
+
+// --- rate limits (ADR 0016) ---------------------------------------------------
+
+// The values live in the contract, so the shape of the table is a contract too:
+// every class keys by address or session, declares a bucket or a concurrency
+// cap, and its global bucket admits at least one key's burst.
+const classes = document["x-rate-limit-classes"];
+assert.ok(
+  classes && typeof classes === "object",
+  "x-rate-limit-classes exists",
+);
+for (const [name, cls] of Object.entries(classes)) {
+  assert.ok(
+    ["ip", "session"].includes(cls.key),
+    `${name} keys by ip or session`,
+  );
+  const hasBucket =
+    Number.isInteger(cls.burst) &&
+    cls.refill_seconds > 0 &&
+    Number.isInteger(cls.global_burst) &&
+    cls.global_refill_seconds > 0;
+  const hasConcurrency = Number.isInteger(cls.concurrency);
+  assert.ok(
+    hasBucket || hasConcurrency,
+    `${name} declares a bucket or a concurrency cap`,
+  );
+  if (hasBucket) {
+    assert.ok(
+      cls.global_burst >= cls.burst,
+      `${name}: the global bucket admits at least one key's burst`,
+    );
+  }
+  if (cls.mode !== undefined) assert.equal(cls.mode, "degrade");
+  assert.ok(
+    typeof cls.note === "string" && cls.note.length > 0,
+    `${name} says what it was sized against`,
+  );
+}
+
+// Every operation names a declared class, and the key matches its transport:
+// an unauthenticated operation has no session to key by.
+for (const { route, method, op } of operations) {
+  const name = op["x-rate-limit"];
+  assert.ok(
+    name && classes[name],
+    `${method} ${route} names a declared rate-limit class`,
+  );
+  const schemes = (op.security ?? document.security).flatMap((entry) =>
+    Object.keys(entry),
+  );
+  assert.equal(
+    classes[name].key,
+    schemes.length === 0 ? "ip" : "session",
+    `${method} ${route} keys by the right thing for its transport`,
+  );
+  assert.ok(
+    !(op["x-error-codes"] ?? []).includes("rate_limited"),
+    `${method} ${route} lists rate_limited, which every operation shares`,
+  );
+}
+
+// The degrade-mode class is consulted inside search and never attached to an
+// operation, and the search response can say so.
+assert.equal(classes.query_embedding.mode, "degrade");
+assert.ok(
+  !operations.some(({ op }) => op["x-rate-limit"] === "query_embedding"),
+  "query_embedding is not an operation-level class",
+);
+assert.ok(
+  document.components.schemas.SemanticUnavailableReason.enum.includes(
+    "rate_limited",
+  ),
+);
+
+// A rate_limited Security event names the class in reason_code, so the class
+// names must satisfy the audit table's reason_code format.
+for (const name of Object.keys(classes)) {
+  assert.match(
+    name,
+    /^[a-z0-9_]{1,64}$/,
+    `class ${name} is a safe reason_code`,
+  );
+}
+assert.ok(
+  document.components.schemas.SecurityEventType.enum.includes("rate_limited"),
+);
+
+console.log(
+  `rate limits: ${Object.keys(classes).length} classes cover ${operations.length} operations`,
+);

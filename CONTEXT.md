@@ -233,3 +233,7 @@ _Avoid_: Error response, problem, fault
 **Error code**:
 The typed identifier inside an Error envelope, drawn from a closed set the contract publishes, that a client branches on.
 _Avoid_: Reason code (reserved for Security events), error type, status (that is the HTTP status)
+
+**Rate limit class**:
+One named budget in the contract that a group of operations draws from, partitioned by client address or Device session and backstopped by a global bucket.
+_Avoid_: Throttle, quota (reserved for the Soft cap), rate limiter
