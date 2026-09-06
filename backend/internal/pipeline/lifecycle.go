@@ -487,6 +487,10 @@ func PruneRetention(ctx context.Context, d *Deps, window time.Duration) error {
 	if _, err := d.Pool.Exec(ctx, `DELETE FROM sync_events WHERE occurred_at < $1`, cutoff); err != nil {
 		return err
 	}
-	_, err := d.Pool.Exec(ctx, `DELETE FROM note_mutations WHERE applied_at < $1`, cutoff)
+	if _, err := d.Pool.Exec(ctx, `DELETE FROM note_mutations WHERE applied_at < $1`, cutoff); err != nil {
+		return err
+	}
+	// Expired Pairing requests go a day after expiry (ADR 0003).
+	_, err := d.Pool.Exec(ctx, `DELETE FROM pairing_requests WHERE expires_at < now() - interval '24 hours'`)
 	return err
 }

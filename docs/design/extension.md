@@ -3,7 +3,7 @@
 Design draft for [#24](https://github.com/MAX-786/visual-youtube-notes/issues/24). The decisions and
 their rationale live in
 [ADR 0013](../adr/0013-chromium-extension-structure-and-pairing.md); this file is the mechanical
-detail. The manifest draft is [`extension-manifest.json`](extension-manifest.json), checked by
+detail. The manifest is [`extension/manifest.json`](../../extension/manifest.json), checked by
 [`extension-manifest.test.mjs`](extension-manifest.test.mjs).
 
 Related: [ADR 0003](../adr/0003-owner-auth-device-sessions-and-extension-pairing.md) owns Pairing,

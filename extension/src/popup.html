@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Visual Notes</title>
+    <style>
+      body {
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        margin: 0;
+        padding: 16px;
+        width: 280px;
+        color: #111827;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      button {
+        font: inherit;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        cursor: pointer;
+        margin-top: 8px;
+      }
+      button.primary {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Visual Notes</h1>
+    <p id="status">Checking…</p>
+    <button id="pair" class="primary" type="button" hidden>
+      Pair this browser
+    </button>
+    <button id="sign-out" type="button" hidden>Unpair this browser</button>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

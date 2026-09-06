@@ -36,3 +36,6 @@ Thumbs.db
 # Deployment secrets (Compose secret files; never committed)
 deploy/secrets/*
 !deploy/secrets/.gitkeep
+
+# Extension release archive, written by extension/build.mjs
+extension/dist.zip

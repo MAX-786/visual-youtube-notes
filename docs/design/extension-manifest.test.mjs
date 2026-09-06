@@ -18,7 +18,7 @@ const repo = path.resolve(
   "..",
 );
 const read = (p) => readFileSync(path.join(repo, p), "utf8");
-const manifest = JSON.parse(read("docs/design/extension-manifest.json"));
+const manifest = JSON.parse(read("extension/manifest.json"));
 
 const APP_ORIGIN = "https://yt-track.mkhismkh.com/*";
 

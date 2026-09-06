@@ -8,29 +8,9 @@ package httpapi
 
 import "context"
 
-// ApprovePairingRequest is not implemented yet.
-func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingRequestRequestObject) (ApprovePairingRequestResponseObject, error) {
-	return nil, notImplemented("ApprovePairingRequest")
-}
-
-// CreatePairingRequest is not implemented yet.
-func (s *Server) CreatePairingRequest(_ context.Context, _ CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error) {
-	return nil, notImplemented("CreatePairingRequest")
-}
-
 // DeletePushSubscription is not implemented yet.
 func (s *Server) DeletePushSubscription(_ context.Context, _ DeletePushSubscriptionRequestObject) (DeletePushSubscriptionResponseObject, error) {
 	return nil, notImplemented("DeletePushSubscription")
-}
-
-// DenyPairingRequest is not implemented yet.
-func (s *Server) DenyPairingRequest(_ context.Context, _ DenyPairingRequestRequestObject) (DenyPairingRequestResponseObject, error) {
-	return nil, notImplemented("DenyPairingRequest")
-}
-
-// ExchangePairingVerifier is not implemented yet.
-func (s *Server) ExchangePairingVerifier(_ context.Context, _ ExchangePairingVerifierRequestObject) (ExchangePairingVerifierResponseObject, error) {
-	return nil, notImplemented("ExchangePairingVerifier")
 }
 
 // ExportLibrary is not implemented yet.
@@ -53,11 +33,6 @@ func (s *Server) GetHealth(_ context.Context, _ GetHealthRequestObject) (GetHeal
 	return nil, notImplemented("GetHealth")
 }
 
-// GetPairingRequest is not implemented yet.
-func (s *Server) GetPairingRequest(_ context.Context, _ GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error) {
-	return nil, notImplemented("GetPairingRequest")
-}
-
 // GetTranscript is not implemented yet.
 func (s *Server) GetTranscript(_ context.Context, _ GetTranscriptRequestObject) (GetTranscriptResponseObject, error) {
 	return nil, notImplemented("GetTranscript")
@@ -73,19 +48,9 @@ func (s *Server) ListPushSubscriptions(_ context.Context, _ ListPushSubscription
 	return nil, notImplemented("ListPushSubscriptions")
 }
 
-// LogoutExtension is not implemented yet.
-func (s *Server) LogoutExtension(_ context.Context, _ LogoutExtensionRequestObject) (LogoutExtensionResponseObject, error) {
-	return nil, notImplemented("LogoutExtension")
-}
-
 // RecordRestoreDrill is not implemented yet.
 func (s *Server) RecordRestoreDrill(_ context.Context, _ RecordRestoreDrillRequestObject) (RecordRestoreDrillResponseObject, error) {
 	return nil, notImplemented("RecordRestoreDrill")
-}
-
-// RefreshExtensionTokens is not implemented yet.
-func (s *Server) RefreshExtensionTokens(_ context.Context, _ RefreshExtensionTokensRequestObject) (RefreshExtensionTokensResponseObject, error) {
-	return nil, notImplemented("RefreshExtensionTokens")
 }
 
 // UpdatePushSubscription is not implemented yet.
