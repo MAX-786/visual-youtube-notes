@@ -28,6 +28,9 @@ type NoteRow struct {
 	CancelRequestedAt *time.Time
 	TrashedAt         *time.Time
 	DurationSeconds   *int
+	Title             *string
+	ChannelName       *string
+	ActiveRevisionID  *uuid.UUID
 }
 
 // loadNote reads a Note with its Source, optionally locking it.
@@ -39,10 +42,10 @@ func loadNote(ctx context.Context, q querier, noteID uuid.UUID, lock bool) (*Not
 	var n NoteRow
 	err := q.QueryRow(ctx, `
 		SELECT n.id, n.user_id, n.source_id, s.video_id, n.processing_version, n.processing_state::text,
-		       n.cancel_requested_at, n.trashed_at, s.duration_seconds
+		       n.cancel_requested_at, n.trashed_at, s.duration_seconds, s.title, s.channel_name, n.active_revision_id
 		  FROM notes n JOIN sources s ON s.id = n.source_id
 		 WHERE n.id = $1`+suffix, noteID).
-		Scan(&n.ID, &n.UserID, &n.SourceID, &n.VideoID, &n.ProcessingVersion, &n.ProcessingState, &n.CancelRequestedAt, &n.TrashedAt, &n.DurationSeconds)
+		Scan(&n.ID, &n.UserID, &n.SourceID, &n.VideoID, &n.ProcessingVersion, &n.ProcessingState, &n.CancelRequestedAt, &n.TrashedAt, &n.DurationSeconds, &n.Title, &n.ChannelName, &n.ActiveRevisionID)
 	if err != nil {
 		return nil, err
 	}

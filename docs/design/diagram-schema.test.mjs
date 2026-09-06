@@ -49,6 +49,20 @@ for (const example of valid) {
   );
 }
 
+// The diagram the Go generating Stage stored for the design fixture is
+// structurally and semantically valid, like every hand-written example.
+const goStored = JSON.parse(
+  await readFile(
+    path.join(here, "generation", "fixtures", "en-neural-network.stored.json"),
+    "utf8",
+  ),
+);
+assert.deepEqual(
+  errorsFor(goStored.diagram),
+  [],
+  "the Go pipeline's stored diagram should be valid",
+);
+
 const expectedInvalidReasons = new Map([
   ["ai-content-without-source-ref.json", "fewer than 1"],
   ["duplicate-element-id.json", "duplicate element id"],

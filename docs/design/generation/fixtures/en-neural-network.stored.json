@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "detected_language": "en",
+  "primary_topic": "Neural networks",
+  "tags": [
+    "deep learning",
+    "machine learning",
+    "digit recognition",
+    "linear algebra"
+  ],
+  "summary": {
+    "id": "sum1",
+    "text": "A neural network for recognizing handwritten digits is built from layers of neurons holding activations between 0 and 1, connected by roughly 13,000 weights and biases that learning adjusts.",
+    "provenance": "ai",
+    "speaker_claim": false,
+    "source_refs": [
+      {
+        "chunk_id": "0ab4a7ae-2858-509d-93f7-b25aebd73a63",
+        "char_start": 449,
+        "char_end": 525
+      },
+      {
+        "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+        "char_start": 915,
+        "char_end": 978
+      }
+    ]
+  },
+  "key_points": [
+    {
+      "id": "kp1",
+      "text": "A neuron is simply a thing that holds a number between 0 and 1, and that number is called its activation.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+          "char_start": 465,
+          "char_end": 531
+        },
+        {
+          "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+          "char_start": 868,
+          "char_end": 922
+        }
+      ]
+    },
+    {
+      "id": "kp2",
+      "text": "The input layer has one neuron per pixel of the 28x28 image, 784 in total, and the output layer has ten, one per digit.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+          "char_start": 691,
+          "char_end": 711
+        },
+        {
+          "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+          "char_start": 1138,
+          "char_end": 1194
+        }
+      ]
+    },
+    {
+      "id": "kp3",
+      "text": "Activations in one layer determine the activations of the next, and that is the whole information-processing mechanism.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "b05adfd8-16d2-56df-b0e3-783b66c4b467",
+          "char_start": 684,
+          "char_end": 752
+        }
+      ]
+    },
+    {
+      "id": "kp4",
+      "text": "Every connection carries a weight, and every neuron adds a bias that sets how high its weighted sum must be before it activates.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "d525f757-6558-5d8d-9708-3d9282b61b2e",
+          "char_start": 368,
+          "char_end": 414
+        },
+        {
+          "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+          "char_start": 140,
+          "char_end": 249
+        }
+      ]
+    },
+    {
+      "id": "kp5",
+      "text": "The sigmoid function squashes an unbounded weighted sum back into the range between 0 and 1.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "c89a70e8-67f0-52c8-95df-42b2390d6d1c",
+          "char_start": 539,
+          "char_end": 591
+        },
+        {
+          "chunk_id": "c89a70e8-67f0-52c8-95df-42b2390d6d1c",
+          "char_start": 383,
+          "char_end": 459
+        }
+      ]
+    },
+    {
+      "id": "kp6",
+      "text": "Learning means getting the computer to find a valid setting for all of those weights and biases.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+          "char_start": 1084,
+          "char_end": 1185
+        }
+      ]
+    }
+  ],
+  "important_details": [
+    {
+      "id": "d1",
+      "text": "The demonstrated network uses two hidden layers of sixteen neurons each, which the presenter calls an arbitrary choice.",
+      "provenance": "ai",
+      "speaker_claim": true,
+      "source_refs": [
+        {
+          "chunk_id": "b05adfd8-16d2-56df-b0e3-783b66c4b467",
+          "char_start": 317,
+          "char_end": 360
+        },
+        {
+          "chunk_id": "b05adfd8-16d2-56df-b0e3-783b66c4b467",
+          "char_start": 377,
+          "char_end": 411
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "text": "Pixel grayscale values run from 0 for black up to 1 for white.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+          "char_start": 810,
+          "char_end": 866
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "text": "Weight grids are drawn with green pixels for positive weights and red for negative ones.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "d525f757-6558-5d8d-9708-3d9282b61b2e",
+          "char_start": 736,
+          "char_end": 822
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "text": "The network's answer is whichever neuron in the output layer is brightest.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "e909fb8f-b192-575c-b0f3-a38bef4a3b25",
+          "char_start": 241,
+          "char_end": 306
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "text": "Written compactly, one layer transition is a matrix-vector product plus a bias vector, wrapped in a sigmoid.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "68d4d73a-3872-58c1-be19-652391e37df5",
+          "char_start": 5,
+          "char_end": 44
+        },
+        {
+          "chunk_id": "68d4d73a-3872-58c1-be19-652391e37df5",
+          "char_start": 840,
+          "char_end": 902
+        }
+      ]
+    }
+  ],
+  "practical_actions": [
+    {
+      "id": "pa1",
+      "text": "Watch the presenter's linear algebra series, especially chapter 3, for the matrix-vector background this relies on.",
+      "provenance": "ai",
+      "speaker_claim": false,
+      "source_refs": [
+        {
+          "chunk_id": "68d4d73a-3872-58c1-be19-652391e37df5",
+          "char_start": 593,
+          "char_end": 664
+        }
+      ]
+    }
+  ],
+  "diagram": {
+    "schema_version": 1,
+    "type": "mind_map",
+    "nodes": [
+      {
+        "id": "n_root",
+        "label": "Neural network for digit recognition",
+        "kind": "root",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "0ab4a7ae-2858-509d-93f7-b25aebd73a63",
+            "char_start": 449,
+            "char_end": 525
+          }
+        ]
+      },
+      {
+        "id": "n_input",
+        "label": "Input layer: 784 pixel neurons",
+        "kind": "layer",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+            "char_start": 691,
+            "char_end": 711
+          }
+        ]
+      },
+      {
+        "id": "n_hidden",
+        "label": "Two hidden layers of 16 neurons",
+        "kind": "layer",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "b05adfd8-16d2-56df-b0e3-783b66c4b467",
+            "char_start": 317,
+            "char_end": 360
+          }
+        ]
+      },
+      {
+        "id": "n_output",
+        "label": "Output layer: 10 digit neurons",
+        "kind": "layer",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+            "char_start": 1138,
+            "char_end": 1194
+          }
+        ]
+      },
+      {
+        "id": "n_activation",
+        "label": "Activation: a number from 0 to 1",
+        "kind": "concept",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "ea2d9379-f63b-5ad9-8481-7fbcc2a2d054",
+            "char_start": 868,
+            "char_end": 922
+          }
+        ]
+      },
+      {
+        "id": "n_sigmoid",
+        "label": "Sigmoid squishes the weighted sum",
+        "kind": "mechanism",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "c89a70e8-67f0-52c8-95df-42b2390d6d1c",
+            "char_start": 539,
+            "char_end": 591
+          }
+        ]
+      },
+      {
+        "id": "n_relu",
+        "label": "ReLU has largely replaced sigmoid",
+        "kind": "mechanism",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": true,
+        "source_refs": [
+          {
+            "chunk_id": "b9ac4757-e36b-5df1-a5c2-255d78dc483b",
+            "char_start": 231,
+            "char_end": 290
+          },
+          {
+            "chunk_id": "b9ac4757-e36b-5df1-a5c2-255d78dc483b",
+            "char_start": 344,
+            "char_end": 381
+          }
+        ]
+      },
+      {
+        "id": "n_weights",
+        "label": "Weights on every connection",
+        "kind": "parameter",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "d525f757-6558-5d8d-9708-3d9282b61b2e",
+            "char_start": 368,
+            "char_end": 414
+          }
+        ]
+      },
+      {
+        "id": "n_bias",
+        "label": "Bias sets the activation threshold",
+        "kind": "parameter",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+            "char_start": 0,
+            "char_end": 42
+          }
+        ]
+      },
+      {
+        "id": "n_params",
+        "label": "About 13,000 weights and biases",
+        "kind": "quantity",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+            "char_start": 915,
+            "char_end": 978
+          }
+        ]
+      },
+      {
+        "id": "n_learning",
+        "label": "Learning finds a valid setting",
+        "kind": "concept",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "7bc7797c-8f87-586b-9465-4634ccd22220",
+            "char_start": 1084,
+            "char_end": 1185
+          }
+        ]
+      },
+      {
+        "id": "n_edges",
+        "label": "Hope: hidden layers detect edges then patterns",
+        "kind": "hypothesis",
+        "initially_visible": true,
+        "provenance": "ai",
+        "speaker_claim": true,
+        "source_refs": [
+          {
+            "chunk_id": "56d5d2da-424d-53d0-b912-42f4db0bb18e",
+            "char_start": 914,
+            "char_end": 1011
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "from": "n_root",
+        "to": "n_input"
+      },
+      {
+        "id": "e2",
+        "from": "n_root",
+        "to": "n_hidden"
+      },
+      {
+        "id": "e3",
+        "from": "n_root",
+        "to": "n_output"
+      },
+      {
+        "id": "e4",
+        "from": "n_root",
+        "to": "n_activation"
+      },
+      {
+        "id": "e5",
+        "from": "n_activation",
+        "to": "n_sigmoid",
+        "label": "produced by squishing",
+        "provenance": "ai",
+        "speaker_claim": false,
+        "source_refs": [
+          {
+            "chunk_id": "c89a70e8-67f0-52c8-95df-42b2390d6d1c",
+            "char_start": 383,
+            "char_end": 459
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "from": "n_sigmoid",
+        "to": "n_relu"
+      },
+      {
+        "id": "e7",
+        "from": "n_root",
+        "to": "n_weights"
+      },
+      {
+        "id": "e8",
+        "from": "n_weights",
+        "to": "n_bias"
+      },
+      {
+        "id": "e9",
+        "from": "n_root",
+        "to": "n_params"
+      },
+      {
+        "id": "e10",
+        "from": "n_params",
+        "to": "n_learning"
+      },
+      {
+        "id": "e11",
+        "from": "n_root",
+        "to": "n_edges"
+      }
+    ],
+    "collapsed_groups": [],
+    "layout": {
+      "engine": "radial"
+    }
+  }
+}

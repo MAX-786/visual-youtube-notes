@@ -197,6 +197,21 @@ assert.ok(
 );
 assert.equal(payload.schema_version, 1);
 
+// The Go pipeline writes the same shape: its stored payload for the same
+// fixture, produced by the generating Stage under test and checked in, must
+// satisfy the mirror too, or the port has drifted from the prototype.
+const goPayload = JSON.parse(
+  await readFile(
+    path.join(here, "generation/fixtures/en-neural-network.stored.json"),
+    "utf8",
+  ),
+);
+assert.ok(
+  validatePayload(goPayload),
+  `the Go pipeline's stored payload matches RevisionPayload: ${ajv.errorsText(validatePayload.errors)}`,
+);
+assert.equal(goPayload.diagram.type, payload.diagram.type);
+
 // A payload that still carries coordinates is rejected by the mirror as it is
 // by the normative schema (ADR 0004 hoisted layout out of the Revision).
 const withCoordinates = structuredClone(payload);

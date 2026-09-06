@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
 
@@ -24,6 +27,11 @@ type Deps struct {
 	Extractor Extractor
 	TempDir   string
 	Logger    *slog.Logger
+	// AI reads role credentials and records verification verdicts; nil means
+	// the paid Stages stay placeholders. AITransport, when set, is the
+	// no-network double the tests inject beneath the provider clients.
+	AI          *ai.Store
+	AITransport http.RoundTripper
 	// Hooks let later slices plug the paid Stages in without the runner
 	// knowing them: the cost gate after captions, and the providers.
 	Hooks Hooks
@@ -57,9 +65,20 @@ type result struct {
 	terminal bool
 }
 
+// StageRun is what a Stage's work knows about the attempt it runs in: the
+// run, the Attempt row every provider call is charged to, and a scratch
+// directory removed when the work returns.
+type StageRun struct {
+	Run       Run
+	Stage     string
+	AttemptID uuid.UUID
+	AttemptNo int
+	Dir       string
+}
+
 // work is one Stage's job: everything between opening the Attempt and the
 // completion transaction.
-type work func(ctx context.Context, d *Deps, note *NoteRow, dir string) (*result, error)
+type work func(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun) (*result, error)
 
 // runStage is the shape every Stage worker shares (docs/design/pipeline.md).
 func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], run Run, stage string, do work) error {
@@ -113,7 +132,7 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 	defer func() { _ = os.RemoveAll(dir) }()
 
 	// 4. Do the work.
-	res, workErr := do(ctx, d, note, dir)
+	res, workErr := do(ctx, d, note, &StageRun{Run: run, Stage: stage, AttemptID: attemptID, AttemptNo: job.Attempt, Dir: dir})
 	if workErr != nil {
 		se := classify(ctx, workErr)
 		if err := closeAttemptFailed(context.WithoutCancel(ctx), d.Pool, attemptID, se); err != nil {

@@ -62,6 +62,7 @@ func run(logger *slog.Logger) error {
 		Extractor: pipeline.NewYtDlp(cfg.Worker.YtDlpBin, cfg.Worker.YtDlpCacheDir),
 		TempDir:   cfg.Worker.TempDir,
 		Logger:    logger,
+		AI:        ai.NewStore(pool, ring),
 	}
 	workers := river.NewWorkers()
 	pipeline.RegisterWorkers(workers, deps)

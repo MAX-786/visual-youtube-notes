@@ -1,9 +1,7 @@
 package pipeline
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"log/slog"
 	"os"
@@ -72,13 +70,23 @@ func captionedVTT(sentences int) string {
 	return b.String()
 }
 
+// testMasterKey is the ring every test boots with.
+const testMasterKey = "1:AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM="
+
 func setup(t *testing.T) (*Deps, *Service, *fakeExtractor, uuid.UUID, context.Context) {
+	t.Helper()
+	return setupWith(t, nil)
+}
+
+// setupWith lets a test configure Deps before the workers are registered,
+// which is where the paid Stages decide between placeholder and real work.
+func setupWith(t *testing.T, configure func(*Deps)) (*Deps, *Service, *fakeExtractor, uuid.UUID, context.Context) {
 	t.Helper()
 	pool := testdb.Pool(t)
 	testdb.Reset(t, pool)
 	ctx := context.Background()
 
-	ring, _ := keys.Parse(strings.NewReader("1:" + base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{3}, 32))))
+	ring, _ := keys.Parse(strings.NewReader(testMasterKey))
 	authSvc := auth.New(pool, auth.NewKeyring(ring), audit.New(pool, nil))
 	account, err := authSvc.CreateOwner(ctx, "owner", "Owner", "", "correct horse battery staple")
 	if err != nil {
@@ -103,6 +111,9 @@ func setup(t *testing.T) (*Deps, *Service, *fakeExtractor, uuid.UUID, context.Co
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	deps := &Deps{Pool: pool, Extractor: fake, TempDir: t.TempDir(), Logger: logger}
+	if configure != nil {
+		configure(deps)
+	}
 	workers := river.NewWorkers()
 	RegisterWorkers(workers, deps)
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{

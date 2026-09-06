@@ -22,10 +22,16 @@ func RegisterWorkers(workers *river.Workers, d *Deps) {
 		transcribing = placeholder("Speech to text is not available in this build.")
 	}
 	generating := d.Hooks.Generating
+	if generating == nil && d.AI != nil {
+		generating = generatingWork
+	}
 	if generating == nil {
 		generating = placeholder("Note generation is not available in this build.")
 	}
 	indexing := d.Hooks.Indexing
+	if indexing == nil && d.AI != nil {
+		indexing = indexingWork
+	}
 	if indexing == nil {
 		indexing = placeholder("Search indexing is not available in this build.")
 	}
@@ -35,7 +41,7 @@ func RegisterWorkers(workers *river.Workers, d *Deps) {
 }
 
 func placeholder(message string) work {
-	return func(context.Context, *Deps, *NoteRow, string) (*result, error) {
+	return func(context.Context, *Deps, *NoteRow, *StageRun) (*result, error) {
 		return nil, Fail(Permanent, "not_built", message, nil)
 	}
 }
@@ -44,7 +50,7 @@ func placeholder(message string) work {
 // the caption track it chose with a single request, and writes the Source
 // row with the track, so the captions Stage never asks YouTube again
 // (spec 8.1, 8.2; ticket #4).
-func metadataWork(ctx context.Context, d *Deps, note *NoteRow, _ string) (*result, error) {
+func metadataWork(ctx context.Context, d *Deps, note *NoteRow, _ *StageRun) (*result, error) {
 	info, err := d.Extractor.Metadata(ctx, note.VideoID)
 	if err != nil {
 		return nil, err
@@ -91,7 +97,7 @@ func metadataWork(ctx context.Context, d *Deps, note *NoteRow, _ string) (*resul
 // captionsWork normalizes the caption track the metadata Stage stored, and
 // either stores the Transcript and skips transcribing, or hands the run to
 // speech to text (spec 8.2). It touches no network.
-func captionsWork(ctx context.Context, d *Deps, note *NoteRow, _ string) (*result, error) {
+func captionsWork(ctx context.Context, d *Deps, note *NoteRow, _ *StageRun) (*result, error) {
 	handoff := func(reason string) (*result, error) {
 		d.Logger.Info("captions handed to speech to text", "note", note.ID, "reason", reason)
 		return toSTT(reason), nil
