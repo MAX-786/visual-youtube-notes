@@ -4,20 +4,4262 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AiRole.
+const (
+	Embeddings     AiRole = "embeddings"
+	NoteGeneration AiRole = "note_generation"
+	Transcription  AiRole = "transcription"
+	VisualAnalysis AiRole = "visual_analysis"
+)
+
+// Valid indicates whether the value is a known member of the AiRole enum.
+func (e AiRole) Valid() bool {
+	switch e {
+	case Embeddings:
+		return true
+	case NoteGeneration:
+		return true
+	case Transcription:
+		return true
+	case VisualAnalysis:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupRepository.
+const (
+	Local   BackupRepository = "local"
+	Offsite BackupRepository = "offsite"
+)
+
+// Valid indicates whether the value is a known member of the BackupRepository enum.
+func (e BackupRepository) Valid() bool {
+	switch e {
+	case Local:
+		return true
+	case Offsite:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BillingMode.
+const (
+	Batch BillingMode = "batch"
+	Sync  BillingMode = "sync"
+)
+
+// Valid indicates whether the value is a known member of the BillingMode enum.
+func (e BillingMode) Valid() bool {
+	switch e {
+	case Batch:
+		return true
+	case Sync:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlockSection.
+const (
+	BlockSectionImportantDetails BlockSection = "important_details"
+	BlockSectionKeyPoints        BlockSection = "key_points"
+	BlockSectionPracticalActions BlockSection = "practical_actions"
+	BlockSectionSummary          BlockSection = "summary"
+)
+
+// Valid indicates whether the value is a known member of the BlockSection enum.
+func (e BlockSection) Valid() bool {
+	switch e {
+	case BlockSectionImportantDetails:
+		return true
+	case BlockSectionKeyPoints:
+		return true
+	case BlockSectionPracticalActions:
+		return true
+	case BlockSectionSummary:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CollapsedGroupInitiallyCollapsed.
+const (
+	True CollapsedGroupInitiallyCollapsed = true
+)
+
+// Valid indicates whether the value is a known member of the CollapsedGroupInitiallyCollapsed enum.
+func (e CollapsedGroupInitiallyCollapsed) Valid() bool {
+	switch e {
+	case True:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ComparisonDiagramSchemaVersion.
+const (
+	ComparisonDiagramSchemaVersionN1 ComparisonDiagramSchemaVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the ComparisonDiagramSchemaVersion enum.
+func (e ComparisonDiagramSchemaVersion) Valid() bool {
+	switch e {
+	case ComparisonDiagramSchemaVersionN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ComparisonDiagramType.
+const (
+	Comparison ComparisonDiagramType = "comparison"
+)
+
+// Valid indicates whether the value is a known member of the ComparisonDiagramType enum.
+func (e ComparisonDiagramType) Valid() bool {
+	switch e {
+	case Comparison:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteBlockOpOp.
+const (
+	DeleteBlock DeleteBlockOpOp = "delete_block"
+)
+
+// Valid indicates whether the value is a known member of the DeleteBlockOpOp enum.
+func (e DeleteBlockOpOp) Valid() bool {
+	switch e {
+	case DeleteBlock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteElementOpOp.
+const (
+	DeleteElement DeleteElementOpOp = "delete_element"
+)
+
+// Valid indicates whether the value is a known member of the DeleteElementOpOp enum.
+func (e DeleteElementOpOp) Valid() bool {
+	switch e {
+	case DeleteElement:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeviceSessionKind.
+const (
+	Extension DeviceSessionKind = "extension"
+	Pwa       DeviceSessionKind = "pwa"
+)
+
+// Valid indicates whether the value is a known member of the DeviceSessionKind enum.
+func (e DeviceSessionKind) Valid() bool {
+	switch e {
+	case Extension:
+		return true
+	case Pwa:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErrorCode.
+const (
+	CostHoldAbsent              ErrorCode = "cost_hold_absent"
+	CsrfRejected                ErrorCode = "csrf_rejected"
+	DimensionMismatch           ErrorCode = "dimension_mismatch"
+	EndpointNotAllowed          ErrorCode = "endpoint_not_allowed"
+	InternalError               ErrorCode = "internal_error"
+	InvalidRequest              ErrorCode = "invalid_request"
+	InvalidRequestOptions       ErrorCode = "invalid_request_options"
+	MixedTransport              ErrorCode = "mixed_transport"
+	MutationExpired             ErrorCode = "mutation_expired"
+	NoActiveRevision            ErrorCode = "no_active_revision"
+	NoReindexInProgress         ErrorCode = "no_reindex_in_progress"
+	NotFound                    ErrorCode = "not_found"
+	NoteNotFailed               ErrorCode = "note_not_failed"
+	NoteNotReady                ErrorCode = "note_not_ready"
+	NoteNotTrashed              ErrorCode = "note_not_trashed"
+	NotePurged                  ErrorCode = "note_purged"
+	NoteTrashed                 ErrorCode = "note_trashed"
+	OriginRejected              ErrorCode = "origin_rejected"
+	PairingDecided              ErrorCode = "pairing_decided"
+	PairingDenied               ErrorCode = "pairing_denied"
+	PairingExpired              ErrorCode = "pairing_expired"
+	PairingNotApproved          ErrorCode = "pairing_not_approved"
+	PairingRejected             ErrorCode = "pairing_rejected"
+	RateLimited                 ErrorCode = "rate_limited"
+	RegenerationInFlight        ErrorCode = "regeneration_in_flight"
+	ReindexInProgress           ErrorCode = "reindex_in_progress"
+	ReindexIncomplete           ErrorCode = "reindex_incomplete"
+	RendererUnavailable         ErrorCode = "renderer_unavailable"
+	RevisionNotActive           ErrorCode = "revision_not_active"
+	RevisionNotAwaitingDecision ErrorCode = "revision_not_awaiting_decision"
+	RolesUnconfigured           ErrorCode = "roles_unconfigured"
+	RunInFlight                 ErrorCode = "run_in_flight"
+	TagExists                   ErrorCode = "tag_exists"
+	TakeawayStale               ErrorCode = "takeaway_stale"
+	TopicExists                 ErrorCode = "topic_exists"
+	TopicInUse                  ErrorCode = "topic_in_use"
+	Unauthenticated             ErrorCode = "unauthenticated"
+	UrlUnsupported              ErrorCode = "url_unsupported"
+	ValidationFailed            ErrorCode = "validation_failed"
+)
+
+// Valid indicates whether the value is a known member of the ErrorCode enum.
+func (e ErrorCode) Valid() bool {
+	switch e {
+	case CostHoldAbsent:
+		return true
+	case CsrfRejected:
+		return true
+	case DimensionMismatch:
+		return true
+	case EndpointNotAllowed:
+		return true
+	case InternalError:
+		return true
+	case InvalidRequest:
+		return true
+	case InvalidRequestOptions:
+		return true
+	case MixedTransport:
+		return true
+	case MutationExpired:
+		return true
+	case NoActiveRevision:
+		return true
+	case NoReindexInProgress:
+		return true
+	case NotFound:
+		return true
+	case NoteNotFailed:
+		return true
+	case NoteNotReady:
+		return true
+	case NoteNotTrashed:
+		return true
+	case NotePurged:
+		return true
+	case NoteTrashed:
+		return true
+	case OriginRejected:
+		return true
+	case PairingDecided:
+		return true
+	case PairingDenied:
+		return true
+	case PairingExpired:
+		return true
+	case PairingNotApproved:
+		return true
+	case PairingRejected:
+		return true
+	case RateLimited:
+		return true
+	case RegenerationInFlight:
+		return true
+	case ReindexInProgress:
+		return true
+	case ReindexIncomplete:
+		return true
+	case RendererUnavailable:
+		return true
+	case RevisionNotActive:
+		return true
+	case RevisionNotAwaitingDecision:
+		return true
+	case RolesUnconfigured:
+		return true
+	case RunInFlight:
+		return true
+	case TagExists:
+		return true
+	case TakeawayStale:
+		return true
+	case TopicExists:
+		return true
+	case TopicInUse:
+		return true
+	case Unauthenticated:
+		return true
+	case UrlUnsupported:
+		return true
+	case ValidationFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FailureKind.
+const (
+	ExtractorBreakage FailureKind = "extractor_breakage"
+	Input             FailureKind = "input"
+)
+
+// Valid indicates whether the value is a known member of the FailureKind enum.
+func (e FailureKind) Valid() bool {
+	switch e {
+	case ExtractorBreakage:
+		return true
+	case Input:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GraphLayoutDirection.
+const (
+	BT GraphLayoutDirection = "BT"
+	LR GraphLayoutDirection = "LR"
+	RL GraphLayoutDirection = "RL"
+	TB GraphLayoutDirection = "TB"
+)
+
+// Valid indicates whether the value is a known member of the GraphLayoutDirection enum.
+func (e GraphLayoutDirection) Valid() bool {
+	switch e {
+	case BT:
+		return true
+	case LR:
+		return true
+	case RL:
+		return true
+	case TB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GraphLayoutEngine.
+const (
+	Layered GraphLayoutEngine = "layered"
+	Radial  GraphLayoutEngine = "radial"
+)
+
+// Valid indicates whether the value is a known member of the GraphLayoutEngine enum.
+func (e GraphLayoutEngine) Valid() bool {
+	switch e {
+	case Layered:
+		return true
+	case Radial:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthStatus.
+const (
+	HealthStatusAlarm   HealthStatus = "alarm"
+	HealthStatusOk      HealthStatus = "ok"
+	HealthStatusUnknown HealthStatus = "unknown"
+	HealthStatusWarn    HealthStatus = "warn"
+)
+
+// Valid indicates whether the value is a known member of the HealthStatus enum.
+func (e HealthStatus) Valid() bool {
+	switch e {
+	case HealthStatusAlarm:
+		return true
+	case HealthStatusOk:
+		return true
+	case HealthStatusUnknown:
+		return true
+	case HealthStatusWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InsertBlockOpOp.
+const (
+	InsertBlock InsertBlockOpOp = "insert_block"
+)
+
+// Valid indicates whether the value is a known member of the InsertBlockOpOp enum.
+func (e InsertBlockOpOp) Valid() bool {
+	switch e {
+	case InsertBlock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Language.
+const (
+	En       Language = "en"
+	Hi       Language = "hi"
+	Hinglish Language = "hinglish"
+)
+
+// Valid indicates whether the value is a known member of the Language enum.
+func (e Language) Valid() bool {
+	switch e {
+	case En:
+		return true
+	case Hi:
+		return true
+	case Hinglish:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LinearLayoutOrientation.
+const (
+	Horizontal LinearLayoutOrientation = "horizontal"
+	Vertical   LinearLayoutOrientation = "vertical"
+)
+
+// Valid indicates whether the value is a known member of the LinearLayoutOrientation enum.
+func (e LinearLayoutOrientation) Valid() bool {
+	switch e {
+	case Horizontal:
+		return true
+	case Vertical:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSection.
+const (
+	ListSectionImportantDetails ListSection = "important_details"
+	ListSectionKeyPoints        ListSection = "key_points"
+	ListSectionPracticalActions ListSection = "practical_actions"
+)
+
+// Valid indicates whether the value is a known member of the ListSection enum.
+func (e ListSection) Valid() bool {
+	switch e {
+	case ListSectionImportantDetails:
+		return true
+	case ListSectionKeyPoints:
+		return true
+	case ListSectionPracticalActions:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MindMapDiagramSchemaVersion.
+const (
+	MindMapDiagramSchemaVersionN1 MindMapDiagramSchemaVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the MindMapDiagramSchemaVersion enum.
+func (e MindMapDiagramSchemaVersion) Valid() bool {
+	switch e {
+	case MindMapDiagramSchemaVersionN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MindMapDiagramType.
+const (
+	MindMap MindMapDiagramType = "mind_map"
+)
+
+// Valid indicates whether the value is a known member of the MindMapDiagramType enum.
+func (e MindMapDiagramType) Valid() bool {
+	switch e {
+	case MindMap:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MutationOutcome.
+const (
+	Applied    MutationOutcome = "applied"
+	Conflicted MutationOutcome = "conflicted"
+)
+
+// Valid indicates whether the value is a known member of the MutationOutcome enum.
+func (e MutationOutcome) Valid() bool {
+	switch e {
+	case Applied:
+		return true
+	case Conflicted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PairingRequestStatus.
+const (
+	PairingRequestStatusApproved PairingRequestStatus = "approved"
+	PairingRequestStatusConsumed PairingRequestStatus = "consumed"
+	PairingRequestStatusDenied   PairingRequestStatus = "denied"
+	PairingRequestStatusExpired  PairingRequestStatus = "expired"
+	PairingRequestStatusPending  PairingRequestStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the PairingRequestStatus enum.
+func (e PairingRequestStatus) Valid() bool {
+	switch e {
+	case PairingRequestStatusApproved:
+		return true
+	case PairingRequestStatusConsumed:
+		return true
+	case PairingRequestStatusDenied:
+		return true
+	case PairingRequestStatusExpired:
+		return true
+	case PairingRequestStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProcessFlowDiagramSchemaVersion.
+const (
+	ProcessFlowDiagramSchemaVersionN1 ProcessFlowDiagramSchemaVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the ProcessFlowDiagramSchemaVersion enum.
+func (e ProcessFlowDiagramSchemaVersion) Valid() bool {
+	switch e {
+	case ProcessFlowDiagramSchemaVersionN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProcessFlowDiagramType.
+const (
+	ProcessFlow ProcessFlowDiagramType = "process_flow"
+)
+
+// Valid indicates whether the value is a known member of the ProcessFlowDiagramType enum.
+func (e ProcessFlowDiagramType) Valid() bool {
+	switch e {
+	case ProcessFlow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProcessingState.
+const (
+	ProcessingStateCancelled    ProcessingState = "cancelled"
+	ProcessingStateCancelling   ProcessingState = "cancelling"
+	ProcessingStateCaptions     ProcessingState = "captions"
+	ProcessingStateFailed       ProcessingState = "failed"
+	ProcessingStateGenerating   ProcessingState = "generating"
+	ProcessingStateIndexing     ProcessingState = "indexing"
+	ProcessingStateMetadata     ProcessingState = "metadata"
+	ProcessingStateQueued       ProcessingState = "queued"
+	ProcessingStateReady        ProcessingState = "ready"
+	ProcessingStateTranscribing ProcessingState = "transcribing"
+)
+
+// Valid indicates whether the value is a known member of the ProcessingState enum.
+func (e ProcessingState) Valid() bool {
+	switch e {
+	case ProcessingStateCancelled:
+		return true
+	case ProcessingStateCancelling:
+		return true
+	case ProcessingStateCaptions:
+		return true
+	case ProcessingStateFailed:
+		return true
+	case ProcessingStateGenerating:
+		return true
+	case ProcessingStateIndexing:
+		return true
+	case ProcessingStateMetadata:
+		return true
+	case ProcessingStateQueued:
+		return true
+	case ProcessingStateReady:
+		return true
+	case ProcessingStateTranscribing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Provenance.
+const (
+	Ai         Provenance = "ai"
+	UserEdited Provenance = "user_edited"
+)
+
+// Valid indicates whether the value is a known member of the Provenance enum.
+func (e Provenance) Valid() bool {
+	switch e {
+	case Ai:
+		return true
+	case UserEdited:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReorderBlocksOpOp.
+const (
+	ReorderBlocks ReorderBlocksOpOp = "reorder_blocks"
+)
+
+// Valid indicates whether the value is a known member of the ReorderBlocksOpOp enum.
+func (e ReorderBlocksOpOp) Valid() bool {
+	switch e {
+	case ReorderBlocks:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReorderElementsOpCollection.
+const (
+	Columns ReorderElementsOpCollection = "columns"
+	Events  ReorderElementsOpCollection = "events"
+	Rows    ReorderElementsOpCollection = "rows"
+)
+
+// Valid indicates whether the value is a known member of the ReorderElementsOpCollection enum.
+func (e ReorderElementsOpCollection) Valid() bool {
+	switch e {
+	case Columns:
+		return true
+	case Events:
+		return true
+	case Rows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReorderElementsOpOp.
+const (
+	ReorderElements ReorderElementsOpOp = "reorder_elements"
+)
+
+// Valid indicates whether the value is a known member of the ReorderElementsOpOp enum.
+func (e ReorderElementsOpOp) Valid() bool {
+	switch e {
+	case ReorderElements:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResyncEventReason.
+const (
+	CursorExpired ResyncEventReason = "cursor_expired"
+)
+
+// Valid indicates whether the value is a known member of the ResyncEventReason enum.
+func (e ResyncEventReason) Valid() bool {
+	switch e {
+	case CursorExpired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RevisionOrigin.
+const (
+	Conflict  RevisionOrigin = "conflict"
+	Generated RevisionOrigin = "generated"
+	Manual    RevisionOrigin = "manual"
+	Restore   RevisionOrigin = "restore"
+)
+
+// Valid indicates whether the value is a known member of the RevisionOrigin enum.
+func (e RevisionOrigin) Valid() bool {
+	switch e {
+	case Conflict:
+		return true
+	case Generated:
+		return true
+	case Manual:
+		return true
+	case Restore:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RevisionPayloadSchemaVersion.
+const (
+	RevisionPayloadSchemaVersionN1 RevisionPayloadSchemaVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the RevisionPayloadSchemaVersion enum.
+func (e RevisionPayloadSchemaVersion) Valid() bool {
+	switch e {
+	case RevisionPayloadSchemaVersionN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RevokedEventReason.
+const (
+	SessionExpired RevokedEventReason = "session_expired"
+	SessionRevoked RevokedEventReason = "session_revoked"
+)
+
+// Valid indicates whether the value is a known member of the RevokedEventReason enum.
+func (e RevokedEventReason) Valid() bool {
+	switch e {
+	case SessionExpired:
+		return true
+	case SessionRevoked:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RunOutcome.
+const (
+	RunOutcomeHeld    RunOutcome = "held"
+	RunOutcomeStarted RunOutcome = "started"
+)
+
+// Valid indicates whether the value is a known member of the RunOutcome enum.
+func (e RunOutcome) Valid() bool {
+	switch e {
+	case RunOutcomeHeld:
+		return true
+	case RunOutcomeStarted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchChildKind.
+const (
+	SearchChildKindDiagram         SearchChildKind = "diagram"
+	SearchChildKindImportantDetail SearchChildKind = "important_detail"
+	SearchChildKindKeyPoint        SearchChildKind = "key_point"
+	SearchChildKindMetadata        SearchChildKind = "metadata"
+	SearchChildKindPracticalAction SearchChildKind = "practical_action"
+	SearchChildKindSummary         SearchChildKind = "summary"
+	SearchChildKindTakeaway        SearchChildKind = "takeaway"
+	SearchChildKindTranscriptChunk SearchChildKind = "transcript_chunk"
+)
+
+// Valid indicates whether the value is a known member of the SearchChildKind enum.
+func (e SearchChildKind) Valid() bool {
+	switch e {
+	case SearchChildKindDiagram:
+		return true
+	case SearchChildKindImportantDetail:
+		return true
+	case SearchChildKindKeyPoint:
+		return true
+	case SearchChildKindMetadata:
+		return true
+	case SearchChildKindPracticalAction:
+		return true
+	case SearchChildKindSummary:
+		return true
+	case SearchChildKindTakeaway:
+		return true
+	case SearchChildKindTranscriptChunk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SemanticUnavailableReason.
+const (
+	ProviderError SemanticUnavailableReason = "provider_error"
+	SoftCap       SemanticUnavailableReason = "soft_cap"
+)
+
+// Valid indicates whether the value is a known member of the SemanticUnavailableReason enum.
+func (e SemanticUnavailableReason) Valid() bool {
+	switch e {
+	case ProviderError:
+		return true
+	case SoftCap:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetBlockTextOpOp.
+const (
+	SetBlockText SetBlockTextOpOp = "set_block_text"
+)
+
+// Valid indicates whether the value is a known member of the SetBlockTextOpOp enum.
+func (e SetBlockTextOpOp) Valid() bool {
+	switch e {
+	case SetBlockText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetCellTextOpOp.
+const (
+	SetCellText SetCellTextOpOp = "set_cell_text"
+)
+
+// Valid indicates whether the value is a known member of the SetCellTextOpOp enum.
+func (e SetCellTextOpOp) Valid() bool {
+	switch e {
+	case SetCellText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetElementLabelOpOp.
+const (
+	SetElementLabel SetElementLabelOpOp = "set_element_label"
+)
+
+// Valid indicates whether the value is a known member of the SetElementLabelOpOp enum.
+func (e SetElementLabelOpOp) Valid() bool {
+	switch e {
+	case SetElementLabel:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StageKind.
+const (
+	StageKindCaptions     StageKind = "captions"
+	StageKindGenerating   StageKind = "generating"
+	StageKindIndexing     StageKind = "indexing"
+	StageKindMetadata     StageKind = "metadata"
+	StageKindTranscribing StageKind = "transcribing"
+)
+
+// Valid indicates whether the value is a known member of the StageKind enum.
+func (e StageKind) Valid() bool {
+	switch e {
+	case StageKindCaptions:
+		return true
+	case StageKindGenerating:
+		return true
+	case StageKindIndexing:
+		return true
+	case StageKindMetadata:
+		return true
+	case StageKindTranscribing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StageStatus.
+const (
+	StageStatusCancelled StageStatus = "cancelled"
+	StageStatusFailed    StageStatus = "failed"
+	StageStatusPending   StageStatus = "pending"
+	StageStatusReady     StageStatus = "ready"
+	StageStatusRunning   StageStatus = "running"
+	StageStatusSkipped   StageStatus = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the StageStatus enum.
+func (e StageStatus) Valid() bool {
+	switch e {
+	case StageStatusCancelled:
+		return true
+	case StageStatusFailed:
+		return true
+	case StageStatusPending:
+		return true
+	case StageStatusReady:
+		return true
+	case StageStatusRunning:
+		return true
+	case StageStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmissionCreatedOutcome.
+const (
+	SubmissionCreatedOutcomeCreated SubmissionCreatedOutcome = "created"
+)
+
+// Valid indicates whether the value is a known member of the SubmissionCreatedOutcome enum.
+func (e SubmissionCreatedOutcome) Valid() bool {
+	switch e {
+	case SubmissionCreatedOutcomeCreated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmissionDuplicateOutcome.
+const (
+	SubmissionDuplicateOutcomeDuplicate SubmissionDuplicateOutcome = "duplicate"
+)
+
+// Valid indicates whether the value is a known member of the SubmissionDuplicateOutcome enum.
+func (e SubmissionDuplicateOutcome) Valid() bool {
+	switch e {
+	case SubmissionDuplicateOutcomeDuplicate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmissionHeldOutcome.
+const (
+	SubmissionHeldOutcomeHeld SubmissionHeldOutcome = "held"
+)
+
+// Valid indicates whether the value is a known member of the SubmissionHeldOutcome enum.
+func (e SubmissionHeldOutcome) Valid() bool {
+	switch e {
+	case SubmissionHeldOutcomeHeld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmissionOutcome.
+const (
+	SubmissionOutcomeCreated   SubmissionOutcome = "created"
+	SubmissionOutcomeDuplicate SubmissionOutcome = "duplicate"
+	SubmissionOutcomeHeld      SubmissionOutcome = "held"
+)
+
+// Valid indicates whether the value is a known member of the SubmissionOutcome enum.
+func (e SubmissionOutcome) Valid() bool {
+	switch e {
+	case SubmissionOutcomeCreated:
+		return true
+	case SubmissionOutcomeDuplicate:
+		return true
+	case SubmissionOutcomeHeld:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncChange.
+const (
+	SyncChangeCreated SyncChange = "created"
+	SyncChangeDeleted SyncChange = "deleted"
+	SyncChangeUpdated SyncChange = "updated"
+)
+
+// Valid indicates whether the value is a known member of the SyncChange enum.
+func (e SyncChange) Valid() bool {
+	switch e {
+	case SyncChangeCreated:
+		return true
+	case SyncChangeDeleted:
+		return true
+	case SyncChangeUpdated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncEntityKind.
+const (
+	SyncEntityKindDiagramLayout SyncEntityKind = "diagram_layout"
+	SyncEntityKindNote          SyncEntityKind = "note"
+	SyncEntityKindTag           SyncEntityKind = "tag"
+	SyncEntityKindTakeaway      SyncEntityKind = "takeaway"
+	SyncEntityKindTopic         SyncEntityKind = "topic"
+)
+
+// Valid indicates whether the value is a known member of the SyncEntityKind enum.
+func (e SyncEntityKind) Valid() bool {
+	switch e {
+	case SyncEntityKindDiagramLayout:
+		return true
+	case SyncEntityKindNote:
+		return true
+	case SyncEntityKindTag:
+		return true
+	case SyncEntityKindTakeaway:
+		return true
+	case SyncEntityKindTopic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimelineDiagramSchemaVersion.
+const (
+	TimelineDiagramSchemaVersionN1 TimelineDiagramSchemaVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the TimelineDiagramSchemaVersion enum.
+func (e TimelineDiagramSchemaVersion) Valid() bool {
+	switch e {
+	case TimelineDiagramSchemaVersionN1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimelineDiagramType.
+const (
+	Timeline TimelineDiagramType = "timeline"
+)
+
+// Valid indicates whether the value is a known member of the TimelineDiagramType enum.
+func (e TimelineDiagramType) Valid() bool {
+	switch e {
+	case Timeline:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TranscriptSourceKind.
+const (
+	CaptionAutomatic TranscriptSourceKind = "caption_automatic"
+	CaptionHuman     TranscriptSourceKind = "caption_human"
+	Stt              TranscriptSourceKind = "stt"
+)
+
+// Valid indicates whether the value is a known member of the TranscriptSourceKind enum.
+func (e TranscriptSourceKind) Valid() bool {
+	switch e {
+	case CaptionAutomatic:
+		return true
+	case CaptionHuman:
+		return true
+	case Stt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UndoResultResult.
+const (
+	Trashed UndoResultResult = "trashed"
+	Undone  UndoResultResult = "undone"
+)
+
+// Valid indicates whether the value is a known member of the UndoResultResult enum.
+func (e UndoResultResult) Valid() bool {
+	switch e {
+	case Trashed:
+		return true
+	case Undone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UsageOutcome.
+const (
+	UsageOutcomeBilled   UsageOutcome = "billed"
+	UsageOutcomeNoCharge UsageOutcome = "no_charge"
+	UsageOutcomeUnknown  UsageOutcome = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the UsageOutcome enum.
+func (e UsageOutcome) Valid() bool {
+	switch e {
+	case UsageOutcomeBilled:
+		return true
+	case UsageOutcomeNoCharge:
+		return true
+	case UsageOutcomeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Account defines model for Account.
+type Account struct {
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt   Timestamp `json:"created_at"`
+	DisplayName string    `json:"display_name"`
+	Id          Uuid      `json:"id"`
+
+	// PasswordChangedAt RFC 3339, UTC.
+	PasswordChangedAt Timestamp `json:"password_changed_at"`
+
+	// Timezone IANA zone name. Groups Save times and fixes billing months.
+	Timezone string `json:"timezone"`
+	Username string `json:"username"`
+}
+
+// AccountUpdate defines model for AccountUpdate.
+type AccountUpdate struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	Timezone    *string `json:"timezone,omitempty"`
+}
+
+// AiRole defines model for AiRole.
+type AiRole string
+
+// AiRoleConfig defines model for AiRoleConfig.
+type AiRoleConfig struct {
+	// Endpoint Null means the provider's canonical base URL.
+	Endpoint      *string `json:"endpoint"`
+	KeyConfigured bool    `json:"key_configured"`
+
+	// KeyHint The last four characters of the stored key, and nothing more.
+	KeyHint        *string                `json:"key_hint"`
+	Model          string                 `json:"model"`
+	Provider       string                 `json:"provider"`
+	RequestOptions map[string]interface{} `json:"request_options"`
+	Role           AiRole                 `json:"role"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt         Timestamp  `json:"updated_at"`
+	VerificationError *string    `json:"verification_error"`
+	VerifiedAt        *time.Time `json:"verified_at"`
+}
+
+// AiRoleDefault defines model for AiRoleDefault.
+type AiRoleDefault struct {
+	Model          string                 `json:"model"`
+	Provider       string                 `json:"provider"`
+	RequestOptions map[string]interface{} `json:"request_options"`
+	Role           AiRole                 `json:"role"`
+	SourceNote     *string                `json:"source_note"`
+}
+
+// AiRoleWrite defines model for AiRoleWrite.
+type AiRoleWrite struct {
+	// ApiKey Write-only. Omit to keep the stored key.
+	ApiKey         *string                 `json:"api_key,omitempty"`
+	Endpoint       *string                 `json:"endpoint,omitempty"`
+	Model          string                  `json:"model"`
+	Provider       string                  `json:"provider"`
+	RequestOptions *map[string]interface{} `json:"request_options,omitempty"`
+}
+
+// AiSettings defines model for AiSettings.
+type AiSettings struct {
+	// BlockingSubmission Roles that must be configured before a Submission is accepted. Empty means the pipeline can reach ready.
+	BlockingSubmission []AiRole        `json:"blocking_submission"`
+	Defaults           []AiRoleDefault `json:"defaults"`
+	Roles              []AiRoleConfig  `json:"roles"`
+}
+
+// BackupRepository defines model for BackupRepository.
+type BackupRepository string
+
+// Base64Url256 32 random or hashed bytes, base64url without padding.
+type Base64Url256 = string
+
+// BillingMode defines model for BillingMode.
+type BillingMode string
+
+// BlockSection defines model for BlockSection.
+type BlockSection string
+
+// CollapsedGroup defines model for CollapsedGroup.
+type CollapsedGroup struct {
+	// AnchorId A stable Content block or Diagram element id.
+	AnchorId ElementId `json:"anchor_id"`
+
+	// Id A stable Content block or Diagram element id.
+	Id                 ElementId                        `json:"id"`
+	InitiallyCollapsed CollapsedGroupInitiallyCollapsed `json:"initially_collapsed"`
+	MemberIds          []ElementId                      `json:"member_ids"`
+}
+
+// CollapsedGroupInitiallyCollapsed defines model for CollapsedGroup.InitiallyCollapsed.
+type CollapsedGroupInitiallyCollapsed bool
+
+// ComparisonCell defines model for ComparisonCell.
+type ComparisonCell struct {
+	Provenance Provenance  `json:"provenance"`
+	SourceRefs []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool  `json:"speaker_claim,omitempty"`
+	Text         string `json:"text"`
+}
+
+// ComparisonColumn defines model for ComparisonColumn.
+type ComparisonColumn struct {
+	// Id A stable Content block or Diagram element id.
+	Id         ElementId   `json:"id"`
+	Label      string      `json:"label"`
+	Order      int         `json:"order"`
+	Provenance Provenance  `json:"provenance"`
+	SourceRefs []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool `json:"speaker_claim,omitempty"`
+}
+
+// ComparisonDiagram defines model for ComparisonDiagram.
+type ComparisonDiagram struct {
+	Columns       []ComparisonColumn             `json:"columns"`
+	Rows          []ComparisonRow                `json:"rows"`
+	SchemaVersion ComparisonDiagramSchemaVersion `json:"schema_version"`
+	Type          ComparisonDiagramType          `json:"type"`
+}
+
+// ComparisonDiagramSchemaVersion defines model for ComparisonDiagram.SchemaVersion.
+type ComparisonDiagramSchemaVersion int
+
+// ComparisonDiagramType defines model for ComparisonDiagram.Type.
+type ComparisonDiagramType string
+
+// ComparisonRow defines model for ComparisonRow.
+type ComparisonRow struct {
+	// Cells Keyed by column id.
+	Cells map[string]ComparisonCell `json:"cells"`
+
+	// Id A stable Content block or Diagram element id.
+	Id         ElementId   `json:"id"`
+	Label      string      `json:"label"`
+	Order      int         `json:"order"`
+	Provenance Provenance  `json:"provenance"`
+	SourceRefs []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool `json:"speaker_claim,omitempty"`
+}
+
+// ContentBlock defines model for ContentBlock.
+type ContentBlock struct {
+	// Id A stable Content block or Diagram element id.
+	Id         ElementId   `json:"id"`
+	Provenance Provenance  `json:"provenance"`
+	SourceRefs []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool  `json:"speaker_claim,omitempty"`
+	Text         string `json:"text"`
+}
+
+// CostConfirmation defines model for CostConfirmation.
+type CostConfirmation struct {
+	ProcessingVersion int `json:"processing_version"`
+}
+
+// CostConfirmationResult defines model for CostConfirmationResult.
+type CostConfirmationResult struct {
+	// EstimateUsd Recomputed against the price set in force now.
+	EstimateUsd Money `json:"estimate_usd"`
+
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note              NoteCard `json:"note"`
+	ProcessingVersion int      `json:"processing_version"`
+}
+
+// CostHold defines model for CostHold.
+type CostHold struct {
+	// EstimateUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	EstimateUsd Money `json:"estimate_usd"`
+
+	// Since RFC 3339, UTC.
+	Since Timestamp `json:"since"`
+}
+
+// CostSettings defines model for CostSettings.
+type CostSettings struct {
+	// SemanticOverrideMonth The month for which semantic search was re-enabled past the cap, if any.
+	SemanticOverrideMonth *string `json:"semantic_override_month"`
+
+	// SoftCapUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	SoftCapUsd Money `json:"soft_cap_usd"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// CostSettingsWrite defines model for CostSettingsWrite.
+type CostSettingsWrite struct {
+	// SoftCapUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	SoftCapUsd Money `json:"soft_cap_usd"`
+}
+
+// CsrfToken defines model for CsrfToken.
+type CsrfToken struct {
+	// CsrfToken The raw session-bound token for `X-CSRF-Token`. Keep in memory only.
+	CsrfToken string `json:"csrf_token"`
+}
+
+// DeleteBlockOp defines model for DeleteBlockOp.
+type DeleteBlockOp struct {
+	// Id A stable Content block or Diagram element id.
+	Id      ElementId       `json:"id"`
+	Op      DeleteBlockOpOp `json:"op"`
+	Section ListSection     `json:"section"`
+}
+
+// DeleteBlockOpOp defines model for DeleteBlockOp.Op.
+type DeleteBlockOpOp string
+
+// DeleteElementOp A node, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades.
+type DeleteElementOp struct {
+	// ElementId A stable Content block or Diagram element id.
+	ElementId ElementId         `json:"element_id"`
+	Op        DeleteElementOpOp `json:"op"`
+}
+
+// DeleteElementOpOp defines model for DeleteElementOp.Op.
+type DeleteElementOpOp string
+
+// DeviceSession defines model for DeviceSession.
+type DeviceSession struct {
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt   Timestamp `json:"created_at"`
+	DisplayName string    `json:"display_name"`
+
+	// ExtensionId Present for `extension` sessions.
+	ExtensionId *string `json:"extension_id"`
+	Id          Uuid    `json:"id"`
+
+	// InactiveExpiresAt RFC 3339, UTC.
+	InactiveExpiresAt Timestamp `json:"inactive_expires_at"`
+
+	// IsCurrent Whether this is the session making the request.
+	IsCurrent bool              `json:"is_current"`
+	Kind      DeviceSessionKind `json:"kind"`
+
+	// LastRefreshedAt RFC 3339, UTC.
+	LastRefreshedAt Timestamp `json:"last_refreshed_at"`
+
+	// LastSeenAt RFC 3339, UTC.
+	LastSeenAt Timestamp `json:"last_seen_at"`
+
+	// PushSubscriptions Subscriptions bound to this session. Always 0 for an extension.
+	PushSubscriptions int `json:"push_subscriptions"`
+}
+
+// DeviceSessionKind defines model for DeviceSessionKind.
+type DeviceSessionKind string
+
+// DeviceSessionList defines model for DeviceSessionList.
+type DeviceSessionList struct {
+	Sessions []DeviceSession `json:"sessions"`
+}
+
+// Diagram Exactly one Diagram type per Revision. The normative contract is `docs/design/diagram.schema.json`.
+type Diagram struct {
+	union json.RawMessage
+}
+
+// DiagramEdge Grounding fields are present exactly when the edge carries a label.
+type DiagramEdge struct {
+	// From A stable Content block or Diagram element id.
+	From ElementId `json:"from"`
+
+	// Id A stable Content block or Diagram element id.
+	Id         ElementId    `json:"id"`
+	Label      *string      `json:"label,omitempty"`
+	Order      *int         `json:"order,omitempty"`
+	Provenance *Provenance  `json:"provenance,omitempty"`
+	SourceRefs *[]SourceRef `json:"source_refs,omitempty"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool `json:"speaker_claim,omitempty"`
+
+	// To A stable Content block or Diagram element id.
+	To ElementId `json:"to"`
+}
+
+// DiagramLayout defines model for DiagramLayout.
+type DiagramLayout struct {
+	// Positions Keyed by element id. Keys that resolve to no element in the drawn Diagram are ignored by the renderer.
+	Positions PositionMap `json:"positions"`
+	UpdatedAt *time.Time  `json:"updated_at"`
+}
+
+// ElementId A stable Content block or Diagram element id.
+type ElementId = string
+
+// ErrorBody defines model for ErrorBody.
+type ErrorBody struct {
+	// Code The closed set of typed reasons. HTTP status and the keys `details` carries, per code:
+	//
+	// | Code | Status | `details` |
+	// | --- | --- | --- |
+	// | `invalid_request` | 400 | `field`, `reason` from request validation |
+	// | `mixed_transport` | 400 | -- |
+	// | `unauthenticated` | 401 | -- (deliberately uniform, ADR 0003) |
+	// | `csrf_rejected` | 403 | -- |
+	// | `origin_rejected` | 403 | -- |
+	// | `pairing_rejected` | 403 | -- (uniform across mismatch, replay, consumed) |
+	// | `not_found` | 404 | -- |
+	// | `note_purged` | 404 | -- (drop the offline queue for this Note) |
+	// | `note_trashed` | 409 | -- |
+	// | `note_not_trashed` | 409 | -- |
+	// | `note_not_ready` | 409 | `processing_state` |
+	// | `note_not_failed` | 409 | `processing_state` |
+	// | `run_in_flight` | 409 | `processing_version` |
+	// | `revision_not_active` | 409 | `active_revision_id` |
+	// | `revision_not_awaiting_decision` | 409 | -- |
+	// | `regeneration_in_flight` | 409 | -- |
+	// | `takeaway_stale` | 409 | `server_text`, `server_cursor` |
+	// | `roles_unconfigured` | 409 | `roles` (the blocking `AiRole` values) |
+	// | `no_active_revision` | 409 | `processing_state` |
+	// | `cost_hold_absent` | 409 | -- |
+	// | `topic_in_use` | 409 | `note_count` |
+	// | `topic_exists` | 409 | `topic_id` |
+	// | `tag_exists` | 409 | `tag_id` |
+	// | `pairing_not_approved` | 409 | -- (keep polling) |
+	// | `pairing_decided` | 409 | `status` |
+	// | `reindex_in_progress` | 409 | `model` |
+	// | `no_reindex_in_progress` | 409 | -- |
+	// | `reindex_incomplete` | 409 | `notes_missing` |
+	// | `dimension_mismatch` | 409 | `model_dimension`, `column_dimension` |
+	// | `pairing_expired` | 410 | -- |
+	// | `pairing_denied` | 410 | -- |
+	// | `mutation_expired` | 410 | -- |
+	// | `url_unsupported` | 422 | `reason` |
+	// | `validation_failed` | 422 | `rule`, `element_id` |
+	// | `invalid_request_options` | 422 | `field`, `reason` |
+	// | `endpoint_not_allowed` | 422 | `reason` |
+	// | `rate_limited` | 429 | `retry_after_seconds` |
+	// | `internal_error` | 500 | -- |
+	// | `renderer_unavailable` | 502 | -- |
+	Code ErrorCode `json:"code"`
+
+	// Details Keys fixed per code; see `ErrorCode`.
+	Details *map[string]interface{} `json:"details,omitempty"`
+
+	// Message For a person. Names the next available action (spec 15). Never a transcript, a key, or a provider payload.
+	Message string `json:"message"`
+}
+
+// ErrorCode The closed set of typed reasons. HTTP status and the keys `details` carries, per code:
+//
+// | Code | Status | `details` |
+// | --- | --- | --- |
+// | `invalid_request` | 400 | `field`, `reason` from request validation |
+// | `mixed_transport` | 400 | -- |
+// | `unauthenticated` | 401 | -- (deliberately uniform, ADR 0003) |
+// | `csrf_rejected` | 403 | -- |
+// | `origin_rejected` | 403 | -- |
+// | `pairing_rejected` | 403 | -- (uniform across mismatch, replay, consumed) |
+// | `not_found` | 404 | -- |
+// | `note_purged` | 404 | -- (drop the offline queue for this Note) |
+// | `note_trashed` | 409 | -- |
+// | `note_not_trashed` | 409 | -- |
+// | `note_not_ready` | 409 | `processing_state` |
+// | `note_not_failed` | 409 | `processing_state` |
+// | `run_in_flight` | 409 | `processing_version` |
+// | `revision_not_active` | 409 | `active_revision_id` |
+// | `revision_not_awaiting_decision` | 409 | -- |
+// | `regeneration_in_flight` | 409 | -- |
+// | `takeaway_stale` | 409 | `server_text`, `server_cursor` |
+// | `roles_unconfigured` | 409 | `roles` (the blocking `AiRole` values) |
+// | `no_active_revision` | 409 | `processing_state` |
+// | `cost_hold_absent` | 409 | -- |
+// | `topic_in_use` | 409 | `note_count` |
+// | `topic_exists` | 409 | `topic_id` |
+// | `tag_exists` | 409 | `tag_id` |
+// | `pairing_not_approved` | 409 | -- (keep polling) |
+// | `pairing_decided` | 409 | `status` |
+// | `reindex_in_progress` | 409 | `model` |
+// | `no_reindex_in_progress` | 409 | -- |
+// | `reindex_incomplete` | 409 | `notes_missing` |
+// | `dimension_mismatch` | 409 | `model_dimension`, `column_dimension` |
+// | `pairing_expired` | 410 | -- |
+// | `pairing_denied` | 410 | -- |
+// | `mutation_expired` | 410 | -- |
+// | `url_unsupported` | 422 | `reason` |
+// | `validation_failed` | 422 | `rule`, `element_id` |
+// | `invalid_request_options` | 422 | `field`, `reason` |
+// | `endpoint_not_allowed` | 422 | `reason` |
+// | `rate_limited` | 429 | `retry_after_seconds` |
+// | `internal_error` | 500 | -- |
+// | `renderer_unavailable` | 502 | -- |
+type ErrorCode string
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	Error ErrorBody `json:"error"`
+}
+
+// EventsSince defines model for EventsSince.
+type EventsSince struct {
+	Events []SyncEvent `json:"events"`
+
+	// NextCursor Pass this back on the next poll. Equals the request cursor when nothing changed.
+	NextCursor     int64 `json:"next_cursor"`
+	ResyncRequired bool  `json:"resync_required"`
+}
+
+// Excerpt defines model for Excerpt.
+type Excerpt struct {
+	ChunkId Uuid   `json:"chunk_id"`
+	Text    string `json:"text"`
+}
+
+// ExtensionId defines model for ExtensionId.
+type ExtensionId = string
+
+// FailureKind `input` is a permanent failure of the video or the provider that waits for the user;
+// `extractor_breakage` is the pinned yt-dlp being broken upstream, which the Owner clears by
+// updating the pin (ADR 0009). The UI must never blame the video for the second.
+type FailureKind string
+
+// GraphLayout Engine selection only; coordinates live in `DiagramLayout`.
+type GraphLayout struct {
+	Direction *GraphLayoutDirection `json:"direction,omitempty"`
+	Engine    GraphLayoutEngine     `json:"engine"`
+}
+
+// GraphLayoutDirection defines model for GraphLayout.Direction.
+type GraphLayoutDirection string
+
+// GraphLayoutEngine defines model for GraphLayout.Engine.
+type GraphLayoutEngine string
+
+// HealthCheck defines model for HealthCheck.
+type HealthCheck struct {
+	CadenceSeconds int    `json:"cadence_seconds"`
+	CheckName      string `json:"check_name"`
+
+	// CheckedAt RFC 3339, UTC.
+	CheckedAt      Timestamp              `json:"checked_at"`
+	FirstAlarmAt   *time.Time             `json:"first_alarm_at"`
+	LastNotifiedAt *time.Time             `json:"last_notified_at"`
+	LastOkAt       *time.Time             `json:"last_ok_at"`
+	Message        *string                `json:"message"`
+	Observed       map[string]interface{} `json:"observed"`
+
+	// Status `unknown` is never stored; the reader computes it from a stale `checked_at`.
+	Status HealthStatus `json:"status"`
+}
+
+// HealthReport defines model for HealthReport.
+type HealthReport struct {
+	// BlockedByTooling Notes whose current run failed with extractor breakage.
+	BlockedByTooling int           `json:"blocked_by_tooling"`
+	Checks           []HealthCheck `json:"checks"`
+
+	// Drills Newest first.
+	Drills []RestoreDrill `json:"drills"`
+
+	// GeneratedAt RFC 3339, UTC.
+	GeneratedAt Timestamp `json:"generated_at"`
+
+	// NextDrillRepository The drill alternates repositories (ADR 0009).
+	NextDrillRepository BackupRepository `json:"next_drill_repository"`
+}
+
+// HealthStatus `unknown` is never stored; the reader computes it from a stale `checked_at`.
+type HealthStatus string
+
+// InsertBlockOp defines model for InsertBlockOp.
+type InsertBlockOp struct {
+	// AfterId Null inserts at the head of the list.
+	AfterId *ElementId `json:"after_id"`
+
+	// Id Client-minted, so a replay cannot duplicate the block.
+	Id      ElementId       `json:"id"`
+	Op      InsertBlockOpOp `json:"op"`
+	Section ListSection     `json:"section"`
+	Text    string          `json:"text"`
+}
+
+// InsertBlockOpOp defines model for InsertBlockOp.Op.
+type InsertBlockOpOp string
+
+// Language defines model for Language.
+type Language string
+
+// LayoutResult defines model for LayoutResult.
+type LayoutResult struct {
+	Layout DiagramLayout `json:"layout"`
+
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+}
+
+// LayoutWrite defines model for LayoutWrite.
+type LayoutWrite struct {
+	// Positions Keyed by element id. Keys that resolve to no element in the drawn Diagram are ignored by the renderer.
+	Positions PositionMap `json:"positions"`
+}
+
+// LinearLayout defines model for LinearLayout.
+type LinearLayout struct {
+	Orientation LinearLayoutOrientation `json:"orientation"`
+}
+
+// LinearLayoutOrientation defines model for LinearLayout.Orientation.
+type LinearLayoutOrientation string
+
+// ListSection defines model for ListSection.
+type ListSection string
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	// DeviceName Shown in Settings. Defaults to a name derived from the user agent.
+	DeviceName *string `json:"device_name,omitempty"`
+	Password   string  `json:"password"`
+	Username   string  `json:"username"`
+}
+
+// MindMapDiagram defines model for MindMapDiagram.
+type MindMapDiagram struct {
+	CollapsedGroups []CollapsedGroup `json:"collapsed_groups"`
+	Edges           []DiagramEdge    `json:"edges"`
+
+	// Layout Engine selection only; coordinates live in `DiagramLayout`.
+	Layout        GraphLayout                 `json:"layout"`
+	Nodes         []MindMapNode               `json:"nodes"`
+	SchemaVersion MindMapDiagramSchemaVersion `json:"schema_version"`
+	Type          MindMapDiagramType          `json:"type"`
+}
+
+// MindMapDiagramSchemaVersion defines model for MindMapDiagram.SchemaVersion.
+type MindMapDiagramSchemaVersion int
+
+// MindMapDiagramType defines model for MindMapDiagram.Type.
+type MindMapDiagramType string
+
+// MindMapNode defines model for MindMapNode.
+type MindMapNode struct {
+	// GroupId A stable Content block or Diagram element id.
+	GroupId *ElementId `json:"group_id,omitempty"`
+
+	// Id A stable Content block or Diagram element id.
+	Id               ElementId `json:"id"`
+	InitiallyVisible bool      `json:"initially_visible"`
+
+	// Kind Free text; exactly one node has kind `root`.
+	Kind       string      `json:"kind"`
+	Label      string      `json:"label"`
+	Provenance Provenance  `json:"provenance"`
+	SourceRefs []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool `json:"speaker_claim,omitempty"`
+}
+
+// ModelUsage defines model for ModelUsage.
+type ModelUsage struct {
+	BillingMode BillingMode `json:"billing_mode"`
+	Calls       int         `json:"calls"`
+
+	// ChargeUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	ChargeUsd Money  `json:"charge_usd"`
+	Model     string `json:"model"`
+	Provider  string `json:"provider"`
+
+	// ReportedUnits Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design.
+	ReportedUnits UnitMap `json:"reported_units"`
+	Role          AiRole  `json:"role"`
+
+	// UnpricedUnits Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design.
+	UnpricedUnits UnitMap `json:"unpriced_units"`
+}
+
+// Money USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+type Money = string
+
+// MonthlyUsage defines model for MonthlyUsage.
+type MonthlyUsage struct {
+	BilledCalls int          `json:"billed_calls"`
+	ByModel     []ModelUsage `json:"by_model"`
+	CapReached  bool         `json:"cap_reached"`
+
+	// ChargedUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	ChargedUsd    Money  `json:"charged_usd"`
+	HeldNotes     int    `json:"held_notes"`
+	InFlightCalls int    `json:"in_flight_calls"`
+	Month         string `json:"month"`
+
+	// SemanticPaused Query embeddings are paused for this month and no override is in force.
+	SemanticPaused bool `json:"semantic_paused"`
+
+	// SoftCapUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	SoftCapUsd    Money `json:"soft_cap_usd"`
+	UnknownCalls  int   `json:"unknown_calls"`
+	UnpricedCalls int   `json:"unpriced_calls"`
+
+	// UnpricedModels Models that reported units no price set covers. Settings asks for a price.
+	UnpricedModels []UnpricedModel `json:"unpriced_models"`
+}
+
+// Mutation The envelope of `docs/design/mutation-protocol.md`.
+type Mutation struct {
+	BaseRevisionId Uuid         `json:"base_revision_id"`
+	MutationId     Uuid         `json:"mutation_id"`
+	Ops            []MutationOp `json:"ops"`
+}
+
+// MutationOp The closed operation catalogue. Anything absent is not representable.
+type MutationOp struct {
+	union json.RawMessage
+}
+
+// MutationOutcome defines model for MutationOutcome.
+type MutationOutcome string
+
+// MutationResult defines model for MutationResult.
+type MutationResult struct {
+	// ActiveRevisionId On `conflicted`, what the client rolls back to. Always the Note's current pointer.
+	ActiveRevisionId Uuid            `json:"active_revision_id"`
+	MutationId       Uuid            `json:"mutation_id"`
+	Outcome          MutationOutcome `json:"outcome"`
+
+	// Replayed True when this response was served from the idempotency ledger.
+	Replayed bool `json:"replayed"`
+
+	// RevisionId The Revision written. On `conflicted`, the Conflict Revision.
+	RevisionId Uuid `json:"revision_id"`
+
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+}
+
+// Note defines model for Note.
+type Note struct {
+	ActiveRevision   *Revision           `json:"active_revision"`
+	ActiveRevisionId *openapi_types.UUID `json:"active_revision_id"`
+
+	// AwaitingDecisions Revisions off the live line waiting for the Owner (ADR 0004).
+	AwaitingDecisions int `json:"awaiting_decisions"`
+
+	// Cost Spec 7.4's estimated and reported AI usage, priced at read time from the Note's ledger rows.
+	Cost NoteCost `json:"cost"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt        Timestamp     `json:"created_at"`
+	DetectedLanguage *Language     `json:"detected_language"`
+	Id               Uuid          `json:"id"`
+	Layout           DiagramLayout `json:"layout"`
+
+	// PendingRevisions Revisions awaiting a decision, oldest first.
+	PendingRevisions []RevisionSummary `json:"pending_revisions"`
+
+	// PrimaryTopic Null only while processing or failed, or in Trash.
+	PrimaryTopic *TopicRef `json:"primary_topic"`
+
+	// Processing The current run. `processing_version` bumps on every Submission, Retry and Regeneration (ADR 0006).
+	Processing ProcessingStatus `json:"processing"`
+	PurgeAfter *time.Time       `json:"purge_after"`
+
+	// RolesUsed Models and providers by Processing role, from the Note's ledger rows.
+	RolesUsed []RoleUsed `json:"roles_used"`
+
+	// SavedAt RFC 3339, UTC.
+	SavedAt Timestamp `json:"saved_at"`
+
+	// Source The YouTube video a Note derives from. Fields after `canonical_url` are null until the `metadata` Stage has run.
+	Source Source `json:"source"`
+
+	// SummaryText The Active Revision's summary, for the two-line card. Null until ready.
+	SummaryText      *string               `json:"summary_text"`
+	Tags             []TagRef              `json:"tags"`
+	Takeaway         Takeaway              `json:"takeaway"`
+	TranscriptSource *TranscriptSourceKind `json:"transcript_source"`
+	TrashedAt        *time.Time            `json:"trashed_at"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// NoteCard The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+type NoteCard struct {
+	ActiveRevisionId *openapi_types.UUID `json:"active_revision_id"`
+
+	// AwaitingDecisions Revisions off the live line waiting for the Owner (ADR 0004).
+	AwaitingDecisions int `json:"awaiting_decisions"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt        Timestamp `json:"created_at"`
+	DetectedLanguage *Language `json:"detected_language"`
+	Id               Uuid      `json:"id"`
+
+	// PrimaryTopic Null only while processing or failed, or in Trash.
+	PrimaryTopic *TopicRef `json:"primary_topic"`
+
+	// Processing The current run. `processing_version` bumps on every Submission, Retry and Regeneration (ADR 0006).
+	Processing ProcessingStatus `json:"processing"`
+	PurgeAfter *time.Time       `json:"purge_after"`
+
+	// SavedAt RFC 3339, UTC.
+	SavedAt Timestamp `json:"saved_at"`
+
+	// Source The YouTube video a Note derives from. Fields after `canonical_url` are null until the `metadata` Stage has run.
+	Source Source `json:"source"`
+
+	// SummaryText The Active Revision's summary, for the two-line card. Null until ready.
+	SummaryText      *string               `json:"summary_text"`
+	Tags             []TagRef              `json:"tags"`
+	TranscriptSource *TranscriptSourceKind `json:"transcript_source"`
+	TrashedAt        *time.Time            `json:"trashed_at"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// NoteCost Spec 7.4's estimated and reported AI usage, priced at read time from the Note's ledger rows.
+type NoteCost struct {
+	Calls []UsageCall `json:"calls"`
+
+	// EstimatedUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	EstimatedUsd Money `json:"estimated_usd"`
+
+	// Incomplete True when any call is unknown, unpriced, or in flight, so the figure reads "at least".
+	Incomplete bool `json:"incomplete"`
+
+	// ReportedUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	ReportedUsd Money `json:"reported_usd"`
+}
+
+// NoteList defines model for NoteList.
+type NoteList struct {
+	NextCursor *string    `json:"next_cursor"`
+	Notes      []NoteCard `json:"notes"`
+
+	// SyncCursor The server's current Sync cursor at the time of the read.
+	SyncCursor int64 `json:"sync_cursor"`
+}
+
+// NoteTagsResult defines model for NoteTagsResult.
+type NoteTagsResult struct {
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+	Tags       []TagRef   `json:"tags"`
+}
+
+// OrderedNode A process-flow node or a timeline event.
+type OrderedNode struct {
+	// GroupId A stable Content block or Diagram element id.
+	GroupId *ElementId `json:"group_id,omitempty"`
+
+	// Id A stable Content block or Diagram element id.
+	Id               ElementId   `json:"id"`
+	InitiallyVisible bool        `json:"initially_visible"`
+	Label            string      `json:"label"`
+	Order            int         `json:"order"`
+	Provenance       Provenance  `json:"provenance"`
+	SourceRefs       []SourceRef `json:"source_refs"`
+
+	// SpeakerClaim Absent means false.
+	SpeakerClaim *bool `json:"speaker_claim,omitempty"`
+}
+
+// PairingExchange defines model for PairingExchange.
+type PairingExchange struct {
+	// RequestId 32 random or hashed bytes, base64url without padding.
+	RequestId Base64Url256 `json:"request_id"`
+
+	// Verifier 32 random or hashed bytes, base64url without padding.
+	Verifier Base64Url256 `json:"verifier"`
+}
+
+// PairingRequest defines model for PairingRequest.
+type PairingRequest struct {
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt   Timestamp `json:"created_at"`
+	DisplayName string    `json:"display_name"`
+
+	// ExpiresAt RFC 3339, UTC.
+	ExpiresAt   Timestamp   `json:"expires_at"`
+	ExtensionId ExtensionId `json:"extension_id"`
+
+	// RequestId 32 random or hashed bytes, base64url without padding.
+	RequestId Base64Url256         `json:"request_id"`
+	Status    PairingRequestStatus `json:"status"`
+}
+
+// PairingRequestCreate defines model for PairingRequestCreate.
+type PairingRequestCreate struct {
+	// Challenge 32 random or hashed bytes, base64url without padding.
+	Challenge Base64Url256 `json:"challenge"`
+
+	// DisplayName The browser name shown on the approval page and in Settings.
+	DisplayName string      `json:"display_name"`
+	ExtensionId ExtensionId `json:"extension_id"`
+}
+
+// PairingRequestCreated defines model for PairingRequestCreated.
+type PairingRequestCreated struct {
+	// ApprovalUrl The PWA page to open, `/pair/{requestId}`.
+	ApprovalUrl string `json:"approval_url"`
+
+	// ExpiresAt RFC 3339, UTC.
+	ExpiresAt Timestamp `json:"expires_at"`
+
+	// RequestId 32 random or hashed bytes, base64url without padding.
+	RequestId Base64Url256 `json:"request_id"`
+}
+
+// PairingRequestStatus defines model for PairingRequestStatus.
+type PairingRequestStatus string
+
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// Position A diagram element's box. Seeded by the server when a Revision becomes Active (ADR 0011).
+type Position struct {
+	H float64 `json:"h"`
+	W float64 `json:"w"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// PositionMap Keyed by element id. Keys that resolve to no element in the drawn Diagram are ignored by the renderer.
+type PositionMap map[string]Position
+
+// PriceSet defines model for PriceSet.
+type PriceSet struct {
+	BillingMode BillingMode `json:"billing_mode"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt Timestamp `json:"created_at"`
+
+	// EffectiveFrom RFC 3339, UTC.
+	EffectiveFrom Timestamp `json:"effective_from"`
+	Id            Uuid      `json:"id"`
+	Model         string    `json:"model"`
+	Provider      string    `json:"provider"`
+	SourceNote    *string   `json:"source_note"`
+
+	// UnitPrices USD for one unit.
+	UnitPrices UnitMap `json:"unit_prices"`
+}
+
+// PriceSetCreate defines model for PriceSetCreate.
+type PriceSetCreate struct {
+	BillingMode *BillingMode `json:"billing_mode,omitempty"`
+
+	// EffectiveFrom Defaults to now. May not be earlier than the latest existing version for the same model and mode.
+	EffectiveFrom *Timestamp `json:"effective_from,omitempty"`
+	Model         string     `json:"model"`
+	Provider      string     `json:"provider"`
+	SourceNote    *string    `json:"source_note,omitempty"`
+
+	// UnitPrices Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design.
+	UnitPrices UnitMap `json:"unit_prices"`
+}
+
+// PriceSetList defines model for PriceSetList.
+type PriceSetList struct {
+	PriceSets []PriceSet `json:"price_sets"`
+}
+
+// PrimaryTopicResult defines model for PrimaryTopicResult.
+type PrimaryTopicResult struct {
+	PrimaryTopic TopicRef `json:"primary_topic"`
+
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+}
+
+// PrimaryTopicWrite Exactly one of `topic_id` or `name`.
+type PrimaryTopicWrite struct {
+	MutationId Uuid    `json:"mutation_id"`
+	Name       *string `json:"name,omitempty"`
+	TopicId    *Uuid   `json:"topic_id,omitempty"`
+}
+
+// ProcessFlowDiagram defines model for ProcessFlowDiagram.
+type ProcessFlowDiagram struct {
+	CollapsedGroups []CollapsedGroup `json:"collapsed_groups"`
+	Edges           []DiagramEdge    `json:"edges"`
+
+	// Layout Engine selection only; coordinates live in `DiagramLayout`.
+	Layout        GraphLayout                     `json:"layout"`
+	Nodes         []OrderedNode                   `json:"nodes"`
+	SchemaVersion ProcessFlowDiagramSchemaVersion `json:"schema_version"`
+	Type          ProcessFlowDiagramType          `json:"type"`
+}
+
+// ProcessFlowDiagramSchemaVersion defines model for ProcessFlowDiagram.SchemaVersion.
+type ProcessFlowDiagramSchemaVersion int
+
+// ProcessFlowDiagramType defines model for ProcessFlowDiagram.Type.
+type ProcessFlowDiagramType string
+
+// ProcessingState defines model for ProcessingState.
+type ProcessingState string
+
+// ProcessingStatus The current run. `processing_version` bumps on every Submission, Retry and Regeneration (ADR 0006).
+type ProcessingStatus struct {
+	CancelRequested bool `json:"cancel_requested"`
+
+	// CostHold Set while the run waits for cost confirmation. Orthogonal to `state`.
+	CostHold     *CostHold    `json:"cost_hold"`
+	FailureKind  *FailureKind `json:"failure_kind"`
+	FailureStage *StageKind   `json:"failure_stage"`
+
+	// Stages The five Stages of this run in pipeline order; a bypassed `transcribing` is `skipped`, not absent.
+	Stages  []StageProgress `json:"stages"`
+	State   ProcessingState `json:"state"`
+	Version int             `json:"version"`
+}
+
+// ProgressEvent Best-effort and uncursored. The UI must never derive a durable conclusion from one.
+type ProgressEvent struct {
+	Attempt           int             `json:"attempt"`
+	NoteId            Uuid            `json:"note_id"`
+	ProcessingState   ProcessingState `json:"processing_state"`
+	ProcessingVersion int             `json:"processing_version"`
+	StageKind         *StageKind      `json:"stage_kind"`
+	StageStatus       *StageStatus    `json:"stage_status"`
+}
+
+// Provenance defines model for Provenance.
+type Provenance string
+
+// PushKeys defines model for PushKeys.
+type PushKeys struct {
+	Auth   string `json:"auth"`
+	P256dh string `json:"p256dh"`
+}
+
+// PushSubscription defines model for PushSubscription.
+type PushSubscription struct {
+	ConsecutiveFailures int `json:"consecutive_failures"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt         Timestamp  `json:"created_at"`
+	DeviceDisplayName string     `json:"device_display_name"`
+	DeviceSessionId   Uuid       `json:"device_session_id"`
+	Endpoint          string     `json:"endpoint"`
+	ExpirationTime    *time.Time `json:"expiration_time"`
+	Id                Uuid       `json:"id"`
+	LastFailureAt     *time.Time `json:"last_failure_at"`
+	LastSuccessAt     *time.Time `json:"last_success_at"`
+	NotesEnabled      bool       `json:"notes_enabled"`
+	OpsEnabled        bool       `json:"ops_enabled"`
+}
+
+// PushSubscriptionList defines model for PushSubscriptionList.
+type PushSubscriptionList struct {
+	Subscriptions []PushSubscription `json:"subscriptions"`
+}
+
+// PushSubscriptionUpdate defines model for PushSubscriptionUpdate.
+type PushSubscriptionUpdate struct {
+	NotesEnabled *bool `json:"notes_enabled,omitempty"`
+	OpsEnabled   *bool `json:"ops_enabled,omitempty"`
+}
+
+// PushSubscriptionWrite `PushSubscription.toJSON()` plus the two switches.
+type PushSubscriptionWrite struct {
+	Endpoint       string     `json:"endpoint"`
+	ExpirationTime *time.Time `json:"expiration_time,omitempty"`
+	Keys           PushKeys   `json:"keys"`
+	NotesEnabled   *bool      `json:"notes_enabled,omitempty"`
+	OpsEnabled     *bool      `json:"ops_enabled,omitempty"`
+
+	// ReplacesEndpoint The previous endpoint on `pushsubscriptionchange`, so the row is swapped rather than duplicated.
+	ReplacesEndpoint *string `json:"replaces_endpoint,omitempty"`
+}
+
+// RefreshTokensRequest defines model for RefreshTokensRequest.
+type RefreshTokensRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// RegenerateRequest defines model for RegenerateRequest.
+type RegenerateRequest struct {
+	// Instruction A short steer such as "simplify this".
+	Instruction *string `json:"instruction,omitempty"`
+}
+
+// ReindexRequest defines model for ReindexRequest.
+type ReindexRequest struct {
+	Model string `json:"model"`
+}
+
+// ReorderBlocksOp defines model for ReorderBlocksOp.
+type ReorderBlocksOp struct {
+	// Ids A full permutation of the section's ids.
+	Ids     []ElementId       `json:"ids"`
+	Op      ReorderBlocksOpOp `json:"op"`
+	Section ListSection       `json:"section"`
+}
+
+// ReorderBlocksOpOp defines model for ReorderBlocksOp.Op.
+type ReorderBlocksOpOp string
+
+// ReorderElementsOp defines model for ReorderElementsOp.
+type ReorderElementsOp struct {
+	Collection ReorderElementsOpCollection `json:"collection"`
+
+	// Ids A full permutation of the collection's ids.
+	Ids []ElementId         `json:"ids"`
+	Op  ReorderElementsOpOp `json:"op"`
+}
+
+// ReorderElementsOpCollection defines model for ReorderElementsOp.Collection.
+type ReorderElementsOpCollection string
+
+// ReorderElementsOpOp defines model for ReorderElementsOp.Op.
+type ReorderElementsOpOp string
+
+// RestoreDrill defines model for RestoreDrill.
+type RestoreDrill struct {
+	// CompletedAt RFC 3339, UTC.
+	CompletedAt         Timestamp        `json:"completed_at"`
+	Id                  Uuid             `json:"id"`
+	KeyRecoveryVerified bool             `json:"key_recovery_verified"`
+	Notes               *string          `json:"notes"`
+	PgvectorVersion     string           `json:"pgvector_version"`
+	PostgresVersion     string           `json:"postgres_version"`
+	Repository          BackupRepository `json:"repository"`
+	RestoreSeconds      int              `json:"restore_seconds"`
+	SnapshotId          string           `json:"snapshot_id"`
+}
+
+// RestoreDrillCreate defines model for RestoreDrillCreate.
+type RestoreDrillCreate struct {
+	KeyRecoveryVerified bool             `json:"key_recovery_verified"`
+	Notes               *string          `json:"notes,omitempty"`
+	PgvectorVersion     string           `json:"pgvector_version"`
+	PostgresVersion     string           `json:"postgres_version"`
+	Repository          BackupRepository `json:"repository"`
+	RestoreSeconds      int              `json:"restore_seconds"`
+	SnapshotId          string           `json:"snapshot_id"`
+}
+
+// ResyncEvent defines model for ResyncEvent.
+type ResyncEvent struct {
+	Reason ResyncEventReason `json:"reason"`
+}
+
+// ResyncEventReason defines model for ResyncEvent.Reason.
+type ResyncEventReason string
+
+// RetryBlockedResult defines model for RetryBlockedResult.
+type RetryBlockedResult struct {
+	NoteIds []Uuid `json:"note_ids"`
+	Retried int    `json:"retried"`
+}
+
+// Revision defines model for Revision.
+type Revision struct {
+	AwaitingDecisionSince *time.Time `json:"awaiting_decision_since"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt             Timestamp      `json:"created_at"`
+	GenerationInstruction *string        `json:"generation_instruction"`
+	Id                    Uuid           `json:"id"`
+	IsActive              bool           `json:"is_active"`
+	Origin                RevisionOrigin `json:"origin"`
+
+	// OriginDeviceSessionId The Device session whose mutation produced this Revision, while the mutation ledger still holds it.
+	OriginDeviceSessionId *openapi_types.UUID `json:"origin_device_session_id"`
+	ParentRevisionId      *openapi_types.UUID `json:"parent_revision_id"`
+
+	// Payload The stored content of one Revision (ADR 0002). `primary_topic` and `tags` are the generator's
+	// proposals at generation time and are kept as history; the Note's live Primary Topic and Tags
+	// are relational and live on `NoteCard`. The normative rules -- word and count ranges for
+	// generation, editing floors, the 12-visible and 24-total caps, tree structure, grounding --
+	// are enforced by the server's validator, not by this shape.
+	Payload        RevisionPayload `json:"payload"`
+	RevisionNumber int             `json:"revision_number"`
+}
+
+// RevisionList defines model for RevisionList.
+type RevisionList struct {
+	Revisions []RevisionSummary `json:"revisions"`
+}
+
+// RevisionOrigin defines model for RevisionOrigin.
+type RevisionOrigin string
+
+// RevisionPayload The stored content of one Revision (ADR 0002). `primary_topic` and `tags` are the generator's
+// proposals at generation time and are kept as history; the Note's live Primary Topic and Tags
+// are relational and live on `NoteCard`. The normative rules -- word and count ranges for
+// generation, editing floors, the 12-visible and 24-total caps, tree structure, grounding --
+// are enforced by the server's validator, not by this shape.
+type RevisionPayload struct {
+	DetectedLanguage Language `json:"detected_language"`
+
+	// Diagram Exactly one Diagram type per Revision. The normative contract is `docs/design/diagram.schema.json`.
+	Diagram          Diagram                      `json:"diagram"`
+	ImportantDetails []ContentBlock               `json:"important_details"`
+	KeyPoints        []ContentBlock               `json:"key_points"`
+	PracticalActions []ContentBlock               `json:"practical_actions"`
+	PrimaryTopic     string                       `json:"primary_topic"`
+	SchemaVersion    RevisionPayloadSchemaVersion `json:"schema_version"`
+	Summary          ContentBlock                 `json:"summary"`
+	Tags             []string                     `json:"tags"`
+}
+
+// RevisionPayloadSchemaVersion defines model for RevisionPayload.SchemaVersion.
+type RevisionPayloadSchemaVersion int
+
+// RevisionPointerResult defines model for RevisionPointerResult.
+type RevisionPointerResult struct {
+	ActiveRevisionId Uuid `json:"active_revision_id"`
+	NoteId           Uuid `json:"note_id"`
+
+	// RevisionId The Revision acted on, or for restore the new `restore` Revision.
+	RevisionId Uuid `json:"revision_id"`
+
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+}
+
+// RevisionSummary defines model for RevisionSummary.
+type RevisionSummary struct {
+	AwaitingDecisionSince *time.Time `json:"awaiting_decision_since"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt             Timestamp      `json:"created_at"`
+	GenerationInstruction *string        `json:"generation_instruction"`
+	Id                    Uuid           `json:"id"`
+	IsActive              bool           `json:"is_active"`
+	Origin                RevisionOrigin `json:"origin"`
+
+	// OriginDeviceSessionId The Device session whose mutation produced this Revision, while the mutation ledger still holds it.
+	OriginDeviceSessionId *openapi_types.UUID `json:"origin_device_session_id"`
+	ParentRevisionId      *openapi_types.UUID `json:"parent_revision_id"`
+	RevisionNumber        int                 `json:"revision_number"`
+}
+
+// RevokedEvent defines model for RevokedEvent.
+type RevokedEvent struct {
+	Reason RevokedEventReason `json:"reason"`
+}
+
+// RevokedEventReason defines model for RevokedEvent.Reason.
+type RevokedEventReason string
+
+// RoleUsed defines model for RoleUsed.
+type RoleUsed struct {
+	Model    string `json:"model"`
+	Provider string `json:"provider"`
+	Role     AiRole `json:"role"`
+}
+
+// RunOutcome defines model for RunOutcome.
+type RunOutcome string
+
+// RunStartResult defines model for RunStartResult.
+type RunStartResult struct {
+	// EstimateUsd The projected charge, present when the gate ran synchronously.
+	EstimateUsd *Money `json:"estimate_usd"`
+
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note              NoteCard   `json:"note"`
+	Outcome           RunOutcome `json:"outcome"`
+	ProcessingVersion int        `json:"processing_version"`
+}
+
+// SearchChildKind defines model for SearchChildKind.
+type SearchChildKind string
+
+// SearchIndexState defines model for SearchIndexState.
+type SearchIndexState struct {
+	ActiveEmbeddingModel string `json:"active_embedding_model"`
+
+	// ChildrenNeedingEmbedding The embedding worker's backlog under the active model.
+	ChildrenNeedingEmbedding int `json:"children_needing_embedding"`
+	EmbeddingDimension       int `json:"embedding_dimension"`
+
+	// IncompleteNotes Notes still lacking a current vector under the incoming model. 0 when no reindex is in progress.
+	IncompleteNotes     int        `json:"incomplete_notes"`
+	ReindexStartedAt    *time.Time `json:"reindex_started_at"`
+	ReindexingIntoModel *string    `json:"reindexing_into_model"`
+}
+
+// SearchResponse defines model for SearchResponse.
+type SearchResponse struct {
+	// Exhausted The candidate depth ran out; there is no deeper page to offer.
+	Exhausted           bool                       `json:"exhausted"`
+	NextCursor          *string                    `json:"next_cursor"`
+	Results             []SearchResult             `json:"results"`
+	SemanticUnavailable *SemanticUnavailableReason `json:"semantic_unavailable"`
+}
+
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	// Excerpts Present only for a Transcript-only match.
+	Excerpts []Excerpt `json:"excerpts"`
+
+	// MatchedKinds Which kinds of child matched, so the card can say why it surfaced.
+	MatchedKinds []SearchChildKind `json:"matched_kinds"`
+
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note  NoteCard `json:"note"`
+	Score float64  `json:"score"`
+}
+
+// SemanticUnavailableReason `provider_error` is a fault; `soft_cap` is a budget the Owner chose. Word them differently.
+type SemanticUnavailableReason string
+
+// SessionGrant What a cookie-transport login, refresh, or password change returns.
+type SessionGrant struct {
+	// AccessExpiresAt RFC 3339, UTC.
+	AccessExpiresAt Timestamp     `json:"access_expires_at"`
+	Account         Account       `json:"account"`
+	CsrfToken       string        `json:"csrf_token"`
+	Session         DeviceSession `json:"session"`
+
+	// SyncCursor The server's current cursor. 0 when nothing has ever been written.
+	SyncCursor int64 `json:"sync_cursor"`
+}
+
+// SessionInfo defines model for SessionInfo.
+type SessionInfo struct {
+	// AccessExpiresAt RFC 3339, UTC.
+	AccessExpiresAt Timestamp     `json:"access_expires_at"`
+	Account         Account       `json:"account"`
+	Session         DeviceSession `json:"session"`
+	SyncCursor      int64         `json:"sync_cursor"`
+}
+
+// SetBlockTextOp defines model for SetBlockTextOp.
+type SetBlockTextOp struct {
+	// Id Required for a list section; omitted for `summary`.
+	Id      *ElementId       `json:"id,omitempty"`
+	Op      SetBlockTextOpOp `json:"op"`
+	Section BlockSection     `json:"section"`
+	Text    string           `json:"text"`
+}
+
+// SetBlockTextOpOp defines model for SetBlockTextOp.Op.
+type SetBlockTextOpOp string
+
+// SetCellTextOp defines model for SetCellTextOp.
+type SetCellTextOp struct {
+	// ColumnId A stable Content block or Diagram element id.
+	ColumnId ElementId       `json:"column_id"`
+	Op       SetCellTextOpOp `json:"op"`
+
+	// RowId A stable Content block or Diagram element id.
+	RowId ElementId `json:"row_id"`
+	Text  string    `json:"text"`
+}
+
+// SetCellTextOpOp defines model for SetCellTextOp.Op.
+type SetCellTextOpOp string
+
+// SetElementLabelOp A node, edge label, timeline event, comparison column or row.
+type SetElementLabelOp struct {
+	// ElementId A stable Content block or Diagram element id.
+	ElementId ElementId           `json:"element_id"`
+	Label     string              `json:"label"`
+	Op        SetElementLabelOpOp `json:"op"`
+}
+
+// SetElementLabelOpOp defines model for SetElementLabelOp.Op.
+type SetElementLabelOpOp string
+
+// Source The YouTube video a Note derives from. Fields after `canonical_url` are null until the `metadata` Stage has run.
+type Source struct {
+	CanonicalUrl      string     `json:"canonical_url"`
+	ChannelId         *string    `json:"channel_id"`
+	ChannelName       *string    `json:"channel_name"`
+	DurationSeconds   *int       `json:"duration_seconds"`
+	MetadataFetchedAt *time.Time `json:"metadata_fetched_at"`
+	PublishedAt       *time.Time `json:"published_at"`
+	Title             *string    `json:"title"`
+	VideoId           VideoId    `json:"video_id"`
+}
+
+// SourceRef Grounding, not a timestamp link. A chunk and a character span within it.
+type SourceRef struct {
+	CharEnd   int  `json:"char_end"`
+	CharStart int  `json:"char_start"`
+	ChunkId   Uuid `json:"chunk_id"`
+}
+
+// StageError defines model for StageError.
+type StageError struct {
+	// Code The classifier's `error_code`, for example `extractor_breakage`.
+	Code        string `json:"code"`
+	IsPermanent bool   `json:"is_permanent"`
+
+	// Message The failure reason spec 8.4 writes for a person.
+	Message string `json:"message"`
+}
+
+// StageKind defines model for StageKind.
+type StageKind string
+
+// StageProgress defines model for StageProgress.
+type StageProgress struct {
+	// Attempts Attempts made so far in this run, at most 4.
+	Attempts   int         `json:"attempts"`
+	FinishedAt *time.Time  `json:"finished_at"`
+	LastError  *StageError `json:"last_error"`
+	Stage      StageKind   `json:"stage"`
+	StartedAt  *time.Time  `json:"started_at"`
+	Status     StageStatus `json:"status"`
+}
+
+// StageStatus defines model for StageStatus.
+type StageStatus string
+
+// SubmissionCreated defines model for SubmissionCreated.
+type SubmissionCreated struct {
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note    NoteCard                 `json:"note"`
+	Outcome SubmissionCreatedOutcome `json:"outcome"`
+
+	// UndoUntil RFC 3339, UTC.
+	UndoUntil Timestamp `json:"undo_until"`
+}
+
+// SubmissionCreatedOutcome defines model for SubmissionCreated.Outcome.
+type SubmissionCreatedOutcome string
+
+// SubmissionDuplicate defines model for SubmissionDuplicate.
+type SubmissionDuplicate struct {
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note    NoteCard                   `json:"note"`
+	Outcome SubmissionDuplicateOutcome `json:"outcome"`
+}
+
+// SubmissionDuplicateOutcome defines model for SubmissionDuplicate.Outcome.
+type SubmissionDuplicateOutcome string
+
+// SubmissionHeld defines model for SubmissionHeld.
+type SubmissionHeld struct {
+	// MonthChargedUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	MonthChargedUsd Money `json:"month_charged_usd"`
+
+	// Note The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail.
+	Note    NoteCard              `json:"note"`
+	Outcome SubmissionHeldOutcome `json:"outcome"`
+
+	// SoftCapUsd USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`.
+	SoftCapUsd Money `json:"soft_cap_usd"`
+}
+
+// SubmissionHeldOutcome defines model for SubmissionHeld.Outcome.
+type SubmissionHeldOutcome string
+
+// SubmissionOutcome defines model for SubmissionOutcome.
+type SubmissionOutcome string
+
+// SubmissionRequest defines model for SubmissionRequest.
+type SubmissionRequest struct {
+	// Url Any URL form spec 8.1 accepts. A playlist `list` parameter is ignored when `v` is present.
+	Url string `json:"url"`
+}
+
+// SubmissionResult defines model for SubmissionResult.
+type SubmissionResult struct {
+	union json.RawMessage
+}
+
+// SyncChange defines model for SyncChange.
+type SyncChange string
+
+// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+type SyncCursor = int64
+
+// SyncEntityKind defines model for SyncEntityKind.
+type SyncEntityKind string
+
+// SyncEvent A `sync_events` row, verbatim. Durable and replayable by cursor.
+type SyncEvent struct {
+	Change SyncChange `json:"change"`
+
+	// Cursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	Cursor     SyncCursor     `json:"cursor"`
+	EntityId   Uuid           `json:"entity_id"`
+	EntityKind SyncEntityKind `json:"entity_kind"`
+
+	// NoteId The parent Note for takeaway, tag and diagram_layout events.
+	NoteId *openapi_types.UUID `json:"note_id"`
+
+	// OccurredAt RFC 3339, UTC.
+	OccurredAt Timestamp `json:"occurred_at"`
+
+	// OriginDeviceSessionId Null for server-initiated changes. A client drops echoes of its own writes after advancing the cursor.
+	OriginDeviceSessionId *openapi_types.UUID `json:"origin_device_session_id"`
+}
+
+// Tag defines model for Tag.
+type Tag struct {
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt      Timestamp `json:"created_at"`
+	Id             Uuid      `json:"id"`
+	Name           string    `json:"name"`
+	NormalizedName string    `json:"normalized_name"`
+	NoteCount      int       `json:"note_count"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// TagList defines model for TagList.
+type TagList struct {
+	Tags []Tag `json:"tags"`
+}
+
+// TagRef defines model for TagRef.
+type TagRef struct {
+	Id   Uuid   `json:"id"`
+	Name string `json:"name"`
+}
+
+// TagWrite defines model for TagWrite.
+type TagWrite struct {
+	Name string `json:"name"`
+}
+
+// TagsWrite defines model for TagsWrite.
+type TagsWrite struct {
+	MutationId Uuid `json:"mutation_id"`
+
+	// Tags The complete set of Tag names the Note should carry.
+	Tags []string `json:"tags"`
+}
+
+// Takeaway defines model for Takeaway.
+type Takeaway struct {
+	Text      string     `json:"text"`
+	UpdatedAt *time.Time `json:"updated_at"`
+
+	// UpdatedCursor Compare-and-set token; 0 for a Takeaway never written.
+	UpdatedCursor int64 `json:"updated_cursor"`
+}
+
+// TakeawayResult defines model for TakeawayResult.
+type TakeawayResult struct {
+	// SyncCursor A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+	SyncCursor SyncCursor `json:"sync_cursor"`
+	Takeaway   Takeaway   `json:"takeaway"`
+}
+
+// TakeawayWrite defines model for TakeawayWrite.
+type TakeawayWrite struct {
+	BaseCursor int64  `json:"base_cursor"`
+	MutationId Uuid   `json:"mutation_id"`
+	Text       string `json:"text"`
+}
+
+// TimelineDiagram defines model for TimelineDiagram.
+type TimelineDiagram struct {
+	CollapsedGroups []CollapsedGroup             `json:"collapsed_groups"`
+	Events          []OrderedNode                `json:"events"`
+	Layout          LinearLayout                 `json:"layout"`
+	SchemaVersion   TimelineDiagramSchemaVersion `json:"schema_version"`
+	Type            TimelineDiagramType          `json:"type"`
+}
+
+// TimelineDiagramSchemaVersion defines model for TimelineDiagram.SchemaVersion.
+type TimelineDiagramSchemaVersion int
+
+// TimelineDiagramType defines model for TimelineDiagram.Type.
+type TimelineDiagramType string
+
+// Timestamp RFC 3339, UTC.
+type Timestamp = time.Time
+
+// TokenGrant What the extension receives from exchange and refresh. The only copy of both tokens.
+type TokenGrant struct {
+	// AccessExpiresAt RFC 3339, UTC.
+	AccessExpiresAt Timestamp     `json:"access_expires_at"`
+	AccessToken     string        `json:"access_token"`
+	RefreshToken    string        `json:"refresh_token"`
+	Session         DeviceSession `json:"session"`
+}
+
+// Topic defines model for Topic.
+type Topic struct {
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt      Timestamp `json:"created_at"`
+	Id             Uuid      `json:"id"`
+	Name           string    `json:"name"`
+	NormalizedName string    `json:"normalized_name"`
+
+	// NoteCount Ready, non-Trash Notes filed under it.
+	NoteCount int `json:"note_count"`
+
+	// UpdatedAt RFC 3339, UTC.
+	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// TopicList defines model for TopicList.
+type TopicList struct {
+	Topics []Topic `json:"topics"`
+}
+
+// TopicMerge defines model for TopicMerge.
+type TopicMerge struct {
+	IntoTopicId Uuid `json:"into_topic_id"`
+}
+
+// TopicRef defines model for TopicRef.
+type TopicRef struct {
+	Id   Uuid   `json:"id"`
+	Name string `json:"name"`
+}
+
+// TopicWrite defines model for TopicWrite.
+type TopicWrite struct {
+	Name string `json:"name"`
+}
+
+// Transcript defines model for Transcript.
+type Transcript struct {
+	// Chunks Spans into `text`, in ordinal order, so Source refs resolve on the client.
+	Chunks []TranscriptChunk `json:"chunks"`
+
+	// CreatedAt RFC 3339, UTC.
+	CreatedAt    Timestamp            `json:"created_at"`
+	LanguageCode string               `json:"language_code"`
+	NoteId       Uuid                 `json:"note_id"`
+	SourceKind   TranscriptSourceKind `json:"source_kind"`
+
+	// Text The normalized Transcript in its original language and script.
+	Text string `json:"text"`
+}
+
+// TranscriptChunk defines model for TranscriptChunk.
+type TranscriptChunk struct {
+	CharEnd    int  `json:"char_end"`
+	CharStart  int  `json:"char_start"`
+	Id         Uuid `json:"id"`
+	Ordinal    int  `json:"ordinal"`
+	TokenCount int  `json:"token_count"`
+}
+
+// TranscriptSourceKind defines model for TranscriptSourceKind.
+type TranscriptSourceKind string
+
+// UndoResult defines model for UndoResult.
+type UndoResult struct {
+	NoteId Uuid             `json:"note_id"`
+	Result UndoResultResult `json:"result"`
+}
+
+// UndoResultResult defines model for UndoResult.Result.
+type UndoResultResult string
+
+// UnitMap Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design.
+type UnitMap map[string]float64
+
+// UnpricedModel defines model for UnpricedModel.
+type UnpricedModel struct {
+	BillingMode BillingMode `json:"billing_mode"`
+	Model       string      `json:"model"`
+	Provider    string      `json:"provider"`
+}
+
+// UsageCall One billable provider call from the ledger (ADR 0007).
+type UsageCall struct {
+	BillingMode BillingMode `json:"billing_mode"`
+	ChargeUsd   *Money      `json:"charge_usd"`
+
+	// EstimatedUnits Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design.
+	EstimatedUnits UnitMap    `json:"estimated_units"`
+	FinishedAt     *time.Time `json:"finished_at"`
+	Id             Uuid       `json:"id"`
+	Model          string     `json:"model"`
+
+	// Outcome Null while the call is in flight.
+	Outcome           *UsageOutcome `json:"outcome"`
+	ProcessingVersion *int          `json:"processing_version"`
+	Provider          string        `json:"provider"`
+	ReportedUnits     *UnitMap      `json:"reported_units"`
+	Role              AiRole        `json:"role"`
+
+	// StartedAt RFC 3339, UTC.
+	StartedAt     Timestamp `json:"started_at"`
+	UnpricedUnits *UnitMap  `json:"unpriced_units"`
+}
+
+// UsageOutcome defines model for UsageOutcome.
+type UsageOutcome string
+
+// Uuid defines model for Uuid.
+type Uuid = openapi_types.UUID
+
+// VapidPublicKey defines model for VapidPublicKey.
+type VapidPublicKey struct {
+	// PublicKey The uncompressed P-256 point, base64url, for `applicationServerKey`.
+	PublicKey string `json:"public_key"`
+}
+
+// VerificationResult defines model for VerificationResult.
+type VerificationResult struct {
+	// Charged Whether the check was billable and wrote a ledger row.
+	Charged           bool       `json:"charged"`
+	Role              AiRole     `json:"role"`
+	VerificationError *string    `json:"verification_error"`
+	VerifiedAt        *time.Time `json:"verified_at"`
+}
+
+// VideoId defines model for VideoId.
+type VideoId = string
+
+// Cursor defines model for cursor.
+type Cursor = string
+
+// ExportRevision defines model for exportRevision.
+type ExportRevision = Uuid
+
+// ExportTranscript defines model for exportTranscript.
+type ExportTranscript = bool
+
+// NoteId defines model for noteId.
+type NoteId = Uuid
+
+// RequestId 32 random or hashed bytes, base64url without padding.
+type RequestId = Base64Url256
+
+// RevisionId defines model for revisionId.
+type RevisionId = Uuid
+
+// Role defines model for role.
+type Role = AiRole
+
+// SessionId defines model for sessionId.
+type SessionId = Uuid
+
+// SubscriptionId defines model for subscriptionId.
+type SubscriptionId = Uuid
+
+// TagId defines model for tagId.
+type TagId = Uuid
+
+// TopicId defines model for topicId.
+type TopicId = Uuid
+
+// Error defines model for Error.
+type Error = ErrorResponse
+
+// ListEventsSinceParams defines parameters for ListEventsSince.
+type ListEventsSinceParams struct {
+	// Cursor The last cursor the client has applied. 0 on first sign-in.
+	Cursor int64 `form:"cursor" json:"cursor"`
+	Limit  *int  `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ExportNotePdfParams defines parameters for ExportNotePdf.
+type ExportNotePdfParams struct {
+	// Transcript Include the Transcript. Defaults off, matching spec 12's default contents.
+	Transcript *ExportTranscript `form:"transcript,omitempty" json:"transcript,omitempty"`
+
+	// Revision Render this Revision instead of the Active Revision. Must belong to the Note.
+	Revision *ExportRevision `form:"revision,omitempty" json:"revision,omitempty"`
+}
+
+// ExportNoteMarkdownParams defines parameters for ExportNoteMarkdown.
+type ExportNoteMarkdownParams struct {
+	// Transcript Include the Transcript. Defaults off, matching spec 12's default contents.
+	Transcript *ExportTranscript `form:"transcript,omitempty" json:"transcript,omitempty"`
+
+	// Revision Render this Revision instead of the Active Revision. Must belong to the Note.
+	Revision *ExportRevision `form:"revision,omitempty" json:"revision,omitempty"`
+}
+
+// ListNotesParams defines parameters for ListNotes.
+type ListNotesParams struct {
+	// From Earliest Save date, inclusive, in the account timezone.
+	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Latest Save date, inclusive, in the account timezone.
+	To        *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	TopicId   *Uuid               `form:"topic_id,omitempty" json:"topic_id,omitempty"`
+	TagId     *Uuid               `form:"tag_id,omitempty" json:"tag_id,omitempty"`
+	ChannelId *string             `form:"channel_id,omitempty" json:"channel_id,omitempty"`
+
+	// State Restrict to these processing states. Repeat the parameter for several.
+	State *[]ProcessingState `form:"state,omitempty" json:"state,omitempty"`
+
+	// Held Only Notes waiting for cost confirmation.
+	Held *bool `form:"held,omitempty" json:"held,omitempty"`
+
+	// Trashed The Trash view. Defaults to false, which excludes trashed Notes.
+	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
+
+	// Cursor Opaque keyset cursor from a previous page's `next_cursor`.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	Q         string              `form:"q" json:"q"`
+	From      *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To        *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	TopicId   *Uuid               `form:"topic_id,omitempty" json:"topic_id,omitempty"`
+	ChannelId *string             `form:"channel_id,omitempty" json:"channel_id,omitempty"`
+
+	// MinDuration Seconds, inclusive.
+	MinDuration *int `form:"min_duration,omitempty" json:"min_duration,omitempty"`
+
+	// MaxDuration Seconds, inclusive.
+	MaxDuration *int `form:"max_duration,omitempty" json:"max_duration,omitempty"`
+
+	// Cursor Opaque keyset cursor from a previous page's `next_cursor`.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// GetUsageParams defines parameters for GetUsage.
+type GetUsageParams struct {
+	// Month Calendar month in the account timezone, `YYYY-MM`. Defaults to the current month.
+	Month *string `form:"month,omitempty" json:"month,omitempty"`
+}
+
+// UpdateAccountJSONRequestBody defines body for UpdateAccount for application/json ContentType.
+type UpdateAccountJSONRequestBody = AccountUpdate
+
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// ConfirmNoteCostJSONRequestBody defines body for ConfirmNoteCost for application/json ContentType.
+type ConfirmNoteCostJSONRequestBody = CostConfirmation
+
+// UpdateLayoutJSONRequestBody defines body for UpdateLayout for application/json ContentType.
+type UpdateLayoutJSONRequestBody = LayoutWrite
+
+// MutateNoteJSONRequestBody defines body for MutateNote for application/json ContentType.
+type MutateNoteJSONRequestBody = Mutation
+
+// RegenerateNoteJSONRequestBody defines body for RegenerateNote for application/json ContentType.
+type RegenerateNoteJSONRequestBody = RegenerateRequest
+
+// SetTagsJSONRequestBody defines body for SetTags for application/json ContentType.
+type SetTagsJSONRequestBody = TagsWrite
+
+// SetTakeawayJSONRequestBody defines body for SetTakeaway for application/json ContentType.
+type SetTakeawayJSONRequestBody = TakeawayWrite
+
+// SetPrimaryTopicJSONRequestBody defines body for SetPrimaryTopic for application/json ContentType.
+type SetPrimaryTopicJSONRequestBody = PrimaryTopicWrite
+
+// ExchangePairingVerifierJSONRequestBody defines body for ExchangePairingVerifier for application/json ContentType.
+type ExchangePairingVerifierJSONRequestBody = PairingExchange
+
+// RefreshExtensionTokensJSONRequestBody defines body for RefreshExtensionTokens for application/json ContentType.
+type RefreshExtensionTokensJSONRequestBody = RefreshTokensRequest
+
+// CreatePairingRequestJSONRequestBody defines body for CreatePairingRequest for application/json ContentType.
+type CreatePairingRequestJSONRequestBody = PairingRequestCreate
+
+// UpsertPushSubscriptionJSONRequestBody defines body for UpsertPushSubscription for application/json ContentType.
+type UpsertPushSubscriptionJSONRequestBody = PushSubscriptionWrite
+
+// UpdatePushSubscriptionJSONRequestBody defines body for UpdatePushSubscription for application/json ContentType.
+type UpdatePushSubscriptionJSONRequestBody = PushSubscriptionUpdate
+
+// UpdateAiRoleJSONRequestBody defines body for UpdateAiRole for application/json ContentType.
+type UpdateAiRoleJSONRequestBody = AiRoleWrite
+
+// UpdateCostSettingsJSONRequestBody defines body for UpdateCostSettings for application/json ContentType.
+type UpdateCostSettingsJSONRequestBody = CostSettingsWrite
+
+// RecordRestoreDrillJSONRequestBody defines body for RecordRestoreDrill for application/json ContentType.
+type RecordRestoreDrillJSONRequestBody = RestoreDrillCreate
+
+// CreatePriceSetJSONRequestBody defines body for CreatePriceSet for application/json ContentType.
+type CreatePriceSetJSONRequestBody = PriceSetCreate
+
+// StartReindexJSONRequestBody defines body for StartReindex for application/json ContentType.
+type StartReindexJSONRequestBody = ReindexRequest
+
+// CreateSubmissionJSONRequestBody defines body for CreateSubmission for application/json ContentType.
+type CreateSubmissionJSONRequestBody = SubmissionRequest
+
+// UpdateTagJSONRequestBody defines body for UpdateTag for application/json ContentType.
+type UpdateTagJSONRequestBody = TagWrite
+
+// CreateTopicJSONRequestBody defines body for CreateTopic for application/json ContentType.
+type CreateTopicJSONRequestBody = TopicWrite
+
+// UpdateTopicJSONRequestBody defines body for UpdateTopic for application/json ContentType.
+type UpdateTopicJSONRequestBody = TopicWrite
+
+// MergeTopicJSONRequestBody defines body for MergeTopic for application/json ContentType.
+type MergeTopicJSONRequestBody = TopicMerge
+
+// AsMindMapDiagram returns the union data inside the Diagram as a MindMapDiagram
+func (t Diagram) AsMindMapDiagram() (MindMapDiagram, error) {
+	var body MindMapDiagram
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromMindMapDiagram overwrites any union data inside the Diagram as the provided MindMapDiagram
+func (t *Diagram) FromMindMapDiagram(v MindMapDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"mind_map"}`))
+	t.union = b
+	return err
+}
+
+// MergeMindMapDiagram performs a merge with any union data inside the Diagram, using the provided MindMapDiagram
+func (t *Diagram) MergeMindMapDiagram(v MindMapDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"mind_map"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsProcessFlowDiagram returns the union data inside the Diagram as a ProcessFlowDiagram
+func (t Diagram) AsProcessFlowDiagram() (ProcessFlowDiagram, error) {
+	var body ProcessFlowDiagram
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromProcessFlowDiagram overwrites any union data inside the Diagram as the provided ProcessFlowDiagram
+func (t *Diagram) FromProcessFlowDiagram(v ProcessFlowDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"process_flow"}`))
+	t.union = b
+	return err
+}
+
+// MergeProcessFlowDiagram performs a merge with any union data inside the Diagram, using the provided ProcessFlowDiagram
+func (t *Diagram) MergeProcessFlowDiagram(v ProcessFlowDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"process_flow"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsTimelineDiagram returns the union data inside the Diagram as a TimelineDiagram
+func (t Diagram) AsTimelineDiagram() (TimelineDiagram, error) {
+	var body TimelineDiagram
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTimelineDiagram overwrites any union data inside the Diagram as the provided TimelineDiagram
+func (t *Diagram) FromTimelineDiagram(v TimelineDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"timeline"}`))
+	t.union = b
+	return err
+}
+
+// MergeTimelineDiagram performs a merge with any union data inside the Diagram, using the provided TimelineDiagram
+func (t *Diagram) MergeTimelineDiagram(v TimelineDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"timeline"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComparisonDiagram returns the union data inside the Diagram as a ComparisonDiagram
+func (t Diagram) AsComparisonDiagram() (ComparisonDiagram, error) {
+	var body ComparisonDiagram
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComparisonDiagram overwrites any union data inside the Diagram as the provided ComparisonDiagram
+func (t *Diagram) FromComparisonDiagram(v ComparisonDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"comparison"}`))
+	t.union = b
+	return err
+}
+
+// MergeComparisonDiagram performs a merge with any union data inside the Diagram, using the provided ComparisonDiagram
+func (t *Diagram) MergeComparisonDiagram(v ComparisonDiagram) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"comparison"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t Diagram) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t Diagram) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "comparison":
+		return t.AsComparisonDiagram()
+	case "mind_map":
+		return t.AsMindMapDiagram()
+	case "process_flow":
+		return t.AsProcessFlowDiagram()
+	case "timeline":
+		return t.AsTimelineDiagram()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t Diagram) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *Diagram) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSetBlockTextOp returns the union data inside the MutationOp as a SetBlockTextOp
+func (t MutationOp) AsSetBlockTextOp() (SetBlockTextOp, error) {
+	var body SetBlockTextOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSetBlockTextOp overwrites any union data inside the MutationOp as the provided SetBlockTextOp
+func (t *MutationOp) FromSetBlockTextOp(v SetBlockTextOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_block_text"}`))
+	t.union = b
+	return err
+}
+
+// MergeSetBlockTextOp performs a merge with any union data inside the MutationOp, using the provided SetBlockTextOp
+func (t *MutationOp) MergeSetBlockTextOp(v SetBlockTextOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_block_text"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsInsertBlockOp returns the union data inside the MutationOp as a InsertBlockOp
+func (t MutationOp) AsInsertBlockOp() (InsertBlockOp, error) {
+	var body InsertBlockOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsertBlockOp overwrites any union data inside the MutationOp as the provided InsertBlockOp
+func (t *MutationOp) FromInsertBlockOp(v InsertBlockOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"insert_block"}`))
+	t.union = b
+	return err
+}
+
+// MergeInsertBlockOp performs a merge with any union data inside the MutationOp, using the provided InsertBlockOp
+func (t *MutationOp) MergeInsertBlockOp(v InsertBlockOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"insert_block"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeleteBlockOp returns the union data inside the MutationOp as a DeleteBlockOp
+func (t MutationOp) AsDeleteBlockOp() (DeleteBlockOp, error) {
+	var body DeleteBlockOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeleteBlockOp overwrites any union data inside the MutationOp as the provided DeleteBlockOp
+func (t *MutationOp) FromDeleteBlockOp(v DeleteBlockOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"delete_block"}`))
+	t.union = b
+	return err
+}
+
+// MergeDeleteBlockOp performs a merge with any union data inside the MutationOp, using the provided DeleteBlockOp
+func (t *MutationOp) MergeDeleteBlockOp(v DeleteBlockOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"delete_block"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsReorderBlocksOp returns the union data inside the MutationOp as a ReorderBlocksOp
+func (t MutationOp) AsReorderBlocksOp() (ReorderBlocksOp, error) {
+	var body ReorderBlocksOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromReorderBlocksOp overwrites any union data inside the MutationOp as the provided ReorderBlocksOp
+func (t *MutationOp) FromReorderBlocksOp(v ReorderBlocksOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"reorder_blocks"}`))
+	t.union = b
+	return err
+}
+
+// MergeReorderBlocksOp performs a merge with any union data inside the MutationOp, using the provided ReorderBlocksOp
+func (t *MutationOp) MergeReorderBlocksOp(v ReorderBlocksOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"reorder_blocks"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSetElementLabelOp returns the union data inside the MutationOp as a SetElementLabelOp
+func (t MutationOp) AsSetElementLabelOp() (SetElementLabelOp, error) {
+	var body SetElementLabelOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSetElementLabelOp overwrites any union data inside the MutationOp as the provided SetElementLabelOp
+func (t *MutationOp) FromSetElementLabelOp(v SetElementLabelOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_element_label"}`))
+	t.union = b
+	return err
+}
+
+// MergeSetElementLabelOp performs a merge with any union data inside the MutationOp, using the provided SetElementLabelOp
+func (t *MutationOp) MergeSetElementLabelOp(v SetElementLabelOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_element_label"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSetCellTextOp returns the union data inside the MutationOp as a SetCellTextOp
+func (t MutationOp) AsSetCellTextOp() (SetCellTextOp, error) {
+	var body SetCellTextOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSetCellTextOp overwrites any union data inside the MutationOp as the provided SetCellTextOp
+func (t *MutationOp) FromSetCellTextOp(v SetCellTextOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_cell_text"}`))
+	t.union = b
+	return err
+}
+
+// MergeSetCellTextOp performs a merge with any union data inside the MutationOp, using the provided SetCellTextOp
+func (t *MutationOp) MergeSetCellTextOp(v SetCellTextOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"set_cell_text"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsDeleteElementOp returns the union data inside the MutationOp as a DeleteElementOp
+func (t MutationOp) AsDeleteElementOp() (DeleteElementOp, error) {
+	var body DeleteElementOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromDeleteElementOp overwrites any union data inside the MutationOp as the provided DeleteElementOp
+func (t *MutationOp) FromDeleteElementOp(v DeleteElementOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"delete_element"}`))
+	t.union = b
+	return err
+}
+
+// MergeDeleteElementOp performs a merge with any union data inside the MutationOp, using the provided DeleteElementOp
+func (t *MutationOp) MergeDeleteElementOp(v DeleteElementOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"delete_element"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsReorderElementsOp returns the union data inside the MutationOp as a ReorderElementsOp
+func (t MutationOp) AsReorderElementsOp() (ReorderElementsOp, error) {
+	var body ReorderElementsOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromReorderElementsOp overwrites any union data inside the MutationOp as the provided ReorderElementsOp
+func (t *MutationOp) FromReorderElementsOp(v ReorderElementsOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"reorder_elements"}`))
+	t.union = b
+	return err
+}
+
+// MergeReorderElementsOp performs a merge with any union data inside the MutationOp, using the provided ReorderElementsOp
+func (t *MutationOp) MergeReorderElementsOp(v ReorderElementsOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"reorder_elements"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t MutationOp) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"op"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t MutationOp) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "delete_block":
+		return t.AsDeleteBlockOp()
+	case "delete_element":
+		return t.AsDeleteElementOp()
+	case "insert_block":
+		return t.AsInsertBlockOp()
+	case "reorder_blocks":
+		return t.AsReorderBlocksOp()
+	case "reorder_elements":
+		return t.AsReorderElementsOp()
+	case "set_block_text":
+		return t.AsSetBlockTextOp()
+	case "set_cell_text":
+		return t.AsSetCellTextOp()
+	case "set_element_label":
+		return t.AsSetElementLabelOp()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t MutationOp) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *MutationOp) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsSubmissionCreated returns the union data inside the SubmissionResult as a SubmissionCreated
+func (t SubmissionResult) AsSubmissionCreated() (SubmissionCreated, error) {
+	var body SubmissionCreated
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSubmissionCreated overwrites any union data inside the SubmissionResult as the provided SubmissionCreated
+func (t *SubmissionResult) FromSubmissionCreated(v SubmissionCreated) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"created"}`))
+	t.union = b
+	return err
+}
+
+// MergeSubmissionCreated performs a merge with any union data inside the SubmissionResult, using the provided SubmissionCreated
+func (t *SubmissionResult) MergeSubmissionCreated(v SubmissionCreated) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"created"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSubmissionDuplicate returns the union data inside the SubmissionResult as a SubmissionDuplicate
+func (t SubmissionResult) AsSubmissionDuplicate() (SubmissionDuplicate, error) {
+	var body SubmissionDuplicate
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSubmissionDuplicate overwrites any union data inside the SubmissionResult as the provided SubmissionDuplicate
+func (t *SubmissionResult) FromSubmissionDuplicate(v SubmissionDuplicate) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"duplicate"}`))
+	t.union = b
+	return err
+}
+
+// MergeSubmissionDuplicate performs a merge with any union data inside the SubmissionResult, using the provided SubmissionDuplicate
+func (t *SubmissionResult) MergeSubmissionDuplicate(v SubmissionDuplicate) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"duplicate"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSubmissionHeld returns the union data inside the SubmissionResult as a SubmissionHeld
+func (t SubmissionResult) AsSubmissionHeld() (SubmissionHeld, error) {
+	var body SubmissionHeld
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSubmissionHeld overwrites any union data inside the SubmissionResult as the provided SubmissionHeld
+func (t *SubmissionResult) FromSubmissionHeld(v SubmissionHeld) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"held"}`))
+	t.union = b
+	return err
+}
+
+// MergeSubmissionHeld performs a merge with any union data inside the SubmissionResult, using the provided SubmissionHeld
+func (t *SubmissionResult) MergeSubmissionHeld(v SubmissionHeld) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"outcome":"held"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SubmissionResult) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"outcome"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t SubmissionResult) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "created":
+		return t.AsSubmissionCreated()
+	case "duplicate":
+		return t.AsSubmissionDuplicate()
+	case "held":
+		return t.AsSubmissionHeld()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t SubmissionResult) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SubmissionResult) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetAccount The Owner account
+	// (GET /auth/account)
+	GetAccount(w http.ResponseWriter, r *http.Request)
+	// UpdateAccount Change display name or timezone
+	// (PATCH /auth/account)
+	UpdateAccount(w http.ResponseWriter, r *http.Request)
+	// ChangePassword Change the password
+	// (POST /auth/account/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
+	// Login Password login for the PWA
+	// (POST /auth/login)
+	Login(w http.ResponseWriter, r *http.Request)
+	// Logout Sign out this PWA device
+	// (POST /auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// RefreshSession Rotate the PWA's Token family
+	// (POST /auth/refresh)
+	RefreshSession(w http.ResponseWriter, r *http.Request)
+	// RecoverCsrfToken Recover the CSRF token after a reload
+	// (GET /auth/refresh/csrf)
+	RecoverCsrfToken(w http.ResponseWriter, r *http.Request)
+	// LogoutViaRefresh Sign out even after the access cookie has expired
+	// (POST /auth/refresh/logout)
+	LogoutViaRefresh(w http.ResponseWriter, r *http.Request)
+	// GetSession The foreground session gate
+	// (GET /auth/session)
+	GetSession(w http.ResponseWriter, r *http.Request)
+	// ListSessions List live Device sessions
+	// (GET /auth/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request)
+	// RevokeAllSessions Sign out all devices
+	// (POST /auth/sessions/revoke-all)
+	RevokeAllSessions(w http.ResponseWriter, r *http.Request)
+	// RevokeSession Revoke one Device session
+	// (DELETE /auth/sessions/{sessionId})
+	RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// ListEventsSince Polling fallback
+	// (GET /events/since)
+	ListEventsSince(w http.ResponseWriter, r *http.Request, params ListEventsSinceParams)
+	// ExportLibrary The Library backup
+	// (GET /exports/library)
+	ExportLibrary(w http.ResponseWriter, r *http.Request)
+	// ExportNotePdf Export one Note as PDF
+	// (GET /exports/notes/{noteId}.pdf)
+	ExportNotePdf(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNotePdfParams)
+	// ExportNoteMarkdown Export one Note as a Markdown ZIP
+	// (GET /exports/notes/{noteId}.zip)
+	ExportNoteMarkdown(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNoteMarkdownParams)
+	// ListNotes List Notes as cards
+	// (GET /notes)
+	ListNotes(w http.ResponseWriter, r *http.Request, params ListNotesParams)
+	// TrashNote Move a Note to Trash
+	// (DELETE /notes/{noteId})
+	TrashNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// GetNote Read a Note in full
+	// (GET /notes/{noteId})
+	GetNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// ConfirmNoteCost Confirm a held run's spend
+	// (POST /notes/{noteId}/cost-confirmation)
+	ConfirmNoteCost(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// UpdateLayout Merge diagram positions
+	// (PATCH /notes/{noteId}/layout)
+	UpdateLayout(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// MutateNote Apply an operation set to the Active Revision
+	// (POST /notes/{noteId}/mutations)
+	MutateNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// PurgeNote Purge a trashed Note now
+	// (POST /notes/{noteId}/purge)
+	PurgeNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// RegenerateNote Regenerate from the Transcript
+	// (POST /notes/{noteId}/regenerate)
+	RegenerateNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// RestoreNote Restore a Note from Trash
+	// (POST /notes/{noteId}/restore)
+	RestoreNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// RetryNote Retry a failed Note
+	// (POST /notes/{noteId}/retry)
+	RetryNote(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// ListRevisions Version history
+	// (GET /notes/{noteId}/revisions)
+	ListRevisions(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// GetRevision Preview one Revision
+	// (GET /notes/{noteId}/revisions/{revisionId})
+	GetRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId)
+	// ActivateRevision Activate a never-active Revision
+	// (POST /notes/{noteId}/revisions/{revisionId}/activate)
+	ActivateRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId)
+	// DiscardRevision Dismiss a Revision awaiting a decision
+	// (POST /notes/{noteId}/revisions/{revisionId}/discard)
+	DiscardRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId)
+	// RestoreRevision Restore a past Revision
+	// (POST /notes/{noteId}/revisions/{revisionId}/restore)
+	RestoreRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId)
+	// SetTags Replace the Note's Tags
+	// (PUT /notes/{noteId}/tags)
+	SetTags(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// SetTakeaway Write the Takeaway
+	// (PUT /notes/{noteId}/takeaway)
+	SetTakeaway(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// SetPrimaryTopic Set the Primary Topic
+	// (PUT /notes/{noteId}/topic)
+	SetPrimaryTopic(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// GetTranscript Read the Transcript
+	// (GET /notes/{noteId}/transcript)
+	GetTranscript(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// ExchangePairingVerifier Exchange the verifier for a Token family (extension)
+	// (POST /pairing/exchange)
+	ExchangePairingVerifier(w http.ResponseWriter, r *http.Request)
+	// LogoutExtension Unpair this browser
+	// (POST /pairing/logout)
+	LogoutExtension(w http.ResponseWriter, r *http.Request)
+	// RefreshExtensionTokens Rotate the extension's Token family
+	// (POST /pairing/refresh)
+	RefreshExtensionTokens(w http.ResponseWriter, r *http.Request)
+	// CreatePairingRequest Create a Pairing request (extension)
+	// (POST /pairing/requests)
+	CreatePairingRequest(w http.ResponseWriter, r *http.Request)
+	// GetPairingRequest Read a Pairing request for the approval page
+	// (GET /pairing/requests/{requestId})
+	GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId)
+	// ApprovePairingRequest Approve the named browser
+	// (POST /pairing/requests/{requestId}/approve)
+	ApprovePairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId)
+	// DenyPairingRequest Deny a Pairing request
+	// (POST /pairing/requests/{requestId}/deny)
+	DenyPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId)
+	// ListPushSubscriptions List this Owner's push subscriptions
+	// (GET /push-subscriptions)
+	ListPushSubscriptions(w http.ResponseWriter, r *http.Request)
+	// UpsertPushSubscription Register or replace this device's subscription
+	// (PUT /push-subscriptions)
+	UpsertPushSubscription(w http.ResponseWriter, r *http.Request)
+	// DeletePushSubscription Remove a subscription
+	// (DELETE /push-subscriptions/{subscriptionId})
+	DeletePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId)
+	// UpdatePushSubscription Toggle note or ops notifications
+	// (PATCH /push-subscriptions/{subscriptionId})
+	UpdatePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId)
+	// GetVapidPublicKey The VAPID public key
+	// (GET /push/vapid-public-key)
+	GetVapidPublicKey(w http.ResponseWriter, r *http.Request)
+	// Search Hybrid search
+	// (GET /search)
+	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
+	// GetAiSettings Processing role configuration
+	// (GET /settings/ai)
+	GetAiSettings(w http.ResponseWriter, r *http.Request)
+	// UpdateAiRole Configure a Processing role
+	// (PUT /settings/ai/{role})
+	UpdateAiRole(w http.ResponseWriter, r *http.Request, role Role)
+	// ClearAiRoleKey Remove a role's stored key
+	// (DELETE /settings/ai/{role}/key)
+	ClearAiRoleKey(w http.ResponseWriter, r *http.Request, role Role)
+	// VerifyAiRole Verify a role's key against its provider
+	// (POST /settings/ai/{role}/verify)
+	VerifyAiRole(w http.ResponseWriter, r *http.Request, role Role)
+	// GetCostSettings The Soft cap and semantic override
+	// (GET /settings/cost)
+	GetCostSettings(w http.ResponseWriter, r *http.Request)
+	// UpdateCostSettings Change the Soft cap
+	// (PUT /settings/cost)
+	UpdateCostSettings(w http.ResponseWriter, r *http.Request)
+	// EnableSemanticForMonth Re-enable semantic search for the current month
+	// (POST /settings/cost/semantic-override)
+	EnableSemanticForMonth(w http.ResponseWriter, r *http.Request)
+	// GetHealth Operational health
+	// (GET /settings/health)
+	GetHealth(w http.ResponseWriter, r *http.Request)
+	// RecordRestoreDrill Record a completed restore drill
+	// (POST /settings/health/drills)
+	RecordRestoreDrill(w http.ResponseWriter, r *http.Request)
+	// RetryBlockedNotes Retry every Note blocked by extractor breakage
+	// (POST /settings/health/retry-blocked)
+	RetryBlockedNotes(w http.ResponseWriter, r *http.Request)
+	// ListPriceSets List price sets
+	// (GET /settings/prices)
+	ListPriceSets(w http.ResponseWriter, r *http.Request)
+	// CreatePriceSet Append a price set version
+	// (POST /settings/prices)
+	CreatePriceSet(w http.ResponseWriter, r *http.Request)
+	// GetSearchIndex The search index state
+	// (GET /settings/search-index)
+	GetSearchIndex(w http.ResponseWriter, r *http.Request)
+	// ActivateReindex Flip search to the reindexed model
+	// (POST /settings/search-index/activate)
+	ActivateReindex(w http.ResponseWriter, r *http.Request)
+	// AbandonReindex Abandon the reindex in progress
+	// (DELETE /settings/search-index/reindex)
+	AbandonReindex(w http.ResponseWriter, r *http.Request)
+	// StartReindex Start reindexing into another embedding model
+	// (POST /settings/search-index/reindex)
+	StartReindex(w http.ResponseWriter, r *http.Request)
+	// GetUsage Monthly AI usage
+	// (GET /settings/usage)
+	GetUsage(w http.ResponseWriter, r *http.Request, params GetUsageParams)
+	// CreateSubmission Submit a YouTube URL
+	// (POST /submissions)
+	CreateSubmission(w http.ResponseWriter, r *http.Request)
+	// UndoSubmission Undo a Submission
+	// (DELETE /submissions/{noteId})
+	UndoSubmission(w http.ResponseWriter, r *http.Request, noteId NoteId)
+	// ListTags List Tags
+	// (GET /tags)
+	ListTags(w http.ResponseWriter, r *http.Request)
+	// DeleteTag Delete a Tag everywhere
+	// (DELETE /tags/{tagId})
+	DeleteTag(w http.ResponseWriter, r *http.Request, tagId TagId)
+	// UpdateTag Rename a Tag
+	// (PATCH /tags/{tagId})
+	UpdateTag(w http.ResponseWriter, r *http.Request, tagId TagId)
+	// ListTopics List Primary Topics
+	// (GET /topics)
+	ListTopics(w http.ResponseWriter, r *http.Request)
+	// CreateTopic Create a Topic
+	// (POST /topics)
+	CreateTopic(w http.ResponseWriter, r *http.Request)
+	// DeleteTopic Delete an unused Topic
+	// (DELETE /topics/{topicId})
+	DeleteTopic(w http.ResponseWriter, r *http.Request, topicId TopicId)
+	// UpdateTopic Rename a Topic
+	// (PATCH /topics/{topicId})
+	UpdateTopic(w http.ResponseWriter, r *http.Request, topicId TopicId)
+	// MergeTopic Merge this Topic into another
+	// (POST /topics/{topicId}/merge)
+	MergeTopic(w http.ResponseWriter, r *http.Request, topicId TopicId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// GetAccount The Owner account
+// (GET /auth/account)
+func (_ Unimplemented) GetAccount(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateAccount Change display name or timezone
+// (PATCH /auth/account)
+func (_ Unimplemented) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ChangePassword Change the password
+// (POST /auth/account/password)
+func (_ Unimplemented) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Login Password login for the PWA
+// (POST /auth/login)
+func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Logout Sign out this PWA device
+// (POST /auth/logout)
+func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RefreshSession Rotate the PWA's Token family
+// (POST /auth/refresh)
+func (_ Unimplemented) RefreshSession(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RecoverCsrfToken Recover the CSRF token after a reload
+// (GET /auth/refresh/csrf)
+func (_ Unimplemented) RecoverCsrfToken(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// LogoutViaRefresh Sign out even after the access cookie has expired
+// (POST /auth/refresh/logout)
+func (_ Unimplemented) LogoutViaRefresh(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetSession The foreground session gate
+// (GET /auth/session)
+func (_ Unimplemented) GetSession(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListSessions List live Device sessions
+// (GET /auth/sessions)
+func (_ Unimplemented) ListSessions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RevokeAllSessions Sign out all devices
+// (POST /auth/sessions/revoke-all)
+func (_ Unimplemented) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RevokeSession Revoke one Device session
+// (DELETE /auth/sessions/{sessionId})
+func (_ Unimplemented) RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEventsSince Polling fallback
+// (GET /events/since)
+func (_ Unimplemented) ListEventsSince(w http.ResponseWriter, r *http.Request, params ListEventsSinceParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ExportLibrary The Library backup
+// (GET /exports/library)
+func (_ Unimplemented) ExportLibrary(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ExportNotePdf Export one Note as PDF
+// (GET /exports/notes/{noteId}.pdf)
+func (_ Unimplemented) ExportNotePdf(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNotePdfParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ExportNoteMarkdown Export one Note as a Markdown ZIP
+// (GET /exports/notes/{noteId}.zip)
+func (_ Unimplemented) ExportNoteMarkdown(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNoteMarkdownParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListNotes List Notes as cards
+// (GET /notes)
+func (_ Unimplemented) ListNotes(w http.ResponseWriter, r *http.Request, params ListNotesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// TrashNote Move a Note to Trash
+// (DELETE /notes/{noteId})
+func (_ Unimplemented) TrashNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetNote Read a Note in full
+// (GET /notes/{noteId})
+func (_ Unimplemented) GetNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ConfirmNoteCost Confirm a held run's spend
+// (POST /notes/{noteId}/cost-confirmation)
+func (_ Unimplemented) ConfirmNoteCost(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateLayout Merge diagram positions
+// (PATCH /notes/{noteId}/layout)
+func (_ Unimplemented) UpdateLayout(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// MutateNote Apply an operation set to the Active Revision
+// (POST /notes/{noteId}/mutations)
+func (_ Unimplemented) MutateNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PurgeNote Purge a trashed Note now
+// (POST /notes/{noteId}/purge)
+func (_ Unimplemented) PurgeNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RegenerateNote Regenerate from the Transcript
+// (POST /notes/{noteId}/regenerate)
+func (_ Unimplemented) RegenerateNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RestoreNote Restore a Note from Trash
+// (POST /notes/{noteId}/restore)
+func (_ Unimplemented) RestoreNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RetryNote Retry a failed Note
+// (POST /notes/{noteId}/retry)
+func (_ Unimplemented) RetryNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListRevisions Version history
+// (GET /notes/{noteId}/revisions)
+func (_ Unimplemented) ListRevisions(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetRevision Preview one Revision
+// (GET /notes/{noteId}/revisions/{revisionId})
+func (_ Unimplemented) GetRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ActivateRevision Activate a never-active Revision
+// (POST /notes/{noteId}/revisions/{revisionId}/activate)
+func (_ Unimplemented) ActivateRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DiscardRevision Dismiss a Revision awaiting a decision
+// (POST /notes/{noteId}/revisions/{revisionId}/discard)
+func (_ Unimplemented) DiscardRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RestoreRevision Restore a past Revision
+// (POST /notes/{noteId}/revisions/{revisionId}/restore)
+func (_ Unimplemented) RestoreRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetTags Replace the Note's Tags
+// (PUT /notes/{noteId}/tags)
+func (_ Unimplemented) SetTags(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetTakeaway Write the Takeaway
+// (PUT /notes/{noteId}/takeaway)
+func (_ Unimplemented) SetTakeaway(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetPrimaryTopic Set the Primary Topic
+// (PUT /notes/{noteId}/topic)
+func (_ Unimplemented) SetPrimaryTopic(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetTranscript Read the Transcript
+// (GET /notes/{noteId}/transcript)
+func (_ Unimplemented) GetTranscript(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ExchangePairingVerifier Exchange the verifier for a Token family (extension)
+// (POST /pairing/exchange)
+func (_ Unimplemented) ExchangePairingVerifier(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// LogoutExtension Unpair this browser
+// (POST /pairing/logout)
+func (_ Unimplemented) LogoutExtension(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RefreshExtensionTokens Rotate the extension's Token family
+// (POST /pairing/refresh)
+func (_ Unimplemented) RefreshExtensionTokens(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreatePairingRequest Create a Pairing request (extension)
+// (POST /pairing/requests)
+func (_ Unimplemented) CreatePairingRequest(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetPairingRequest Read a Pairing request for the approval page
+// (GET /pairing/requests/{requestId})
+func (_ Unimplemented) GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ApprovePairingRequest Approve the named browser
+// (POST /pairing/requests/{requestId}/approve)
+func (_ Unimplemented) ApprovePairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DenyPairingRequest Deny a Pairing request
+// (POST /pairing/requests/{requestId}/deny)
+func (_ Unimplemented) DenyPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListPushSubscriptions List this Owner's push subscriptions
+// (GET /push-subscriptions)
+func (_ Unimplemented) ListPushSubscriptions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpsertPushSubscription Register or replace this device's subscription
+// (PUT /push-subscriptions)
+func (_ Unimplemented) UpsertPushSubscription(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeletePushSubscription Remove a subscription
+// (DELETE /push-subscriptions/{subscriptionId})
+func (_ Unimplemented) DeletePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdatePushSubscription Toggle note or ops notifications
+// (PATCH /push-subscriptions/{subscriptionId})
+func (_ Unimplemented) UpdatePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetVapidPublicKey The VAPID public key
+// (GET /push/vapid-public-key)
+func (_ Unimplemented) GetVapidPublicKey(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Search Hybrid search
+// (GET /search)
+func (_ Unimplemented) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetAiSettings Processing role configuration
+// (GET /settings/ai)
+func (_ Unimplemented) GetAiSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateAiRole Configure a Processing role
+// (PUT /settings/ai/{role})
+func (_ Unimplemented) UpdateAiRole(w http.ResponseWriter, r *http.Request, role Role) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ClearAiRoleKey Remove a role's stored key
+// (DELETE /settings/ai/{role}/key)
+func (_ Unimplemented) ClearAiRoleKey(w http.ResponseWriter, r *http.Request, role Role) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// VerifyAiRole Verify a role's key against its provider
+// (POST /settings/ai/{role}/verify)
+func (_ Unimplemented) VerifyAiRole(w http.ResponseWriter, r *http.Request, role Role) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetCostSettings The Soft cap and semantic override
+// (GET /settings/cost)
+func (_ Unimplemented) GetCostSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateCostSettings Change the Soft cap
+// (PUT /settings/cost)
+func (_ Unimplemented) UpdateCostSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// EnableSemanticForMonth Re-enable semantic search for the current month
+// (POST /settings/cost/semantic-override)
+func (_ Unimplemented) EnableSemanticForMonth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetHealth Operational health
+// (GET /settings/health)
+func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RecordRestoreDrill Record a completed restore drill
+// (POST /settings/health/drills)
+func (_ Unimplemented) RecordRestoreDrill(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RetryBlockedNotes Retry every Note blocked by extractor breakage
+// (POST /settings/health/retry-blocked)
+func (_ Unimplemented) RetryBlockedNotes(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListPriceSets List price sets
+// (GET /settings/prices)
+func (_ Unimplemented) ListPriceSets(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreatePriceSet Append a price set version
+// (POST /settings/prices)
+func (_ Unimplemented) CreatePriceSet(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetSearchIndex The search index state
+// (GET /settings/search-index)
+func (_ Unimplemented) GetSearchIndex(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ActivateReindex Flip search to the reindexed model
+// (POST /settings/search-index/activate)
+func (_ Unimplemented) ActivateReindex(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AbandonReindex Abandon the reindex in progress
+// (DELETE /settings/search-index/reindex)
+func (_ Unimplemented) AbandonReindex(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StartReindex Start reindexing into another embedding model
+// (POST /settings/search-index/reindex)
+func (_ Unimplemented) StartReindex(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetUsage Monthly AI usage
+// (GET /settings/usage)
+func (_ Unimplemented) GetUsage(w http.ResponseWriter, r *http.Request, params GetUsageParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateSubmission Submit a YouTube URL
+// (POST /submissions)
+func (_ Unimplemented) CreateSubmission(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UndoSubmission Undo a Submission
+// (DELETE /submissions/{noteId})
+func (_ Unimplemented) UndoSubmission(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListTags List Tags
+// (GET /tags)
+func (_ Unimplemented) ListTags(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteTag Delete a Tag everywhere
+// (DELETE /tags/{tagId})
+func (_ Unimplemented) DeleteTag(w http.ResponseWriter, r *http.Request, tagId TagId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateTag Rename a Tag
+// (PATCH /tags/{tagId})
+func (_ Unimplemented) UpdateTag(w http.ResponseWriter, r *http.Request, tagId TagId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListTopics List Primary Topics
+// (GET /topics)
+func (_ Unimplemented) ListTopics(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateTopic Create a Topic
+// (POST /topics)
+func (_ Unimplemented) CreateTopic(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteTopic Delete an unused Topic
+// (DELETE /topics/{topicId})
+func (_ Unimplemented) DeleteTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateTopic Rename a Topic
+// (PATCH /topics/{topicId})
+func (_ Unimplemented) UpdateTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// MergeTopic Merge this Topic into another
+// (POST /topics/{topicId}/merge)
+func (_ Unimplemented) MergeTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
@@ -27,6 +4269,1867 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetAccount operation middleware
+func (siw *ServerInterfaceWrapper) GetAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAccount operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshSession operation middleware
+func (siw *ServerInterfaceWrapper) RefreshSession(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverCsrfToken operation middleware
+func (siw *ServerInterfaceWrapper) RecoverCsrfToken(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverCsrfToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LogoutViaRefresh operation middleware
+func (siw *ServerInterfaceWrapper) LogoutViaRefresh(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LogoutViaRefresh(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSession operation middleware
+func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeAllSessions operation middleware
+func (siw *ServerInterfaceWrapper) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeAllSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeSession operation middleware
+func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId SessionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionId", chi.URLParam(r, "sessionId"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sessionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEventsSince operation middleware
+func (siw *ServerInterfaceWrapper) ListEventsSince(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEventsSinceParams
+
+	// ------------- Required query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEventsSince(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportLibrary operation middleware
+func (siw *ServerInterfaceWrapper) ExportLibrary(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportLibrary(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportNotePdf operation middleware
+func (siw *ServerInterfaceWrapper) ExportNotePdf(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportNotePdfParams
+
+	// ------------- Optional query parameter "transcript" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "transcript", r.URL.Query(), &params.Transcript, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "transcript"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "transcript", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "revision" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "revision", r.URL.Query(), &params.Revision, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "revision"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revision", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportNotePdf(w, r, noteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportNoteMarkdown operation middleware
+func (siw *ServerInterfaceWrapper) ExportNoteMarkdown(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportNoteMarkdownParams
+
+	// ------------- Optional query parameter "transcript" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "transcript", r.URL.Query(), &params.Transcript, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "transcript"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "transcript", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "revision" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "revision", r.URL.Query(), &params.Revision, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "revision"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revision", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportNoteMarkdown(w, r, noteId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotes operation middleware
+func (siw *ServerInterfaceWrapper) ListNotes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListNotesParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "topic_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "topic_id", r.URL.Query(), &params.TopicId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "topic_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "topic_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "tag_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tag_id", r.URL.Query(), &params.TagId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tag_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tag_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "channel_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "channel_id", r.URL.Query(), &params.ChannelId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "channel_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "held" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "held", r.URL.Query(), &params.Held, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "held"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "held", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "trashed" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "trashed", r.URL.Query(), &params.Trashed, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trashed"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trashed", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotes(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TrashNote operation middleware
+func (siw *ServerInterfaceWrapper) TrashNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TrashNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNote operation middleware
+func (siw *ServerInterfaceWrapper) GetNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmNoteCost operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmNoteCost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmNoteCost(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLayout operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLayout(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLayout(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MutateNote operation middleware
+func (siw *ServerInterfaceWrapper) MutateNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MutateNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PurgeNote operation middleware
+func (siw *ServerInterfaceWrapper) PurgeNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PurgeNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegenerateNote operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreNote operation middleware
+func (siw *ServerInterfaceWrapper) RestoreNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryNote operation middleware
+func (siw *ServerInterfaceWrapper) RetryNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryNote(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRevisions operation middleware
+func (siw *ServerInterfaceWrapper) ListRevisions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRevisions(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRevision operation middleware
+func (siw *ServerInterfaceWrapper) GetRevision(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "revisionId" -------------
+	var revisionId RevisionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "revisionId", chi.URLParam(r, "revisionId"), &revisionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revisionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRevision(w, r, noteId, revisionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ActivateRevision operation middleware
+func (siw *ServerInterfaceWrapper) ActivateRevision(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "revisionId" -------------
+	var revisionId RevisionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "revisionId", chi.URLParam(r, "revisionId"), &revisionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revisionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ActivateRevision(w, r, noteId, revisionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardRevision operation middleware
+func (siw *ServerInterfaceWrapper) DiscardRevision(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "revisionId" -------------
+	var revisionId RevisionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "revisionId", chi.URLParam(r, "revisionId"), &revisionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revisionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardRevision(w, r, noteId, revisionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreRevision operation middleware
+func (siw *ServerInterfaceWrapper) RestoreRevision(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "revisionId" -------------
+	var revisionId RevisionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "revisionId", chi.URLParam(r, "revisionId"), &revisionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "revisionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreRevision(w, r, noteId, revisionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetTags operation middleware
+func (siw *ServerInterfaceWrapper) SetTags(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTags(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetTakeaway operation middleware
+func (siw *ServerInterfaceWrapper) SetTakeaway(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetTakeaway(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPrimaryTopic operation middleware
+func (siw *ServerInterfaceWrapper) SetPrimaryTopic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPrimaryTopic(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTranscript operation middleware
+func (siw *ServerInterfaceWrapper) GetTranscript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTranscript(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExchangePairingVerifier operation middleware
+func (siw *ServerInterfaceWrapper) ExchangePairingVerifier(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExchangePairingVerifier(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LogoutExtension operation middleware
+func (siw *ServerInterfaceWrapper) LogoutExtension(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LogoutExtension(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshExtensionTokens operation middleware
+func (siw *ServerInterfaceWrapper) RefreshExtensionTokens(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshExtensionTokens(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) CreatePairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePairingRequest(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) GetPairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId RequestId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", chi.URLParam(r, "requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPairingRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApprovePairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) ApprovePairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId RequestId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", chi.URLParam(r, "requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApprovePairingRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DenyPairingRequest operation middleware
+func (siw *ServerInterfaceWrapper) DenyPairingRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "requestId" -------------
+	var requestId RequestId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "requestId", chi.URLParam(r, "requestId"), &requestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DenyPairingRequest(w, r, requestId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPushSubscriptions operation middleware
+func (siw *ServerInterfaceWrapper) ListPushSubscriptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPushSubscriptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpsertPushSubscription operation middleware
+func (siw *ServerInterfaceWrapper) UpsertPushSubscription(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpsertPushSubscription(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePushSubscription operation middleware
+func (siw *ServerInterfaceWrapper) DeletePushSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId SubscriptionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", chi.URLParam(r, "subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePushSubscription(w, r, subscriptionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePushSubscription operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePushSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId SubscriptionId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", chi.URLParam(r, "subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePushSubscription(w, r, subscriptionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVapidPublicKey operation middleware
+func (siw *ServerInterfaceWrapper) GetVapidPublicKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVapidPublicKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Search operation middleware
+func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "topic_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "topic_id", r.URL.Query(), &params.TopicId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "topic_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "topic_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "channel_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "channel_id", r.URL.Query(), &params.ChannelId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "channel_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channel_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "min_duration" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "min_duration", r.URL.Query(), &params.MinDuration, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "min_duration"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "min_duration", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "max_duration" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "max_duration", r.URL.Query(), &params.MaxDuration, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "max_duration"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "max_duration", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Search(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAiSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAiSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAiSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAiRole operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAiRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "role" -------------
+	var role Role
+
+	err = runtime.BindStyledParameterWithOptions("simple", "role", chi.URLParam(r, "role"), &role, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "role", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAiRole(w, r, role)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearAiRoleKey operation middleware
+func (siw *ServerInterfaceWrapper) ClearAiRoleKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "role" -------------
+	var role Role
+
+	err = runtime.BindStyledParameterWithOptions("simple", "role", chi.URLParam(r, "role"), &role, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "role", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearAiRoleKey(w, r, role)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VerifyAiRole operation middleware
+func (siw *ServerInterfaceWrapper) VerifyAiRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "role" -------------
+	var role Role
+
+	err = runtime.BindStyledParameterWithOptions("simple", "role", chi.URLParam(r, "role"), &role, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "role", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VerifyAiRole(w, r, role)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCostSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetCostSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCostSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateCostSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCostSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCostSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableSemanticForMonth operation middleware
+func (siw *ServerInterfaceWrapper) EnableSemanticForMonth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableSemanticForMonth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordRestoreDrill operation middleware
+func (siw *ServerInterfaceWrapper) RecordRestoreDrill(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordRestoreDrill(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RetryBlockedNotes operation middleware
+func (siw *ServerInterfaceWrapper) RetryBlockedNotes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RetryBlockedNotes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPriceSets operation middleware
+func (siw *ServerInterfaceWrapper) ListPriceSets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPriceSets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePriceSet operation middleware
+func (siw *ServerInterfaceWrapper) CreatePriceSet(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePriceSet(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSearchIndex operation middleware
+func (siw *ServerInterfaceWrapper) GetSearchIndex(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSearchIndex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ActivateReindex operation middleware
+func (siw *ServerInterfaceWrapper) ActivateReindex(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ActivateReindex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AbandonReindex operation middleware
+func (siw *ServerInterfaceWrapper) AbandonReindex(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AbandonReindex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartReindex operation middleware
+func (siw *ServerInterfaceWrapper) StartReindex(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartReindex(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUsage operation middleware
+func (siw *ServerInterfaceWrapper) GetUsage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUsageParams
+
+	// ------------- Optional query parameter "month" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "month", r.URL.Query(), &params.Month, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "month"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "month", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsage(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSubmission operation middleware
+func (siw *ServerInterfaceWrapper) CreateSubmission(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSubmission(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UndoSubmission operation middleware
+func (siw *ServerInterfaceWrapper) UndoSubmission(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "noteId" -------------
+	var noteId NoteId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "noteId", chi.URLParam(r, "noteId"), &noteId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "noteId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UndoSubmission(w, r, noteId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTags operation middleware
+func (siw *ServerInterfaceWrapper) ListTags(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTags(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTag operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTag(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tagId" -------------
+	var tagId TagId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tagId", chi.URLParam(r, "tagId"), &tagId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tagId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTag(w, r, tagId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTag operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTag(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tagId" -------------
+	var tagId TagId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tagId", chi.URLParam(r, "tagId"), &tagId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tagId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTag(w, r, tagId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTopics operation middleware
+func (siw *ServerInterfaceWrapper) ListTopics(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTopics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateTopic operation middleware
+func (siw *ServerInterfaceWrapper) CreateTopic(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTopic(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTopic operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTopic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "topicId" -------------
+	var topicId TopicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "topicId", chi.URLParam(r, "topicId"), &topicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "topicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTopic(w, r, topicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTopic operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTopic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "topicId" -------------
+	var topicId TopicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "topicId", chi.URLParam(r, "topicId"), &topicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "topicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTopic(w, r, topicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MergeTopic operation middleware
+func (siw *ServerInterfaceWrapper) MergeTopic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "topicId" -------------
+	var topicId TopicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "topicId", chi.URLParam(r, "topicId"), &topicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "topicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MergeTopic(w, r, topicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 type UnescapedCookieParamError struct {
 	ParamName string
@@ -135,12 +6238,3729 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandlerFunc:   options.ErrorHandlerFunc,
+	}
+
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/login", wrapper.Login)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/refresh", wrapper.RefreshSession)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/refresh/csrf", wrapper.RecoverCsrfToken)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/refresh/logout", wrapper.LogoutViaRefresh)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/logout", wrapper.Logout)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/session", wrapper.GetSession)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/account", wrapper.GetAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/auth/account", wrapper.UpdateAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/account/password", wrapper.ChangePassword)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/auth/sessions", wrapper.ListSessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/sessions/revoke-all", wrapper.RevokeAllSessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/requests", wrapper.CreatePairingRequest)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/pairing/requests/{requestId}", wrapper.GetPairingRequest)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/requests/{requestId}/approve", wrapper.ApprovePairingRequest)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/requests/{requestId}/deny", wrapper.DenyPairingRequest)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/exchange", wrapper.ExchangePairingVerifier)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/refresh", wrapper.RefreshExtensionTokens)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/pairing/logout", wrapper.LogoutExtension)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/submissions", wrapper.CreateSubmission)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/submissions/{noteId}", wrapper.UndoSubmission)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notes", wrapper.ListNotes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/notes/{noteId}", wrapper.TrashNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notes/{noteId}", wrapper.GetNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/restore", wrapper.RestoreNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/purge", wrapper.PurgeNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/retry", wrapper.RetryNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/regenerate", wrapper.RegenerateNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/cost-confirmation", wrapper.ConfirmNoteCost)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/mutations", wrapper.MutateNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notes/{noteId}/revisions", wrapper.ListRevisions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notes/{noteId}/revisions/{revisionId}", wrapper.GetRevision)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/revisions/{revisionId}/activate", wrapper.ActivateRevision)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/revisions/{revisionId}/restore", wrapper.RestoreRevision)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/notes/{noteId}/revisions/{revisionId}/discard", wrapper.DiscardRevision)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/notes/{noteId}/takeaway", wrapper.SetTakeaway)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/notes/{noteId}/topic", wrapper.SetPrimaryTopic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/notes/{noteId}/tags", wrapper.SetTags)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/notes/{noteId}/layout", wrapper.UpdateLayout)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notes/{noteId}/transcript", wrapper.GetTranscript)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/search", wrapper.Search)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/topics", wrapper.ListTopics)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/topics", wrapper.CreateTopic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/topics/{topicId}", wrapper.DeleteTopic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/topics/{topicId}", wrapper.UpdateTopic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/topics/{topicId}/merge", wrapper.MergeTopic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/tags", wrapper.ListTags)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/tags/{tagId}", wrapper.DeleteTag)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/tags/{tagId}", wrapper.UpdateTag)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/exports/notes/{noteId}.pdf", wrapper.ExportNotePdf)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/exports/notes/{noteId}.zip", wrapper.ExportNoteMarkdown)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/exports/library", wrapper.ExportLibrary)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/ai", wrapper.GetAiSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/settings/ai/{role}", wrapper.UpdateAiRole)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/settings/ai/{role}/key", wrapper.ClearAiRoleKey)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/ai/{role}/verify", wrapper.VerifyAiRole)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/usage", wrapper.GetUsage)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/cost", wrapper.GetCostSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/settings/cost", wrapper.UpdateCostSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/cost/semantic-override", wrapper.EnableSemanticForMonth)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/prices", wrapper.ListPriceSets)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/prices", wrapper.CreatePriceSet)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/search-index", wrapper.GetSearchIndex)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/settings/search-index/reindex", wrapper.AbandonReindex)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/search-index/reindex", wrapper.StartReindex)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/search-index/activate", wrapper.ActivateReindex)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/settings/health", wrapper.GetHealth)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/health/drills", wrapper.RecordRestoreDrill)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/settings/health/retry-blocked", wrapper.RetryBlockedNotes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/events/since", wrapper.ListEventsSince)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/push/vapid-public-key", wrapper.GetVapidPublicKey)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/push-subscriptions", wrapper.ListPushSubscriptions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/push-subscriptions", wrapper.UpsertPushSubscription)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/push-subscriptions/{subscriptionId}", wrapper.DeletePushSubscription)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/push-subscriptions/{subscriptionId}", wrapper.UpdatePushSubscription)
+	})
 
 	return r
 }
 
+type ErrorResponseHeaders struct {
+	RetryAfter *int
+}
+type ErrorJSONResponse struct {
+	Body ErrorResponse
+
+	Headers ErrorResponseHeaders
+}
+
+type GetAccountRequestObject struct {
+}
+
+type GetAccountResponseObject interface {
+	VisitGetAccountResponse(w http.ResponseWriter) error
+}
+
+type GetAccount200JSONResponse Account
+
+func (response GetAccount200JSONResponse) VisitGetAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAccountdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetAccountdefaultJSONResponse) VisitGetAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccountRequestObject struct {
+	Body *UpdateAccountJSONRequestBody
+}
+
+type UpdateAccountResponseObject interface {
+	VisitUpdateAccountResponse(w http.ResponseWriter) error
+}
+
+type UpdateAccount200JSONResponse Account
+
+func (response UpdateAccount200JSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAccountdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateAccountdefaultJSONResponse) VisitUpdateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type ChangePassword200JSONResponse struct {
+	Body    SessionGrant
+	Headers ChangePassword200ResponseHeaders
+}
+
+func (response ChangePassword200JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassworddefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ChangePassworddefaultJSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LoginRequestObject struct {
+	Body *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Login200JSONResponse struct {
+	Body    SessionGrant
+	Headers Login200ResponseHeaders
+}
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogindefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response LogindefaultJSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204Response struct {
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LogoutdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response LogoutdefaultJSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshSessionRequestObject struct {
+}
+
+type RefreshSessionResponseObject interface {
+	VisitRefreshSessionResponse(w http.ResponseWriter) error
+}
+
+type RefreshSession200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type RefreshSession200JSONResponse struct {
+	Body    SessionGrant
+	Headers RefreshSession200ResponseHeaders
+}
+
+func (response RefreshSession200JSONResponse) VisitRefreshSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshSessiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RefreshSessiondefaultJSONResponse) VisitRefreshSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverCsrfTokenRequestObject struct {
+}
+
+type RecoverCsrfTokenResponseObject interface {
+	VisitRecoverCsrfTokenResponse(w http.ResponseWriter) error
+}
+
+type RecoverCsrfToken200ResponseHeaders struct {
+	CacheControl *string
+}
+
+type RecoverCsrfToken200JSONResponse struct {
+	Body    CsrfToken
+	Headers RecoverCsrfToken200ResponseHeaders
+}
+
+func (response RecoverCsrfToken200JSONResponse) VisitRecoverCsrfTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.CacheControl != nil {
+		w.Header().Set("Cache-Control", fmt.Sprint(*response.Headers.CacheControl))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverCsrfTokendefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RecoverCsrfTokendefaultJSONResponse) VisitRecoverCsrfTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutViaRefreshRequestObject struct {
+}
+
+type LogoutViaRefreshResponseObject interface {
+	VisitLogoutViaRefreshResponse(w http.ResponseWriter) error
+}
+
+type LogoutViaRefresh204Response struct {
+}
+
+func (response LogoutViaRefresh204Response) VisitLogoutViaRefreshResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LogoutViaRefreshdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response LogoutViaRefreshdefaultJSONResponse) VisitLogoutViaRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSessionRequestObject struct {
+}
+
+type GetSessionResponseObject interface {
+	VisitGetSessionResponse(w http.ResponseWriter) error
+}
+
+type GetSession200JSONResponse SessionInfo
+
+func (response GetSession200JSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSessiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetSessiondefaultJSONResponse) VisitGetSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSessionsRequestObject struct {
+}
+
+type ListSessionsResponseObject interface {
+	VisitListSessionsResponse(w http.ResponseWriter) error
+}
+
+type ListSessions200JSONResponse DeviceSessionList
+
+func (response ListSessions200JSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSessionsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListSessionsdefaultJSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeAllSessionsRequestObject struct {
+}
+
+type RevokeAllSessionsResponseObject interface {
+	VisitRevokeAllSessionsResponse(w http.ResponseWriter) error
+}
+
+type RevokeAllSessions204Response struct {
+}
+
+func (response RevokeAllSessions204Response) VisitRevokeAllSessionsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeAllSessionsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RevokeAllSessionsdefaultJSONResponse) VisitRevokeAllSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeSessionRequestObject struct {
+	SessionId SessionId `json:"sessionId"`
+}
+
+type RevokeSessionResponseObject interface {
+	VisitRevokeSessionResponse(w http.ResponseWriter) error
+}
+
+type RevokeSession204Response struct {
+}
+
+func (response RevokeSession204Response) VisitRevokeSessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeSessiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RevokeSessiondefaultJSONResponse) VisitRevokeSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEventsSinceRequestObject struct {
+	Params ListEventsSinceParams
+}
+
+type ListEventsSinceResponseObject interface {
+	VisitListEventsSinceResponse(w http.ResponseWriter) error
+}
+
+type ListEventsSince200JSONResponse EventsSince
+
+func (response ListEventsSince200JSONResponse) VisitListEventsSinceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEventsSincedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListEventsSincedefaultJSONResponse) VisitListEventsSinceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportLibraryRequestObject struct {
+}
+
+type ExportLibraryResponseObject interface {
+	VisitExportLibraryResponse(w http.ResponseWriter) error
+}
+
+type ExportLibrary200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type ExportLibrary200JSONResponse struct {
+	Body    openapi_types.File
+	Headers ExportLibrary200ResponseHeaders
+}
+
+func (response ExportLibrary200JSONResponse) VisitExportLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportLibrarydefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ExportLibrarydefaultJSONResponse) VisitExportLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportNotePdfRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Params ExportNotePdfParams
+}
+
+type ExportNotePdfResponseObject interface {
+	VisitExportNotePdfResponse(w http.ResponseWriter) error
+}
+
+type ExportNotePdf200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type ExportNotePdf200ApplicationpdfResponse struct {
+	Body          io.Reader
+	Headers       ExportNotePdf200ResponseHeaders
+	ContentLength int64
+}
+
+func (response ExportNotePdf200ApplicationpdfResponse) VisitExportNotePdfResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/pdf")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportNotePdfdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ExportNotePdfdefaultJSONResponse) VisitExportNotePdfResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportNoteMarkdownRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Params ExportNoteMarkdownParams
+}
+
+type ExportNoteMarkdownResponseObject interface {
+	VisitExportNoteMarkdownResponse(w http.ResponseWriter) error
+}
+
+type ExportNoteMarkdown200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type ExportNoteMarkdown200ApplicationzipResponse struct {
+	Body          io.Reader
+	Headers       ExportNoteMarkdown200ResponseHeaders
+	ContentLength int64
+}
+
+func (response ExportNoteMarkdown200ApplicationzipResponse) VisitExportNoteMarkdownResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportNoteMarkdowndefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ExportNoteMarkdowndefaultJSONResponse) VisitExportNoteMarkdownResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotesRequestObject struct {
+	Params ListNotesParams
+}
+
+type ListNotesResponseObject interface {
+	VisitListNotesResponse(w http.ResponseWriter) error
+}
+
+type ListNotes200JSONResponse NoteList
+
+func (response ListNotes200JSONResponse) VisitListNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotesdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListNotesdefaultJSONResponse) VisitListNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrashNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type TrashNoteResponseObject interface {
+	VisitTrashNoteResponse(w http.ResponseWriter) error
+}
+
+type TrashNote200JSONResponse NoteCard
+
+func (response TrashNote200JSONResponse) VisitTrashNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TrashNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response TrashNotedefaultJSONResponse) VisitTrashNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type GetNoteResponseObject interface {
+	VisitGetNoteResponse(w http.ResponseWriter) error
+}
+
+type GetNote200JSONResponse Note
+
+func (response GetNote200JSONResponse) VisitGetNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetNotedefaultJSONResponse) VisitGetNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmNoteCostRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *ConfirmNoteCostJSONRequestBody
+}
+
+type ConfirmNoteCostResponseObject interface {
+	VisitConfirmNoteCostResponse(w http.ResponseWriter) error
+}
+
+type ConfirmNoteCost200JSONResponse CostConfirmationResult
+
+func (response ConfirmNoteCost200JSONResponse) VisitConfirmNoteCostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmNoteCostdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ConfirmNoteCostdefaultJSONResponse) VisitConfirmNoteCostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLayoutRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *UpdateLayoutJSONRequestBody
+}
+
+type UpdateLayoutResponseObject interface {
+	VisitUpdateLayoutResponse(w http.ResponseWriter) error
+}
+
+type UpdateLayout200JSONResponse LayoutResult
+
+func (response UpdateLayout200JSONResponse) VisitUpdateLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLayoutdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateLayoutdefaultJSONResponse) VisitUpdateLayoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MutateNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *MutateNoteJSONRequestBody
+}
+
+type MutateNoteResponseObject interface {
+	VisitMutateNoteResponse(w http.ResponseWriter) error
+}
+
+type MutateNote200JSONResponse MutationResult
+
+func (response MutateNote200JSONResponse) VisitMutateNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MutateNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response MutateNotedefaultJSONResponse) VisitMutateNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PurgeNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type PurgeNoteResponseObject interface {
+	VisitPurgeNoteResponse(w http.ResponseWriter) error
+}
+
+type PurgeNote204Response struct {
+}
+
+func (response PurgeNote204Response) VisitPurgeNoteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PurgeNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response PurgeNotedefaultJSONResponse) VisitPurgeNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *RegenerateNoteJSONRequestBody
+}
+
+type RegenerateNoteResponseObject interface {
+	VisitRegenerateNoteResponse(w http.ResponseWriter) error
+}
+
+type RegenerateNote200JSONResponse RunStartResult
+
+func (response RegenerateNote200JSONResponse) VisitRegenerateNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegenerateNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RegenerateNotedefaultJSONResponse) VisitRegenerateNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type RestoreNoteResponseObject interface {
+	VisitRestoreNoteResponse(w http.ResponseWriter) error
+}
+
+type RestoreNote200JSONResponse NoteCard
+
+func (response RestoreNote200JSONResponse) VisitRestoreNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RestoreNotedefaultJSONResponse) VisitRestoreNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryNoteRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type RetryNoteResponseObject interface {
+	VisitRetryNoteResponse(w http.ResponseWriter) error
+}
+
+type RetryNote200JSONResponse RunStartResult
+
+func (response RetryNote200JSONResponse) VisitRetryNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryNotedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RetryNotedefaultJSONResponse) VisitRetryNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRevisionsRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type ListRevisionsResponseObject interface {
+	VisitListRevisionsResponse(w http.ResponseWriter) error
+}
+
+type ListRevisions200JSONResponse RevisionList
+
+func (response ListRevisions200JSONResponse) VisitListRevisionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRevisionsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListRevisionsdefaultJSONResponse) VisitListRevisionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRevisionRequestObject struct {
+	NoteId     NoteId     `json:"noteId"`
+	RevisionId RevisionId `json:"revisionId"`
+}
+
+type GetRevisionResponseObject interface {
+	VisitGetRevisionResponse(w http.ResponseWriter) error
+}
+
+type GetRevision200JSONResponse Revision
+
+func (response GetRevision200JSONResponse) VisitGetRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRevisiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetRevisiondefaultJSONResponse) VisitGetRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActivateRevisionRequestObject struct {
+	NoteId     NoteId     `json:"noteId"`
+	RevisionId RevisionId `json:"revisionId"`
+}
+
+type ActivateRevisionResponseObject interface {
+	VisitActivateRevisionResponse(w http.ResponseWriter) error
+}
+
+type ActivateRevision200JSONResponse RevisionPointerResult
+
+func (response ActivateRevision200JSONResponse) VisitActivateRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActivateRevisiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ActivateRevisiondefaultJSONResponse) VisitActivateRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardRevisionRequestObject struct {
+	NoteId     NoteId     `json:"noteId"`
+	RevisionId RevisionId `json:"revisionId"`
+}
+
+type DiscardRevisionResponseObject interface {
+	VisitDiscardRevisionResponse(w http.ResponseWriter) error
+}
+
+type DiscardRevision200JSONResponse RevisionPointerResult
+
+func (response DiscardRevision200JSONResponse) VisitDiscardRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardRevisiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DiscardRevisiondefaultJSONResponse) VisitDiscardRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreRevisionRequestObject struct {
+	NoteId     NoteId     `json:"noteId"`
+	RevisionId RevisionId `json:"revisionId"`
+}
+
+type RestoreRevisionResponseObject interface {
+	VisitRestoreRevisionResponse(w http.ResponseWriter) error
+}
+
+type RestoreRevision200JSONResponse RevisionPointerResult
+
+func (response RestoreRevision200JSONResponse) VisitRestoreRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreRevisiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RestoreRevisiondefaultJSONResponse) VisitRestoreRevisionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTagsRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *SetTagsJSONRequestBody
+}
+
+type SetTagsResponseObject interface {
+	VisitSetTagsResponse(w http.ResponseWriter) error
+}
+
+type SetTags200JSONResponse NoteTagsResult
+
+func (response SetTags200JSONResponse) VisitSetTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTagsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response SetTagsdefaultJSONResponse) VisitSetTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTakeawayRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *SetTakeawayJSONRequestBody
+}
+
+type SetTakeawayResponseObject interface {
+	VisitSetTakeawayResponse(w http.ResponseWriter) error
+}
+
+type SetTakeaway200JSONResponse TakeawayResult
+
+func (response SetTakeaway200JSONResponse) VisitSetTakeawayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetTakeawaydefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response SetTakeawaydefaultJSONResponse) VisitSetTakeawayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPrimaryTopicRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+	Body   *SetPrimaryTopicJSONRequestBody
+}
+
+type SetPrimaryTopicResponseObject interface {
+	VisitSetPrimaryTopicResponse(w http.ResponseWriter) error
+}
+
+type SetPrimaryTopic200JSONResponse PrimaryTopicResult
+
+func (response SetPrimaryTopic200JSONResponse) VisitSetPrimaryTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPrimaryTopicdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response SetPrimaryTopicdefaultJSONResponse) VisitSetPrimaryTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTranscriptRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type GetTranscriptResponseObject interface {
+	VisitGetTranscriptResponse(w http.ResponseWriter) error
+}
+
+type GetTranscript200JSONResponse Transcript
+
+func (response GetTranscript200JSONResponse) VisitGetTranscriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTranscriptdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetTranscriptdefaultJSONResponse) VisitGetTranscriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExchangePairingVerifierRequestObject struct {
+	Body *ExchangePairingVerifierJSONRequestBody
+}
+
+type ExchangePairingVerifierResponseObject interface {
+	VisitExchangePairingVerifierResponse(w http.ResponseWriter) error
+}
+
+type ExchangePairingVerifier200JSONResponse TokenGrant
+
+func (response ExchangePairingVerifier200JSONResponse) VisitExchangePairingVerifierResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExchangePairingVerifierdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ExchangePairingVerifierdefaultJSONResponse) VisitExchangePairingVerifierResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutExtensionRequestObject struct {
+}
+
+type LogoutExtensionResponseObject interface {
+	VisitLogoutExtensionResponse(w http.ResponseWriter) error
+}
+
+type LogoutExtension204Response struct {
+}
+
+func (response LogoutExtension204Response) VisitLogoutExtensionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LogoutExtensiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response LogoutExtensiondefaultJSONResponse) VisitLogoutExtensionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshExtensionTokensRequestObject struct {
+	Body *RefreshExtensionTokensJSONRequestBody
+}
+
+type RefreshExtensionTokensResponseObject interface {
+	VisitRefreshExtensionTokensResponse(w http.ResponseWriter) error
+}
+
+type RefreshExtensionTokens200JSONResponse TokenGrant
+
+func (response RefreshExtensionTokens200JSONResponse) VisitRefreshExtensionTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshExtensionTokensdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RefreshExtensionTokensdefaultJSONResponse) VisitRefreshExtensionTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePairingRequestRequestObject struct {
+	Body *CreatePairingRequestJSONRequestBody
+}
+
+type CreatePairingRequestResponseObject interface {
+	VisitCreatePairingRequestResponse(w http.ResponseWriter) error
+}
+
+type CreatePairingRequest201JSONResponse PairingRequestCreated
+
+func (response CreatePairingRequest201JSONResponse) VisitCreatePairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePairingRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response CreatePairingRequestdefaultJSONResponse) VisitCreatePairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPairingRequestRequestObject struct {
+	RequestId RequestId `json:"requestId"`
+}
+
+type GetPairingRequestResponseObject interface {
+	VisitGetPairingRequestResponse(w http.ResponseWriter) error
+}
+
+type GetPairingRequest200JSONResponse PairingRequest
+
+func (response GetPairingRequest200JSONResponse) VisitGetPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPairingRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetPairingRequestdefaultJSONResponse) VisitGetPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApprovePairingRequestRequestObject struct {
+	RequestId RequestId `json:"requestId"`
+}
+
+type ApprovePairingRequestResponseObject interface {
+	VisitApprovePairingRequestResponse(w http.ResponseWriter) error
+}
+
+type ApprovePairingRequest200JSONResponse PairingRequest
+
+func (response ApprovePairingRequest200JSONResponse) VisitApprovePairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApprovePairingRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ApprovePairingRequestdefaultJSONResponse) VisitApprovePairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyPairingRequestRequestObject struct {
+	RequestId RequestId `json:"requestId"`
+}
+
+type DenyPairingRequestResponseObject interface {
+	VisitDenyPairingRequestResponse(w http.ResponseWriter) error
+}
+
+type DenyPairingRequest200JSONResponse PairingRequest
+
+func (response DenyPairingRequest200JSONResponse) VisitDenyPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DenyPairingRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DenyPairingRequestdefaultJSONResponse) VisitDenyPairingRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPushSubscriptionsRequestObject struct {
+}
+
+type ListPushSubscriptionsResponseObject interface {
+	VisitListPushSubscriptionsResponse(w http.ResponseWriter) error
+}
+
+type ListPushSubscriptions200JSONResponse PushSubscriptionList
+
+func (response ListPushSubscriptions200JSONResponse) VisitListPushSubscriptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPushSubscriptionsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListPushSubscriptionsdefaultJSONResponse) VisitListPushSubscriptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertPushSubscriptionRequestObject struct {
+	Body *UpsertPushSubscriptionJSONRequestBody
+}
+
+type UpsertPushSubscriptionResponseObject interface {
+	VisitUpsertPushSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type UpsertPushSubscription200JSONResponse PushSubscription
+
+func (response UpsertPushSubscription200JSONResponse) VisitUpsertPushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpsertPushSubscriptiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpsertPushSubscriptiondefaultJSONResponse) VisitUpsertPushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePushSubscriptionRequestObject struct {
+	SubscriptionId SubscriptionId `json:"subscriptionId"`
+}
+
+type DeletePushSubscriptionResponseObject interface {
+	VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type DeletePushSubscription204Response struct {
+}
+
+func (response DeletePushSubscription204Response) VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePushSubscriptiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DeletePushSubscriptiondefaultJSONResponse) VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePushSubscriptionRequestObject struct {
+	SubscriptionId SubscriptionId `json:"subscriptionId"`
+	Body           *UpdatePushSubscriptionJSONRequestBody
+}
+
+type UpdatePushSubscriptionResponseObject interface {
+	VisitUpdatePushSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type UpdatePushSubscription200JSONResponse PushSubscription
+
+func (response UpdatePushSubscription200JSONResponse) VisitUpdatePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePushSubscriptiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdatePushSubscriptiondefaultJSONResponse) VisitUpdatePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVapidPublicKeyRequestObject struct {
+}
+
+type GetVapidPublicKeyResponseObject interface {
+	VisitGetVapidPublicKeyResponse(w http.ResponseWriter) error
+}
+
+type GetVapidPublicKey200JSONResponse VapidPublicKey
+
+func (response GetVapidPublicKey200JSONResponse) VisitGetVapidPublicKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVapidPublicKeydefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetVapidPublicKeydefaultJSONResponse) VisitGetVapidPublicKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchRequestObject struct {
+	Params SearchParams
+}
+
+type SearchResponseObject interface {
+	VisitSearchResponse(w http.ResponseWriter) error
+}
+
+type Search200JSONResponse SearchResponse
+
+func (response Search200JSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SearchdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response SearchdefaultJSONResponse) VisitSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAiSettingsRequestObject struct {
+}
+
+type GetAiSettingsResponseObject interface {
+	VisitGetAiSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAiSettings200JSONResponse AiSettings
+
+func (response GetAiSettings200JSONResponse) VisitGetAiSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAiSettingsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetAiSettingsdefaultJSONResponse) VisitGetAiSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAiRoleRequestObject struct {
+	Role Role `json:"role"`
+	Body *UpdateAiRoleJSONRequestBody
+}
+
+type UpdateAiRoleResponseObject interface {
+	VisitUpdateAiRoleResponse(w http.ResponseWriter) error
+}
+
+type UpdateAiRole200JSONResponse AiRoleConfig
+
+func (response UpdateAiRole200JSONResponse) VisitUpdateAiRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAiRoledefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateAiRoledefaultJSONResponse) VisitUpdateAiRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearAiRoleKeyRequestObject struct {
+	Role Role `json:"role"`
+}
+
+type ClearAiRoleKeyResponseObject interface {
+	VisitClearAiRoleKeyResponse(w http.ResponseWriter) error
+}
+
+type ClearAiRoleKey200JSONResponse AiRoleConfig
+
+func (response ClearAiRoleKey200JSONResponse) VisitClearAiRoleKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearAiRoleKeydefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ClearAiRoleKeydefaultJSONResponse) VisitClearAiRoleKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyAiRoleRequestObject struct {
+	Role Role `json:"role"`
+}
+
+type VerifyAiRoleResponseObject interface {
+	VisitVerifyAiRoleResponse(w http.ResponseWriter) error
+}
+
+type VerifyAiRole200JSONResponse VerificationResult
+
+func (response VerifyAiRole200JSONResponse) VisitVerifyAiRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VerifyAiRoledefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response VerifyAiRoledefaultJSONResponse) VisitVerifyAiRoleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCostSettingsRequestObject struct {
+}
+
+type GetCostSettingsResponseObject interface {
+	VisitGetCostSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetCostSettings200JSONResponse CostSettings
+
+func (response GetCostSettings200JSONResponse) VisitGetCostSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCostSettingsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetCostSettingsdefaultJSONResponse) VisitGetCostSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCostSettingsRequestObject struct {
+	Body *UpdateCostSettingsJSONRequestBody
+}
+
+type UpdateCostSettingsResponseObject interface {
+	VisitUpdateCostSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateCostSettings200JSONResponse CostSettings
+
+func (response UpdateCostSettings200JSONResponse) VisitUpdateCostSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCostSettingsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateCostSettingsdefaultJSONResponse) VisitUpdateCostSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSemanticForMonthRequestObject struct {
+}
+
+type EnableSemanticForMonthResponseObject interface {
+	VisitEnableSemanticForMonthResponse(w http.ResponseWriter) error
+}
+
+type EnableSemanticForMonth200JSONResponse CostSettings
+
+func (response EnableSemanticForMonth200JSONResponse) VisitEnableSemanticForMonthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSemanticForMonthdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response EnableSemanticForMonthdefaultJSONResponse) VisitEnableSemanticForMonthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHealthRequestObject struct {
+}
+
+type GetHealthResponseObject interface {
+	VisitGetHealthResponse(w http.ResponseWriter) error
+}
+
+type GetHealth200JSONResponse HealthReport
+
+func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHealthdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetHealthdefaultJSONResponse) VisitGetHealthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordRestoreDrillRequestObject struct {
+	Body *RecordRestoreDrillJSONRequestBody
+}
+
+type RecordRestoreDrillResponseObject interface {
+	VisitRecordRestoreDrillResponse(w http.ResponseWriter) error
+}
+
+type RecordRestoreDrill201JSONResponse RestoreDrill
+
+func (response RecordRestoreDrill201JSONResponse) VisitRecordRestoreDrillResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecordRestoreDrilldefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RecordRestoreDrilldefaultJSONResponse) VisitRecordRestoreDrillResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryBlockedNotesRequestObject struct {
+}
+
+type RetryBlockedNotesResponseObject interface {
+	VisitRetryBlockedNotesResponse(w http.ResponseWriter) error
+}
+
+type RetryBlockedNotes200JSONResponse RetryBlockedResult
+
+func (response RetryBlockedNotes200JSONResponse) VisitRetryBlockedNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RetryBlockedNotesdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response RetryBlockedNotesdefaultJSONResponse) VisitRetryBlockedNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPriceSetsRequestObject struct {
+}
+
+type ListPriceSetsResponseObject interface {
+	VisitListPriceSetsResponse(w http.ResponseWriter) error
+}
+
+type ListPriceSets200JSONResponse PriceSetList
+
+func (response ListPriceSets200JSONResponse) VisitListPriceSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPriceSetsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListPriceSetsdefaultJSONResponse) VisitListPriceSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePriceSetRequestObject struct {
+	Body *CreatePriceSetJSONRequestBody
+}
+
+type CreatePriceSetResponseObject interface {
+	VisitCreatePriceSetResponse(w http.ResponseWriter) error
+}
+
+type CreatePriceSet201JSONResponse PriceSet
+
+func (response CreatePriceSet201JSONResponse) VisitCreatePriceSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePriceSetdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response CreatePriceSetdefaultJSONResponse) VisitCreatePriceSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSearchIndexRequestObject struct {
+}
+
+type GetSearchIndexResponseObject interface {
+	VisitGetSearchIndexResponse(w http.ResponseWriter) error
+}
+
+type GetSearchIndex200JSONResponse SearchIndexState
+
+func (response GetSearchIndex200JSONResponse) VisitGetSearchIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSearchIndexdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetSearchIndexdefaultJSONResponse) VisitGetSearchIndexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActivateReindexRequestObject struct {
+}
+
+type ActivateReindexResponseObject interface {
+	VisitActivateReindexResponse(w http.ResponseWriter) error
+}
+
+type ActivateReindex200JSONResponse SearchIndexState
+
+func (response ActivateReindex200JSONResponse) VisitActivateReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActivateReindexdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ActivateReindexdefaultJSONResponse) VisitActivateReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AbandonReindexRequestObject struct {
+}
+
+type AbandonReindexResponseObject interface {
+	VisitAbandonReindexResponse(w http.ResponseWriter) error
+}
+
+type AbandonReindex200JSONResponse SearchIndexState
+
+func (response AbandonReindex200JSONResponse) VisitAbandonReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AbandonReindexdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response AbandonReindexdefaultJSONResponse) VisitAbandonReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartReindexRequestObject struct {
+	Body *StartReindexJSONRequestBody
+}
+
+type StartReindexResponseObject interface {
+	VisitStartReindexResponse(w http.ResponseWriter) error
+}
+
+type StartReindex202JSONResponse SearchIndexState
+
+func (response StartReindex202JSONResponse) VisitStartReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartReindexdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response StartReindexdefaultJSONResponse) VisitStartReindexResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUsageRequestObject struct {
+	Params GetUsageParams
+}
+
+type GetUsageResponseObject interface {
+	VisitGetUsageResponse(w http.ResponseWriter) error
+}
+
+type GetUsage200JSONResponse MonthlyUsage
+
+func (response GetUsage200JSONResponse) VisitGetUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUsagedefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response GetUsagedefaultJSONResponse) VisitGetUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSubmissionRequestObject struct {
+	Body *CreateSubmissionJSONRequestBody
+}
+
+type CreateSubmissionResponseObject interface {
+	VisitCreateSubmissionResponse(w http.ResponseWriter) error
+}
+
+type CreateSubmission200JSONResponse SubmissionResult
+
+func (t CreateSubmission200JSONResponse) MarshalJSON() ([]byte, error) {
+	return SubmissionResult(t).MarshalJSON()
+}
+
+func (t *CreateSubmission200JSONResponse) UnmarshalJSON(b []byte) error {
+	return (*SubmissionResult)(t).UnmarshalJSON(b)
+}
+
+func (response CreateSubmission200JSONResponse) VisitCreateSubmissionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSubmissiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response CreateSubmissiondefaultJSONResponse) VisitCreateSubmissionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoSubmissionRequestObject struct {
+	NoteId NoteId `json:"noteId"`
+}
+
+type UndoSubmissionResponseObject interface {
+	VisitUndoSubmissionResponse(w http.ResponseWriter) error
+}
+
+type UndoSubmission200JSONResponse UndoResult
+
+func (response UndoSubmission200JSONResponse) VisitUndoSubmissionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoSubmissiondefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UndoSubmissiondefaultJSONResponse) VisitUndoSubmissionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTagsRequestObject struct {
+}
+
+type ListTagsResponseObject interface {
+	VisitListTagsResponse(w http.ResponseWriter) error
+}
+
+type ListTags200JSONResponse TagList
+
+func (response ListTags200JSONResponse) VisitListTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTagsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListTagsdefaultJSONResponse) VisitListTagsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTagRequestObject struct {
+	TagId TagId `json:"tagId"`
+}
+
+type DeleteTagResponseObject interface {
+	VisitDeleteTagResponse(w http.ResponseWriter) error
+}
+
+type DeleteTag204Response struct {
+}
+
+func (response DeleteTag204Response) VisitDeleteTagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTagdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DeleteTagdefaultJSONResponse) VisitDeleteTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTagRequestObject struct {
+	TagId TagId `json:"tagId"`
+	Body  *UpdateTagJSONRequestBody
+}
+
+type UpdateTagResponseObject interface {
+	VisitUpdateTagResponse(w http.ResponseWriter) error
+}
+
+type UpdateTag200JSONResponse Tag
+
+func (response UpdateTag200JSONResponse) VisitUpdateTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTagdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateTagdefaultJSONResponse) VisitUpdateTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTopicsRequestObject struct {
+}
+
+type ListTopicsResponseObject interface {
+	VisitListTopicsResponse(w http.ResponseWriter) error
+}
+
+type ListTopics200JSONResponse TopicList
+
+func (response ListTopics200JSONResponse) VisitListTopicsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTopicsdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response ListTopicsdefaultJSONResponse) VisitListTopicsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTopicRequestObject struct {
+	Body *CreateTopicJSONRequestBody
+}
+
+type CreateTopicResponseObject interface {
+	VisitCreateTopicResponse(w http.ResponseWriter) error
+}
+
+type CreateTopic201JSONResponse Topic
+
+func (response CreateTopic201JSONResponse) VisitCreateTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTopicdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response CreateTopicdefaultJSONResponse) VisitCreateTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTopicRequestObject struct {
+	TopicId TopicId `json:"topicId"`
+}
+
+type DeleteTopicResponseObject interface {
+	VisitDeleteTopicResponse(w http.ResponseWriter) error
+}
+
+type DeleteTopic204Response struct {
+}
+
+func (response DeleteTopic204Response) VisitDeleteTopicResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTopicdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response DeleteTopicdefaultJSONResponse) VisitDeleteTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTopicRequestObject struct {
+	TopicId TopicId `json:"topicId"`
+	Body    *UpdateTopicJSONRequestBody
+}
+
+type UpdateTopicResponseObject interface {
+	VisitUpdateTopicResponse(w http.ResponseWriter) error
+}
+
+type UpdateTopic200JSONResponse Topic
+
+func (response UpdateTopic200JSONResponse) VisitUpdateTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTopicdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response UpdateTopicdefaultJSONResponse) VisitUpdateTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MergeTopicRequestObject struct {
+	TopicId TopicId `json:"topicId"`
+	Body    *MergeTopicJSONRequestBody
+}
+
+type MergeTopicResponseObject interface {
+	VisitMergeTopicResponse(w http.ResponseWriter) error
+}
+
+type MergeTopic200JSONResponse Topic
+
+func (response MergeTopic200JSONResponse) VisitMergeTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MergeTopicdefaultJSONResponse struct {
+	Body       ErrorResponse
+	Headers    ErrorResponseHeaders
+	StatusCode int
+}
+
+func (response MergeTopicdefaultJSONResponse) VisitMergeTopicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// GetAccount The Owner account
+	// (GET /auth/account)
+	GetAccount(ctx context.Context, request GetAccountRequestObject) (GetAccountResponseObject, error)
+	// UpdateAccount Change display name or timezone
+	// (PATCH /auth/account)
+	UpdateAccount(ctx context.Context, request UpdateAccountRequestObject) (UpdateAccountResponseObject, error)
+	// ChangePassword Change the password
+	// (POST /auth/account/password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
+	// Login Password login for the PWA
+	// (POST /auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// Logout Sign out this PWA device
+	// (POST /auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// RefreshSession Rotate the PWA's Token family
+	// (POST /auth/refresh)
+	RefreshSession(ctx context.Context, request RefreshSessionRequestObject) (RefreshSessionResponseObject, error)
+	// RecoverCsrfToken Recover the CSRF token after a reload
+	// (GET /auth/refresh/csrf)
+	RecoverCsrfToken(ctx context.Context, request RecoverCsrfTokenRequestObject) (RecoverCsrfTokenResponseObject, error)
+	// LogoutViaRefresh Sign out even after the access cookie has expired
+	// (POST /auth/refresh/logout)
+	LogoutViaRefresh(ctx context.Context, request LogoutViaRefreshRequestObject) (LogoutViaRefreshResponseObject, error)
+	// GetSession The foreground session gate
+	// (GET /auth/session)
+	GetSession(ctx context.Context, request GetSessionRequestObject) (GetSessionResponseObject, error)
+	// ListSessions List live Device sessions
+	// (GET /auth/sessions)
+	ListSessions(ctx context.Context, request ListSessionsRequestObject) (ListSessionsResponseObject, error)
+	// RevokeAllSessions Sign out all devices
+	// (POST /auth/sessions/revoke-all)
+	RevokeAllSessions(ctx context.Context, request RevokeAllSessionsRequestObject) (RevokeAllSessionsResponseObject, error)
+	// RevokeSession Revoke one Device session
+	// (DELETE /auth/sessions/{sessionId})
+	RevokeSession(ctx context.Context, request RevokeSessionRequestObject) (RevokeSessionResponseObject, error)
+	// ListEventsSince Polling fallback
+	// (GET /events/since)
+	ListEventsSince(ctx context.Context, request ListEventsSinceRequestObject) (ListEventsSinceResponseObject, error)
+	// ExportLibrary The Library backup
+	// (GET /exports/library)
+	ExportLibrary(ctx context.Context, request ExportLibraryRequestObject) (ExportLibraryResponseObject, error)
+	// ExportNotePdf Export one Note as PDF
+	// (GET /exports/notes/{noteId}.pdf)
+	ExportNotePdf(ctx context.Context, request ExportNotePdfRequestObject) (ExportNotePdfResponseObject, error)
+	// ExportNoteMarkdown Export one Note as a Markdown ZIP
+	// (GET /exports/notes/{noteId}.zip)
+	ExportNoteMarkdown(ctx context.Context, request ExportNoteMarkdownRequestObject) (ExportNoteMarkdownResponseObject, error)
+	// ListNotes List Notes as cards
+	// (GET /notes)
+	ListNotes(ctx context.Context, request ListNotesRequestObject) (ListNotesResponseObject, error)
+	// TrashNote Move a Note to Trash
+	// (DELETE /notes/{noteId})
+	TrashNote(ctx context.Context, request TrashNoteRequestObject) (TrashNoteResponseObject, error)
+	// GetNote Read a Note in full
+	// (GET /notes/{noteId})
+	GetNote(ctx context.Context, request GetNoteRequestObject) (GetNoteResponseObject, error)
+	// ConfirmNoteCost Confirm a held run's spend
+	// (POST /notes/{noteId}/cost-confirmation)
+	ConfirmNoteCost(ctx context.Context, request ConfirmNoteCostRequestObject) (ConfirmNoteCostResponseObject, error)
+	// UpdateLayout Merge diagram positions
+	// (PATCH /notes/{noteId}/layout)
+	UpdateLayout(ctx context.Context, request UpdateLayoutRequestObject) (UpdateLayoutResponseObject, error)
+	// MutateNote Apply an operation set to the Active Revision
+	// (POST /notes/{noteId}/mutations)
+	MutateNote(ctx context.Context, request MutateNoteRequestObject) (MutateNoteResponseObject, error)
+	// PurgeNote Purge a trashed Note now
+	// (POST /notes/{noteId}/purge)
+	PurgeNote(ctx context.Context, request PurgeNoteRequestObject) (PurgeNoteResponseObject, error)
+	// RegenerateNote Regenerate from the Transcript
+	// (POST /notes/{noteId}/regenerate)
+	RegenerateNote(ctx context.Context, request RegenerateNoteRequestObject) (RegenerateNoteResponseObject, error)
+	// RestoreNote Restore a Note from Trash
+	// (POST /notes/{noteId}/restore)
+	RestoreNote(ctx context.Context, request RestoreNoteRequestObject) (RestoreNoteResponseObject, error)
+	// RetryNote Retry a failed Note
+	// (POST /notes/{noteId}/retry)
+	RetryNote(ctx context.Context, request RetryNoteRequestObject) (RetryNoteResponseObject, error)
+	// ListRevisions Version history
+	// (GET /notes/{noteId}/revisions)
+	ListRevisions(ctx context.Context, request ListRevisionsRequestObject) (ListRevisionsResponseObject, error)
+	// GetRevision Preview one Revision
+	// (GET /notes/{noteId}/revisions/{revisionId})
+	GetRevision(ctx context.Context, request GetRevisionRequestObject) (GetRevisionResponseObject, error)
+	// ActivateRevision Activate a never-active Revision
+	// (POST /notes/{noteId}/revisions/{revisionId}/activate)
+	ActivateRevision(ctx context.Context, request ActivateRevisionRequestObject) (ActivateRevisionResponseObject, error)
+	// DiscardRevision Dismiss a Revision awaiting a decision
+	// (POST /notes/{noteId}/revisions/{revisionId}/discard)
+	DiscardRevision(ctx context.Context, request DiscardRevisionRequestObject) (DiscardRevisionResponseObject, error)
+	// RestoreRevision Restore a past Revision
+	// (POST /notes/{noteId}/revisions/{revisionId}/restore)
+	RestoreRevision(ctx context.Context, request RestoreRevisionRequestObject) (RestoreRevisionResponseObject, error)
+	// SetTags Replace the Note's Tags
+	// (PUT /notes/{noteId}/tags)
+	SetTags(ctx context.Context, request SetTagsRequestObject) (SetTagsResponseObject, error)
+	// SetTakeaway Write the Takeaway
+	// (PUT /notes/{noteId}/takeaway)
+	SetTakeaway(ctx context.Context, request SetTakeawayRequestObject) (SetTakeawayResponseObject, error)
+	// SetPrimaryTopic Set the Primary Topic
+	// (PUT /notes/{noteId}/topic)
+	SetPrimaryTopic(ctx context.Context, request SetPrimaryTopicRequestObject) (SetPrimaryTopicResponseObject, error)
+	// GetTranscript Read the Transcript
+	// (GET /notes/{noteId}/transcript)
+	GetTranscript(ctx context.Context, request GetTranscriptRequestObject) (GetTranscriptResponseObject, error)
+	// ExchangePairingVerifier Exchange the verifier for a Token family (extension)
+	// (POST /pairing/exchange)
+	ExchangePairingVerifier(ctx context.Context, request ExchangePairingVerifierRequestObject) (ExchangePairingVerifierResponseObject, error)
+	// LogoutExtension Unpair this browser
+	// (POST /pairing/logout)
+	LogoutExtension(ctx context.Context, request LogoutExtensionRequestObject) (LogoutExtensionResponseObject, error)
+	// RefreshExtensionTokens Rotate the extension's Token family
+	// (POST /pairing/refresh)
+	RefreshExtensionTokens(ctx context.Context, request RefreshExtensionTokensRequestObject) (RefreshExtensionTokensResponseObject, error)
+	// CreatePairingRequest Create a Pairing request (extension)
+	// (POST /pairing/requests)
+	CreatePairingRequest(ctx context.Context, request CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error)
+	// GetPairingRequest Read a Pairing request for the approval page
+	// (GET /pairing/requests/{requestId})
+	GetPairingRequest(ctx context.Context, request GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error)
+	// ApprovePairingRequest Approve the named browser
+	// (POST /pairing/requests/{requestId}/approve)
+	ApprovePairingRequest(ctx context.Context, request ApprovePairingRequestRequestObject) (ApprovePairingRequestResponseObject, error)
+	// DenyPairingRequest Deny a Pairing request
+	// (POST /pairing/requests/{requestId}/deny)
+	DenyPairingRequest(ctx context.Context, request DenyPairingRequestRequestObject) (DenyPairingRequestResponseObject, error)
+	// ListPushSubscriptions List this Owner's push subscriptions
+	// (GET /push-subscriptions)
+	ListPushSubscriptions(ctx context.Context, request ListPushSubscriptionsRequestObject) (ListPushSubscriptionsResponseObject, error)
+	// UpsertPushSubscription Register or replace this device's subscription
+	// (PUT /push-subscriptions)
+	UpsertPushSubscription(ctx context.Context, request UpsertPushSubscriptionRequestObject) (UpsertPushSubscriptionResponseObject, error)
+	// DeletePushSubscription Remove a subscription
+	// (DELETE /push-subscriptions/{subscriptionId})
+	DeletePushSubscription(ctx context.Context, request DeletePushSubscriptionRequestObject) (DeletePushSubscriptionResponseObject, error)
+	// UpdatePushSubscription Toggle note or ops notifications
+	// (PATCH /push-subscriptions/{subscriptionId})
+	UpdatePushSubscription(ctx context.Context, request UpdatePushSubscriptionRequestObject) (UpdatePushSubscriptionResponseObject, error)
+	// GetVapidPublicKey The VAPID public key
+	// (GET /push/vapid-public-key)
+	GetVapidPublicKey(ctx context.Context, request GetVapidPublicKeyRequestObject) (GetVapidPublicKeyResponseObject, error)
+	// Search Hybrid search
+	// (GET /search)
+	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
+	// GetAiSettings Processing role configuration
+	// (GET /settings/ai)
+	GetAiSettings(ctx context.Context, request GetAiSettingsRequestObject) (GetAiSettingsResponseObject, error)
+	// UpdateAiRole Configure a Processing role
+	// (PUT /settings/ai/{role})
+	UpdateAiRole(ctx context.Context, request UpdateAiRoleRequestObject) (UpdateAiRoleResponseObject, error)
+	// ClearAiRoleKey Remove a role's stored key
+	// (DELETE /settings/ai/{role}/key)
+	ClearAiRoleKey(ctx context.Context, request ClearAiRoleKeyRequestObject) (ClearAiRoleKeyResponseObject, error)
+	// VerifyAiRole Verify a role's key against its provider
+	// (POST /settings/ai/{role}/verify)
+	VerifyAiRole(ctx context.Context, request VerifyAiRoleRequestObject) (VerifyAiRoleResponseObject, error)
+	// GetCostSettings The Soft cap and semantic override
+	// (GET /settings/cost)
+	GetCostSettings(ctx context.Context, request GetCostSettingsRequestObject) (GetCostSettingsResponseObject, error)
+	// UpdateCostSettings Change the Soft cap
+	// (PUT /settings/cost)
+	UpdateCostSettings(ctx context.Context, request UpdateCostSettingsRequestObject) (UpdateCostSettingsResponseObject, error)
+	// EnableSemanticForMonth Re-enable semantic search for the current month
+	// (POST /settings/cost/semantic-override)
+	EnableSemanticForMonth(ctx context.Context, request EnableSemanticForMonthRequestObject) (EnableSemanticForMonthResponseObject, error)
+	// GetHealth Operational health
+	// (GET /settings/health)
+	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// RecordRestoreDrill Record a completed restore drill
+	// (POST /settings/health/drills)
+	RecordRestoreDrill(ctx context.Context, request RecordRestoreDrillRequestObject) (RecordRestoreDrillResponseObject, error)
+	// RetryBlockedNotes Retry every Note blocked by extractor breakage
+	// (POST /settings/health/retry-blocked)
+	RetryBlockedNotes(ctx context.Context, request RetryBlockedNotesRequestObject) (RetryBlockedNotesResponseObject, error)
+	// ListPriceSets List price sets
+	// (GET /settings/prices)
+	ListPriceSets(ctx context.Context, request ListPriceSetsRequestObject) (ListPriceSetsResponseObject, error)
+	// CreatePriceSet Append a price set version
+	// (POST /settings/prices)
+	CreatePriceSet(ctx context.Context, request CreatePriceSetRequestObject) (CreatePriceSetResponseObject, error)
+	// GetSearchIndex The search index state
+	// (GET /settings/search-index)
+	GetSearchIndex(ctx context.Context, request GetSearchIndexRequestObject) (GetSearchIndexResponseObject, error)
+	// ActivateReindex Flip search to the reindexed model
+	// (POST /settings/search-index/activate)
+	ActivateReindex(ctx context.Context, request ActivateReindexRequestObject) (ActivateReindexResponseObject, error)
+	// AbandonReindex Abandon the reindex in progress
+	// (DELETE /settings/search-index/reindex)
+	AbandonReindex(ctx context.Context, request AbandonReindexRequestObject) (AbandonReindexResponseObject, error)
+	// StartReindex Start reindexing into another embedding model
+	// (POST /settings/search-index/reindex)
+	StartReindex(ctx context.Context, request StartReindexRequestObject) (StartReindexResponseObject, error)
+	// GetUsage Monthly AI usage
+	// (GET /settings/usage)
+	GetUsage(ctx context.Context, request GetUsageRequestObject) (GetUsageResponseObject, error)
+	// CreateSubmission Submit a YouTube URL
+	// (POST /submissions)
+	CreateSubmission(ctx context.Context, request CreateSubmissionRequestObject) (CreateSubmissionResponseObject, error)
+	// UndoSubmission Undo a Submission
+	// (DELETE /submissions/{noteId})
+	UndoSubmission(ctx context.Context, request UndoSubmissionRequestObject) (UndoSubmissionResponseObject, error)
+	// ListTags List Tags
+	// (GET /tags)
+	ListTags(ctx context.Context, request ListTagsRequestObject) (ListTagsResponseObject, error)
+	// DeleteTag Delete a Tag everywhere
+	// (DELETE /tags/{tagId})
+	DeleteTag(ctx context.Context, request DeleteTagRequestObject) (DeleteTagResponseObject, error)
+	// UpdateTag Rename a Tag
+	// (PATCH /tags/{tagId})
+	UpdateTag(ctx context.Context, request UpdateTagRequestObject) (UpdateTagResponseObject, error)
+	// ListTopics List Primary Topics
+	// (GET /topics)
+	ListTopics(ctx context.Context, request ListTopicsRequestObject) (ListTopicsResponseObject, error)
+	// CreateTopic Create a Topic
+	// (POST /topics)
+	CreateTopic(ctx context.Context, request CreateTopicRequestObject) (CreateTopicResponseObject, error)
+	// DeleteTopic Delete an unused Topic
+	// (DELETE /topics/{topicId})
+	DeleteTopic(ctx context.Context, request DeleteTopicRequestObject) (DeleteTopicResponseObject, error)
+	// UpdateTopic Rename a Topic
+	// (PATCH /topics/{topicId})
+	UpdateTopic(ctx context.Context, request UpdateTopicRequestObject) (UpdateTopicResponseObject, error)
+	// MergeTopic Merge this Topic into another
+	// (POST /topics/{topicId}/merge)
+	MergeTopic(ctx context.Context, request MergeTopicRequestObject) (MergeTopicResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -180,4 +10000,2066 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// GetAccount operation middleware
+func (sh *strictHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
+	var request GetAccountRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAccount(ctx, request.(GetAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAccountResponseObject); ok {
+		if err := validResponse.VisitGetAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAccount operation middleware
+func (sh *strictHandler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
+	var request UpdateAccountRequestObject
+
+	var body UpdateAccountJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAccount(ctx, request.(UpdateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAccountResponseObject); ok {
+		if err := validResponse.VisitUpdateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx, request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		if err := validResponse.VisitChangePasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Login operation middleware
+func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var request LoginRequestObject
+
+	var body LoginJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx, request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		if err := validResponse.VisitLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var request LogoutRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshSession operation middleware
+func (sh *strictHandler) RefreshSession(w http.ResponseWriter, r *http.Request) {
+	var request RefreshSessionRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshSession(ctx, request.(RefreshSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshSessionResponseObject); ok {
+		if err := validResponse.VisitRefreshSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverCsrfToken operation middleware
+func (sh *strictHandler) RecoverCsrfToken(w http.ResponseWriter, r *http.Request) {
+	var request RecoverCsrfTokenRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverCsrfToken(ctx, request.(RecoverCsrfTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverCsrfToken")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverCsrfTokenResponseObject); ok {
+		if err := validResponse.VisitRecoverCsrfTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LogoutViaRefresh operation middleware
+func (sh *strictHandler) LogoutViaRefresh(w http.ResponseWriter, r *http.Request) {
+	var request LogoutViaRefreshRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LogoutViaRefresh(ctx, request.(LogoutViaRefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LogoutViaRefresh")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutViaRefreshResponseObject); ok {
+		if err := validResponse.VisitLogoutViaRefreshResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSession operation middleware
+func (sh *strictHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	var request GetSessionRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSession(ctx, request.(GetSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSessionResponseObject); ok {
+		if err := validResponse.VisitGetSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSessions operation middleware
+func (sh *strictHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+	var request ListSessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSessions(ctx, request.(ListSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSessionsResponseObject); ok {
+		if err := validResponse.VisitListSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeAllSessions operation middleware
+func (sh *strictHandler) RevokeAllSessions(w http.ResponseWriter, r *http.Request) {
+	var request RevokeAllSessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeAllSessions(ctx, request.(RevokeAllSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeAllSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeAllSessionsResponseObject); ok {
+		if err := validResponse.VisitRevokeAllSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeSession operation middleware
+func (sh *strictHandler) RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId) {
+	var request RevokeSessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeSession(ctx, request.(RevokeSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeSessionResponseObject); ok {
+		if err := validResponse.VisitRevokeSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEventsSince operation middleware
+func (sh *strictHandler) ListEventsSince(w http.ResponseWriter, r *http.Request, params ListEventsSinceParams) {
+	var request ListEventsSinceRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEventsSince(ctx, request.(ListEventsSinceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEventsSince")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEventsSinceResponseObject); ok {
+		if err := validResponse.VisitListEventsSinceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportLibrary operation middleware
+func (sh *strictHandler) ExportLibrary(w http.ResponseWriter, r *http.Request) {
+	var request ExportLibraryRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportLibrary(ctx, request.(ExportLibraryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportLibrary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportLibraryResponseObject); ok {
+		if err := validResponse.VisitExportLibraryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportNotePdf operation middleware
+func (sh *strictHandler) ExportNotePdf(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNotePdfParams) {
+	var request ExportNotePdfRequestObject
+
+	request.NoteId = noteId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportNotePdf(ctx, request.(ExportNotePdfRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportNotePdf")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportNotePdfResponseObject); ok {
+		if err := validResponse.VisitExportNotePdfResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportNoteMarkdown operation middleware
+func (sh *strictHandler) ExportNoteMarkdown(w http.ResponseWriter, r *http.Request, noteId NoteId, params ExportNoteMarkdownParams) {
+	var request ExportNoteMarkdownRequestObject
+
+	request.NoteId = noteId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportNoteMarkdown(ctx, request.(ExportNoteMarkdownRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportNoteMarkdown")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportNoteMarkdownResponseObject); ok {
+		if err := validResponse.VisitExportNoteMarkdownResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListNotes operation middleware
+func (sh *strictHandler) ListNotes(w http.ResponseWriter, r *http.Request, params ListNotesParams) {
+	var request ListNotesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListNotes(ctx, request.(ListNotesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListNotes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListNotesResponseObject); ok {
+		if err := validResponse.VisitListNotesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TrashNote operation middleware
+func (sh *strictHandler) TrashNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request TrashNoteRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TrashNote(ctx, request.(TrashNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TrashNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TrashNoteResponseObject); ok {
+		if err := validResponse.VisitTrashNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNote operation middleware
+func (sh *strictHandler) GetNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request GetNoteRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNote(ctx, request.(GetNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNoteResponseObject); ok {
+		if err := validResponse.VisitGetNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmNoteCost operation middleware
+func (sh *strictHandler) ConfirmNoteCost(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request ConfirmNoteCostRequestObject
+
+	request.NoteId = noteId
+
+	var body ConfirmNoteCostJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmNoteCost(ctx, request.(ConfirmNoteCostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmNoteCost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmNoteCostResponseObject); ok {
+		if err := validResponse.VisitConfirmNoteCostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateLayout operation middleware
+func (sh *strictHandler) UpdateLayout(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request UpdateLayoutRequestObject
+
+	request.NoteId = noteId
+
+	var body UpdateLayoutJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateLayout(ctx, request.(UpdateLayoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateLayout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateLayoutResponseObject); ok {
+		if err := validResponse.VisitUpdateLayoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MutateNote operation middleware
+func (sh *strictHandler) MutateNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request MutateNoteRequestObject
+
+	request.NoteId = noteId
+
+	var body MutateNoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MutateNote(ctx, request.(MutateNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MutateNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MutateNoteResponseObject); ok {
+		if err := validResponse.VisitMutateNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PurgeNote operation middleware
+func (sh *strictHandler) PurgeNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request PurgeNoteRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PurgeNote(ctx, request.(PurgeNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PurgeNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PurgeNoteResponseObject); ok {
+		if err := validResponse.VisitPurgeNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RegenerateNote operation middleware
+func (sh *strictHandler) RegenerateNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request RegenerateNoteRequestObject
+
+	request.NoteId = noteId
+
+	var body RegenerateNoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RegenerateNote(ctx, request.(RegenerateNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RegenerateNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegenerateNoteResponseObject); ok {
+		if err := validResponse.VisitRegenerateNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreNote operation middleware
+func (sh *strictHandler) RestoreNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request RestoreNoteRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreNote(ctx, request.(RestoreNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreNoteResponseObject); ok {
+		if err := validResponse.VisitRestoreNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RetryNote operation middleware
+func (sh *strictHandler) RetryNote(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request RetryNoteRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RetryNote(ctx, request.(RetryNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RetryNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RetryNoteResponseObject); ok {
+		if err := validResponse.VisitRetryNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListRevisions operation middleware
+func (sh *strictHandler) ListRevisions(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request ListRevisionsRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRevisions(ctx, request.(ListRevisionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRevisions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRevisionsResponseObject); ok {
+		if err := validResponse.VisitListRevisionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRevision operation middleware
+func (sh *strictHandler) GetRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	var request GetRevisionRequestObject
+
+	request.NoteId = noteId
+	request.RevisionId = revisionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRevision(ctx, request.(GetRevisionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRevision")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRevisionResponseObject); ok {
+		if err := validResponse.VisitGetRevisionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ActivateRevision operation middleware
+func (sh *strictHandler) ActivateRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	var request ActivateRevisionRequestObject
+
+	request.NoteId = noteId
+	request.RevisionId = revisionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ActivateRevision(ctx, request.(ActivateRevisionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ActivateRevision")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ActivateRevisionResponseObject); ok {
+		if err := validResponse.VisitActivateRevisionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DiscardRevision operation middleware
+func (sh *strictHandler) DiscardRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	var request DiscardRevisionRequestObject
+
+	request.NoteId = noteId
+	request.RevisionId = revisionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DiscardRevision(ctx, request.(DiscardRevisionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DiscardRevision")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DiscardRevisionResponseObject); ok {
+		if err := validResponse.VisitDiscardRevisionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreRevision operation middleware
+func (sh *strictHandler) RestoreRevision(w http.ResponseWriter, r *http.Request, noteId NoteId, revisionId RevisionId) {
+	var request RestoreRevisionRequestObject
+
+	request.NoteId = noteId
+	request.RevisionId = revisionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreRevision(ctx, request.(RestoreRevisionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreRevision")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreRevisionResponseObject); ok {
+		if err := validResponse.VisitRestoreRevisionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetTags operation middleware
+func (sh *strictHandler) SetTags(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request SetTagsRequestObject
+
+	request.NoteId = noteId
+
+	var body SetTagsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetTags(ctx, request.(SetTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetTagsResponseObject); ok {
+		if err := validResponse.VisitSetTagsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetTakeaway operation middleware
+func (sh *strictHandler) SetTakeaway(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request SetTakeawayRequestObject
+
+	request.NoteId = noteId
+
+	var body SetTakeawayJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetTakeaway(ctx, request.(SetTakeawayRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetTakeaway")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetTakeawayResponseObject); ok {
+		if err := validResponse.VisitSetTakeawayResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetPrimaryTopic operation middleware
+func (sh *strictHandler) SetPrimaryTopic(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request SetPrimaryTopicRequestObject
+
+	request.NoteId = noteId
+
+	var body SetPrimaryTopicJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetPrimaryTopic(ctx, request.(SetPrimaryTopicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetPrimaryTopic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetPrimaryTopicResponseObject); ok {
+		if err := validResponse.VisitSetPrimaryTopicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTranscript operation middleware
+func (sh *strictHandler) GetTranscript(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request GetTranscriptRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTranscript(ctx, request.(GetTranscriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTranscript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTranscriptResponseObject); ok {
+		if err := validResponse.VisitGetTranscriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExchangePairingVerifier operation middleware
+func (sh *strictHandler) ExchangePairingVerifier(w http.ResponseWriter, r *http.Request) {
+	var request ExchangePairingVerifierRequestObject
+
+	var body ExchangePairingVerifierJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExchangePairingVerifier(ctx, request.(ExchangePairingVerifierRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExchangePairingVerifier")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExchangePairingVerifierResponseObject); ok {
+		if err := validResponse.VisitExchangePairingVerifierResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LogoutExtension operation middleware
+func (sh *strictHandler) LogoutExtension(w http.ResponseWriter, r *http.Request) {
+	var request LogoutExtensionRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LogoutExtension(ctx, request.(LogoutExtensionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LogoutExtension")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutExtensionResponseObject); ok {
+		if err := validResponse.VisitLogoutExtensionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshExtensionTokens operation middleware
+func (sh *strictHandler) RefreshExtensionTokens(w http.ResponseWriter, r *http.Request) {
+	var request RefreshExtensionTokensRequestObject
+
+	var body RefreshExtensionTokensJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshExtensionTokens(ctx, request.(RefreshExtensionTokensRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshExtensionTokens")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshExtensionTokensResponseObject); ok {
+		if err := validResponse.VisitRefreshExtensionTokensResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePairingRequest operation middleware
+func (sh *strictHandler) CreatePairingRequest(w http.ResponseWriter, r *http.Request) {
+	var request CreatePairingRequestRequestObject
+
+	var body CreatePairingRequestJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePairingRequest(ctx, request.(CreatePairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePairingRequestResponseObject); ok {
+		if err := validResponse.VisitCreatePairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPairingRequest operation middleware
+func (sh *strictHandler) GetPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	var request GetPairingRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPairingRequest(ctx, request.(GetPairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPairingRequestResponseObject); ok {
+		if err := validResponse.VisitGetPairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApprovePairingRequest operation middleware
+func (sh *strictHandler) ApprovePairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	var request ApprovePairingRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApprovePairingRequest(ctx, request.(ApprovePairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApprovePairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApprovePairingRequestResponseObject); ok {
+		if err := validResponse.VisitApprovePairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DenyPairingRequest operation middleware
+func (sh *strictHandler) DenyPairingRequest(w http.ResponseWriter, r *http.Request, requestId RequestId) {
+	var request DenyPairingRequestRequestObject
+
+	request.RequestId = requestId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DenyPairingRequest(ctx, request.(DenyPairingRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DenyPairingRequest")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DenyPairingRequestResponseObject); ok {
+		if err := validResponse.VisitDenyPairingRequestResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPushSubscriptions operation middleware
+func (sh *strictHandler) ListPushSubscriptions(w http.ResponseWriter, r *http.Request) {
+	var request ListPushSubscriptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPushSubscriptions(ctx, request.(ListPushSubscriptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPushSubscriptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPushSubscriptionsResponseObject); ok {
+		if err := validResponse.VisitListPushSubscriptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpsertPushSubscription operation middleware
+func (sh *strictHandler) UpsertPushSubscription(w http.ResponseWriter, r *http.Request) {
+	var request UpsertPushSubscriptionRequestObject
+
+	var body UpsertPushSubscriptionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertPushSubscription(ctx, request.(UpsertPushSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertPushSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpsertPushSubscriptionResponseObject); ok {
+		if err := validResponse.VisitUpsertPushSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePushSubscription operation middleware
+func (sh *strictHandler) DeletePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId) {
+	var request DeletePushSubscriptionRequestObject
+
+	request.SubscriptionId = subscriptionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePushSubscription(ctx, request.(DeletePushSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePushSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePushSubscriptionResponseObject); ok {
+		if err := validResponse.VisitDeletePushSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdatePushSubscription operation middleware
+func (sh *strictHandler) UpdatePushSubscription(w http.ResponseWriter, r *http.Request, subscriptionId SubscriptionId) {
+	var request UpdatePushSubscriptionRequestObject
+
+	request.SubscriptionId = subscriptionId
+
+	var body UpdatePushSubscriptionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdatePushSubscription(ctx, request.(UpdatePushSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdatePushSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdatePushSubscriptionResponseObject); ok {
+		if err := validResponse.VisitUpdatePushSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVapidPublicKey operation middleware
+func (sh *strictHandler) GetVapidPublicKey(w http.ResponseWriter, r *http.Request) {
+	var request GetVapidPublicKeyRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVapidPublicKey(ctx, request.(GetVapidPublicKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVapidPublicKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVapidPublicKeyResponseObject); ok {
+		if err := validResponse.VisitGetVapidPublicKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Search operation middleware
+func (sh *strictHandler) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	var request SearchRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Search(ctx, request.(SearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Search")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SearchResponseObject); ok {
+		if err := validResponse.VisitSearchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAiSettings operation middleware
+func (sh *strictHandler) GetAiSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAiSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAiSettings(ctx, request.(GetAiSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAiSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAiSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAiSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAiRole operation middleware
+func (sh *strictHandler) UpdateAiRole(w http.ResponseWriter, r *http.Request, role Role) {
+	var request UpdateAiRoleRequestObject
+
+	request.Role = role
+
+	var body UpdateAiRoleJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAiRole(ctx, request.(UpdateAiRoleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAiRole")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAiRoleResponseObject); ok {
+		if err := validResponse.VisitUpdateAiRoleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClearAiRoleKey operation middleware
+func (sh *strictHandler) ClearAiRoleKey(w http.ResponseWriter, r *http.Request, role Role) {
+	var request ClearAiRoleKeyRequestObject
+
+	request.Role = role
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ClearAiRoleKey(ctx, request.(ClearAiRoleKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClearAiRoleKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ClearAiRoleKeyResponseObject); ok {
+		if err := validResponse.VisitClearAiRoleKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// VerifyAiRole operation middleware
+func (sh *strictHandler) VerifyAiRole(w http.ResponseWriter, r *http.Request, role Role) {
+	var request VerifyAiRoleRequestObject
+
+	request.Role = role
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyAiRole(ctx, request.(VerifyAiRoleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyAiRole")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(VerifyAiRoleResponseObject); ok {
+		if err := validResponse.VisitVerifyAiRoleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCostSettings operation middleware
+func (sh *strictHandler) GetCostSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetCostSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCostSettings(ctx, request.(GetCostSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCostSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCostSettingsResponseObject); ok {
+		if err := validResponse.VisitGetCostSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateCostSettings operation middleware
+func (sh *strictHandler) UpdateCostSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateCostSettingsRequestObject
+
+	var body UpdateCostSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateCostSettings(ctx, request.(UpdateCostSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateCostSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateCostSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateCostSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EnableSemanticForMonth operation middleware
+func (sh *strictHandler) EnableSemanticForMonth(w http.ResponseWriter, r *http.Request) {
+	var request EnableSemanticForMonthRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EnableSemanticForMonth(ctx, request.(EnableSemanticForMonthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EnableSemanticForMonth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EnableSemanticForMonthResponseObject); ok {
+		if err := validResponse.VisitEnableSemanticForMonthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetHealth operation middleware
+func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	var request GetHealthRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHealth(ctx, request.(GetHealthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHealth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
+		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecordRestoreDrill operation middleware
+func (sh *strictHandler) RecordRestoreDrill(w http.ResponseWriter, r *http.Request) {
+	var request RecordRestoreDrillRequestObject
+
+	var body RecordRestoreDrillJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecordRestoreDrill(ctx, request.(RecordRestoreDrillRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecordRestoreDrill")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecordRestoreDrillResponseObject); ok {
+		if err := validResponse.VisitRecordRestoreDrillResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RetryBlockedNotes operation middleware
+func (sh *strictHandler) RetryBlockedNotes(w http.ResponseWriter, r *http.Request) {
+	var request RetryBlockedNotesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RetryBlockedNotes(ctx, request.(RetryBlockedNotesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RetryBlockedNotes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RetryBlockedNotesResponseObject); ok {
+		if err := validResponse.VisitRetryBlockedNotesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPriceSets operation middleware
+func (sh *strictHandler) ListPriceSets(w http.ResponseWriter, r *http.Request) {
+	var request ListPriceSetsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPriceSets(ctx, request.(ListPriceSetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPriceSets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPriceSetsResponseObject); ok {
+		if err := validResponse.VisitListPriceSetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePriceSet operation middleware
+func (sh *strictHandler) CreatePriceSet(w http.ResponseWriter, r *http.Request) {
+	var request CreatePriceSetRequestObject
+
+	var body CreatePriceSetJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePriceSet(ctx, request.(CreatePriceSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePriceSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePriceSetResponseObject); ok {
+		if err := validResponse.VisitCreatePriceSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSearchIndex operation middleware
+func (sh *strictHandler) GetSearchIndex(w http.ResponseWriter, r *http.Request) {
+	var request GetSearchIndexRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSearchIndex(ctx, request.(GetSearchIndexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSearchIndex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSearchIndexResponseObject); ok {
+		if err := validResponse.VisitGetSearchIndexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ActivateReindex operation middleware
+func (sh *strictHandler) ActivateReindex(w http.ResponseWriter, r *http.Request) {
+	var request ActivateReindexRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ActivateReindex(ctx, request.(ActivateReindexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ActivateReindex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ActivateReindexResponseObject); ok {
+		if err := validResponse.VisitActivateReindexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AbandonReindex operation middleware
+func (sh *strictHandler) AbandonReindex(w http.ResponseWriter, r *http.Request) {
+	var request AbandonReindexRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AbandonReindex(ctx, request.(AbandonReindexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AbandonReindex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AbandonReindexResponseObject); ok {
+		if err := validResponse.VisitAbandonReindexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartReindex operation middleware
+func (sh *strictHandler) StartReindex(w http.ResponseWriter, r *http.Request) {
+	var request StartReindexRequestObject
+
+	var body StartReindexJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartReindex(ctx, request.(StartReindexRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartReindex")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartReindexResponseObject); ok {
+		if err := validResponse.VisitStartReindexResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUsage operation middleware
+func (sh *strictHandler) GetUsage(w http.ResponseWriter, r *http.Request, params GetUsageParams) {
+	var request GetUsageRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsage(ctx, request.(GetUsageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUsageResponseObject); ok {
+		if err := validResponse.VisitGetUsageResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSubmission operation middleware
+func (sh *strictHandler) CreateSubmission(w http.ResponseWriter, r *http.Request) {
+	var request CreateSubmissionRequestObject
+
+	var body CreateSubmissionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSubmission(ctx, request.(CreateSubmissionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSubmission")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSubmissionResponseObject); ok {
+		if err := validResponse.VisitCreateSubmissionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UndoSubmission operation middleware
+func (sh *strictHandler) UndoSubmission(w http.ResponseWriter, r *http.Request, noteId NoteId) {
+	var request UndoSubmissionRequestObject
+
+	request.NoteId = noteId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UndoSubmission(ctx, request.(UndoSubmissionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UndoSubmission")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UndoSubmissionResponseObject); ok {
+		if err := validResponse.VisitUndoSubmissionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTags operation middleware
+func (sh *strictHandler) ListTags(w http.ResponseWriter, r *http.Request) {
+	var request ListTagsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTags(ctx, request.(ListTagsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTags")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTagsResponseObject); ok {
+		if err := validResponse.VisitListTagsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteTag operation middleware
+func (sh *strictHandler) DeleteTag(w http.ResponseWriter, r *http.Request, tagId TagId) {
+	var request DeleteTagRequestObject
+
+	request.TagId = tagId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTag(ctx, request.(DeleteTagRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTag")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteTagResponseObject); ok {
+		if err := validResponse.VisitDeleteTagResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTag operation middleware
+func (sh *strictHandler) UpdateTag(w http.ResponseWriter, r *http.Request, tagId TagId) {
+	var request UpdateTagRequestObject
+
+	request.TagId = tagId
+
+	var body UpdateTagJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTag(ctx, request.(UpdateTagRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTag")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTagResponseObject); ok {
+		if err := validResponse.VisitUpdateTagResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTopics operation middleware
+func (sh *strictHandler) ListTopics(w http.ResponseWriter, r *http.Request) {
+	var request ListTopicsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTopics(ctx, request.(ListTopicsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTopics")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTopicsResponseObject); ok {
+		if err := validResponse.VisitListTopicsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateTopic operation middleware
+func (sh *strictHandler) CreateTopic(w http.ResponseWriter, r *http.Request) {
+	var request CreateTopicRequestObject
+
+	var body CreateTopicJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTopic(ctx, request.(CreateTopicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTopic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTopicResponseObject); ok {
+		if err := validResponse.VisitCreateTopicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteTopic operation middleware
+func (sh *strictHandler) DeleteTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	var request DeleteTopicRequestObject
+
+	request.TopicId = topicId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTopic(ctx, request.(DeleteTopicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTopic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteTopicResponseObject); ok {
+		if err := validResponse.VisitDeleteTopicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTopic operation middleware
+func (sh *strictHandler) UpdateTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	var request UpdateTopicRequestObject
+
+	request.TopicId = topicId
+
+	var body UpdateTopicJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTopic(ctx, request.(UpdateTopicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTopic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTopicResponseObject); ok {
+		if err := validResponse.VisitUpdateTopicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MergeTopic operation middleware
+func (sh *strictHandler) MergeTopic(w http.ResponseWriter, r *http.Request, topicId TopicId) {
+	var request MergeTopicRequestObject
+
+	request.TopicId = topicId
+
+	var body MergeTopicJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MergeTopic(ctx, request.(MergeTopicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MergeTopic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MergeTopicResponseObject); ok {
+		if err := validResponse.VisitMergeTopicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }

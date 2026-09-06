@@ -3,15 +3,4535 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Password login for the PWA
+         * @description Creates a fresh Device session of kind `pwa` (ADR 0003: a new authentication never revives an
+         *     old session). Sets `__Host-vyn_access` and `__Secure-vyn_refresh`, and returns the raw CSRF
+         *     token, which the PWA keeps in memory only. Every credential failure -- unknown user, wrong
+         *     password, revoked session -- answers the same `unauthenticated`.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the PWA's Token family
+         * @description Cookie transport only; the extension refreshes at `POST /pairing/refresh`. Consumes the
+         *     refresh cookie atomically, rotates both cookies, advances the inactivity deadline by thirty
+         *     days, and returns a new CSRF token. Presenting an already-consumed refresh token revokes the
+         *     whole Device session with no grace window (ADR 0003), so the PWA serializes refresh with Web
+         *     Locks. No request body.
+         */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recover the CSRF token after a reload
+         * @description The CSRF token lives in memory and is never persisted (ADR 0012). This no-store endpoint
+         *     authenticates with the refresh cookie alone and returns the session's raw token again.
+         */
+        get: operations["recoverCsrfToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out even after the access cookie has expired
+         * @description Revokes the calling Device session using the refresh cookie, and clears both cookies.
+         */
+        post: operations["logoutViaRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out this PWA device
+         * @description Revokes the calling Device session with reason `signed_out` and clears both cookies.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The foreground session gate
+         * @description Called by the PWA on every foreground while online (ADR 0012). A `200` reveals the cached
+         *     library; a `401` clears it. Also the first-sign-in source of the current Sync cursor.
+         */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Owner account */
+        get: operations["getAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change display name or timezone
+         * @description Changing the timezone changes how Save times group from now on. It never rewrites
+         *     `billing_month` on historical spend (ADR 0007).
+         */
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/auth/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the password
+         * @description Keeps the calling Device session, rotates both of its credentials (so the response carries
+         *     new cookies and a new CSRF token), and revokes every other Device session with reason
+         *     `password_changed` (ADR 0003).
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List live Device sessions
+         * @description PWA and extension sessions alike, for the Settings account page.
+         */
+        get: operations["listSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: components["parameters"]["sessionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke one Device session
+         * @description Immediate for both tokens. Revoking an extension session drops that browser to unpaired on
+         *     its next request; revoking a PWA session cascades to its push subscriptions (ADR 0014) and
+         *     closes its event stream within one heartbeat (ADR 0012). Revoking the calling session is
+         *     allowed and behaves like logout.
+         */
+        delete: operations["revokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out all devices
+         * @description Revokes every Device session including the caller's, with reason `all_devices_revoked`.
+         */
+        post: operations["revokeAllSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a Pairing request (extension)
+         * @description Unauthenticated, CORS-enabled for the allowlisted extension origin only. The extension sends
+         *     the SHA-256 of a verifier it keeps locally; the server stores the challenge and answers with
+         *     a public request id that lives exactly five minutes (ADR 0003). The extension then opens
+         *     `approval_url` in the PWA.
+         */
+        post: operations["createPairingRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        /** Read a Pairing request for the approval page */
+        get: operations["getPairingRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the named browser */
+        post: operations["approvePairingRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/requests/{requestId}/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deny a Pairing request
+         * @description Terminal. Records a `pairing_denied` security event.
+         */
+        post: operations["denyPairingRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange the verifier for a Token family (extension)
+         * @description Unauthenticated, CORS-enabled. The extension polls this every two seconds until the Owner
+         *     decides (ADR 0013): `pairing_not_approved` means keep polling. Success atomically consumes
+         *     the request, creates an extension Device session, and returns the only copy of its tokens.
+         *     Origin mismatch, extension-id mismatch, wrong verifier, replay, and an already-consumed
+         *     request all answer `pairing_rejected` so the endpoint is not an oracle.
+         */
+        post: operations["exchangePairingVerifier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the extension's Token family
+         * @description Bearer transport only. The body carries the single-use refresh token; the response carries the
+         *     replacement pair. Reuse of a consumed refresh token revokes the session (ADR 0003), which is
+         *     why the extension runs every refresh under a `navigator.locks` lock (ADR 0013).
+         */
+        post: operations["refreshExtensionTokens"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pairing/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unpair this browser
+         * @description Revokes the calling extension Device session. The extension clears its local storage afterwards, never before.
+         */
+        post: operations["logoutExtension"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit a YouTube URL
+         * @description Accepts every URL form spec 8.1 admits and normalizes it to a Video ID; the server is the sole
+         *     authority on eligibility. Exactly one of three outcomes comes back (ADR 0013):
+         *
+         *     - `created` -- a Note and its first Stage job exist, the job is scheduled five seconds out, and
+         *       `undo_until` says how long the Undo is worth trying (it is best-effort: the server decides
+         *       by the job's state, never by the clock).
+         *     - `duplicate` -- this Video ID already has a Note. Nothing was created; `note.processing`
+         *       and `note.trashed_at` tell the client which of spec 8.1's four duplicate behaviours to
+         *       offer.
+         *     - `held` -- month-to-date spend already meets the Soft cap, so this run is certain to stop
+         *       for cost confirmation. The Note and its free Stages are created exactly as for `created`;
+         *       the hold itself is placed after `captions` with a real estimate (ADR 0007). No Undo is
+         *       offered because the Owner has to visit the PWA anyway.
+         *
+         *     Refused before anything is written when the roles the pipeline cannot reach `ready` without
+         *     are unconfigured (`roles_unconfigured`, ADR 0010).
+         */
+        post: operations["createSubmission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/submissions/{noteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Undo a Submission
+         * @description A Submission has no row of its own; it is addressed by the Note it created. If the first
+         *     Stage job is still scheduled the Note is hard-deleted and the result is `undone`; if work has
+         *     begun the Note moves to Trash, the running Stage is cancelled, and the result is `trashed`
+         *     (ADR 0006).
+         */
+        delete: operations["undoSubmission"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Notes as cards
+         * @description Ordered by Save time descending, then id ascending. Today groups the page by `saved_at` in the
+         *     account timezone; `from` and `to` are dates in that timezone, inclusive. `trashed=true` is the
+         *     Trash view and excludes everything else. The response also carries the server's current Sync
+         *     cursor so a first sign-in can adopt it (ADR 0012).
+         */
+        get: operations["listNotes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a Note in full
+         * @description Everything the note canvas needs in one round trip: card fields, the Active Revision with its
+         *     payload, the Revisions awaiting a decision, the Takeaway, diagram positions, and the per-note
+         *     cost summary spec 7.4 lists as metadata. The Transcript is not included; it is fetched only
+         *     when explicitly opened.
+         */
+        get: operations["getNote"];
+        put?: never;
+        post?: never;
+        /**
+         * Move a Note to Trash
+         * @description Trash for thirty days, restorable to its original Save time and Primary Topic. A Note still
+         *     processing has its run cancelled first (ADR 0006); restoring it later brings it back `failed`
+         *     rather than resuming, because resuming would spend money the Owner did not ask to spend.
+         */
+        delete: operations["trashNote"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a Note from Trash */
+        post: operations["restoreNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Purge a trashed Note now
+         * @description The manual form of the hourly Purge: removes the Note and all dependent data. Its spend stays
+         *     in the ledger (ADR 0007). Only a Note already in Trash can be purged.
+         */
+        post: operations["purgeNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed Note
+         * @description Starts a new run (`processing_version + 1`) at the failed Stage, carrying earlier Stages'
+         *     results forward (ADR 0006). When the retry starts at `generating` or later the Transcript is
+         *     already in hand, so the Soft cap gate runs synchronously and may answer `held` (ADR 0007).
+         */
+        post: operations["retryNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate from the Transcript
+         * @description Records the Active Revision as the base and produces a new `generated` Revision from the
+         *     Transcript and the optional instruction, never from edited text. The result activates only if
+         *     the Note still points at that base; otherwise it waits for a decision (ADR 0004). One
+         *     Regeneration in flight per Note. The cost gate runs synchronously here.
+         */
+        post: operations["regenerateNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/cost-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a held run's spend
+         * @description Clears the hold on the named run, recomputes the estimate against the price set in force now,
+         *     and enqueues the withheld Stage. One confirmation per run: a confirmed run that later fails
+         *     and is retried is asked again (ADR 0007). The `processing_version` guards against confirming
+         *     a run other than the one the Owner was shown.
+         */
+        post: operations["confirmNoteCost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/mutations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply an operation set to the Active Revision
+         * @description The mutation envelope of `docs/design/mutation-protocol.md`. Operations are applied in array
+         *     order onto the exact `base_revision_id`; the result is one immutable Revision. If the base is
+         *     still the Active Revision the outcome is `applied` and the pointer moves; if it is stale the
+         *     outcome is `conflicted`, a Conflict Revision is written on the stale branch, and
+         *     `active_revision_id` is what the client rolls back to and the base for the next queued entry.
+         *
+         *     Refusals are errors, not outcomes: `note_trashed`, `note_not_ready`, `revision_not_active`
+         *     (details carry `active_revision_id`), `note_purged` (drop the queue for this Note),
+         *     `mutation_expired` (older than the thirty-day floor), and `validation_failed` (the applied
+         *     result broke a structural invariant; details name the rule). Replaying a `mutation_id` returns
+         *     the recorded response verbatim with `replayed: true`.
+         */
+        post: operations["mutateNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Version history
+         * @description Every Revision of the Note, newest first, without payloads. History is a tree: each entry
+         *     names its parent. The client groups consecutive `manual` Revisions from one Device session
+         *     into a single expandable entry (ADR 0004); `origin_device_session_id` is what it groups on,
+         *     and is null once the mutation ledger row behind it has been pruned.
+         */
+        get: operations["listRevisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/revisions/{revisionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        /** Preview one Revision */
+        get: operations["getRevision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/revisions/{revisionId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate a never-active Revision
+         * @description Moves the pointer, with no copy, to a `generated` Revision that lost its compare-and-set and
+         *     is awaiting a decision (ADR 0004). Anything already in the past is restored instead.
+         */
+        post: operations["activateRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/revisions/{revisionId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a past Revision
+         * @description Copies the named Revision's payload into a new `restore` Revision whose parent is the current
+         *     Active Revision, and activates it. This is also how a Conflict Revision's edits are taken.
+         *     `revision_id` in the response is the new Revision.
+         */
+        post: operations["restoreRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/revisions/{revisionId}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss a Revision awaiting a decision
+         * @description Clears the decision flag. The Revision stays in history until Purge.
+         */
+        post: operations["discardRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/takeaway": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Write the Takeaway
+         * @description Compare-and-set on `base_cursor`, the `updated_cursor` the client last saw (0 for a Takeaway
+         *     never written). A stale write is refused with `takeaway_stale` and both texts are surfaced
+         *     in the details so the Owner can reconcile (ADR 0004). Idempotent by `mutation_id`.
+         */
+        put: operations["setTakeaway"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/topic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the Primary Topic
+         * @description By id, or by name -- a name that does not exist yet creates the Topic. Last write wins; a
+         *     non-Trash ready Note can never be left without a Primary Topic, so there is no clear.
+         */
+        put: operations["setPrimaryTopic"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the Note's Tags
+         * @description Set membership by name; unknown names create Tags. Last write wins.
+         */
+        put: operations["setTags"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notes/{noteId}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Merge diagram positions
+         * @description Positions are presentation state outside the Revision (ADR 0004): last write wins, never a
+         *     history entry, never a conflict. The write merges into the stored map rather than replacing
+         *     it, so a Regeneration's fresh ids and a restore's old ids can coexist (ADR 0011).
+         */
+        patch: operations["updateLayout"];
+        trace?: never;
+    };
+    "/notes/{noteId}/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Read the Transcript
+         * @description Fetched only when the Owner explicitly opens it (spec 9). Read-only in V1. Chunk spans are
+         *     included so Source refs can be resolved against `text` on the client.
+         */
+        get: operations["getTranscript"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Hybrid search
+         * @description Lexical and semantic ranks fused per child, aggregated per Note, 25 per page
+         *     (`docs/design/search-ranking.md`). Filters apply before ranking. When the query embedding
+         *     fails or the Soft cap has paused it, lexical results still return and
+         *     `semantic_unavailable` says why -- the client wording must differ between a fault and a
+         *     budget the Owner chose. The candidate depth caps at roughly 200 Notes; `exhausted` says the
+         *     set ran out rather than the page.
+         */
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Primary Topics */
+        get: operations["listTopics"];
+        put?: never;
+        /**
+         * Create a Topic
+         * @description Names normalize before uniqueness; an existing normalized name answers `topic_exists` with the existing id in the details.
+         */
+        post: operations["createTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/topics/{topicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: components["parameters"]["topicId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an unused Topic
+         * @description Refused with `topic_in_use` while any Note files under it; merge first.
+         */
+        delete: operations["deleteTopic"];
+        options?: never;
+        head?: never;
+        /** Rename a Topic */
+        patch: operations["updateTopic"];
+        trace?: never;
+    };
+    "/topics/{topicId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: components["parameters"]["topicId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge this Topic into another
+         * @description Moves every Note to the target Topic, emits a Sync event per moved Note, and deletes this one.
+         */
+        post: operations["mergeTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tags */
+        get: operations["listTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tags/{tagId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: components["parameters"]["tagId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a Tag everywhere
+         * @description Removes it from every Note, emitting a Sync event per affected Note.
+         */
+        delete: operations["deleteTag"];
+        options?: never;
+        head?: never;
+        /** Rename a Tag */
+        patch: operations["updateTag"];
+        trace?: never;
+    };
+    "/exports/notes/{noteId}.pdf": {
+        parameters: {
+            query?: {
+                /** @description Include the Transcript. Defaults off, matching spec 12's default contents. */
+                transcript?: components["parameters"]["exportTranscript"];
+                /** @description Render this Revision instead of the Active Revision. Must belong to the Note. */
+                revision?: components["parameters"]["exportRevision"];
+            };
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Export one Note as PDF
+         * @description A4 portrait, vector diagram, `Content-Disposition: attachment`. Rendered by Gotenberg from a
+         *     static print document; a renderer failure answers `renderer_unavailable` and leaves the Note
+         *     untouched. A Note with no Active Revision cannot be exported; a trashed Note can.
+         */
+        get: operations["exportNotePdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exports/notes/{noteId}.zip": {
+        parameters: {
+            query?: {
+                /** @description Include the Transcript. Defaults off, matching spec 12's default contents. */
+                transcript?: components["parameters"]["exportTranscript"];
+                /** @description Render this Revision instead of the Active Revision. Must belong to the Note. */
+                revision?: components["parameters"]["exportRevision"];
+            };
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Export one Note as a Markdown ZIP
+         * @description `note.md` with YAML front matter, `diagram.svg` beside it for a mind map or process flow, and
+         *     `transcript.md` when requested. No remote references.
+         */
+        get: operations["exportNoteMarkdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exports/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Library backup
+         * @description One streamed JSON document described by `docs/design/library-archive.schema.json`, with
+         *     per-record RFC 8785 checksums and a trailing integrity block that
+         *     `docs/design/verify-archive.mjs` can check. Excludes every credential and every derived table.
+         */
+        get: operations["exportLibrary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Processing role configuration
+         * @description Every role's provider, model, endpoint, request options and key status. Never a key.
+         */
+        get: operations["getAiSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ai/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Configure a Processing role
+         * @description `request_options` are validated against the provider's validator on save and passed through
+         *     unchanged at call time (ADR 0010). `endpoint` must be `https` and may not resolve to a private,
+         *     loopback or link-local address. `api_key` is write-only; omit it to keep the stored key. Any
+         *     change to provider, model, endpoint or key clears `verified_at` and writes an
+         *     `ai_role_changed` security event per changed field.
+         */
+        put: operations["updateAiRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ai/{role}/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a role's stored key
+         * @description Leaves the role unconfigured, which for `note_generation` and `embeddings` blocks new Submissions.
+         */
+        delete: operations["clearAiRoleKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ai/{role}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify a role's key against its provider
+         * @description The cheapest authenticated read the provider offers. Where none is free the call is billable
+         *     and writes a ledger row like any other spend; `charged` says which happened. A failure warns
+         *     rather than blocks.
+         */
+        post: operations["verifyAiRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly AI usage
+         * @description Month-to-date charged spend beside the three counts it cannot include -- crashed calls,
+         *     calls carrying unpriced units, and calls still running -- so the UI reads the month as "at
+         *     least this much" whenever any is non-zero (ADR 0007).
+         */
+        get: operations["getUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Soft cap and semantic override */
+        get: operations["getCostSettings"];
+        /**
+         * Change the Soft cap
+         * @description Takes effect at the next gate. Holds already placed stay held; raising the cap does not resume them.
+         */
+        put: operations["updateCostSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/cost/semantic-override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-enable semantic search for the current month
+         * @description Stamps the override with the current month; it lapses on its own at month end (ADR 0007).
+         */
+        post: operations["enableSemanticForMonth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List price sets
+         * @description Every version of every model's prices, newest first.
+         */
+        get: operations["listPriceSets"];
+        put?: never;
+        /**
+         * Append a price set version
+         * @description Never an in-place edit. A correction is a new row with a later `effective_from`; charges already snapshotted are unmoved (ADR 0007).
+         */
+        post: operations["createPriceSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/search-index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The search index state */
+        get: operations["getSearchIndex"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/search-index/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start reindexing into another embedding model
+         * @description Embeds every child under the new model via the Batch API, alongside the old vectors, which
+         *     stay live. A model whose dimension differs from the column's is refused: that swap is a
+         *     migration (ADR 0005).
+         */
+        post: operations["startReindex"];
+        /**
+         * Abandon the reindex in progress
+         * @description Deletes the incoming model's vectors. Costs only the embedding spend already made.
+         */
+        delete: operations["abandonReindex"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/search-index/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Flip search to the reindexed model
+         * @description Gated on completeness; `reindex_incomplete` carries how many Notes still lack vectors. The old model's rows are deleted after the flip.
+         */
+        post: operations["activateReindex"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Operational health
+         * @description Every `system_health` row with `unknown` computed by the reader when `checked_at` is older
+         *     than three times the check's cadence (ADR 0009), the restore drill history, and the count of
+         *     Notes blocked by extractor breakage.
+         */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/health/drills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a completed restore drill
+         * @description Append-only. `restore_seconds` is the only measured RTO this project has.
+         */
+        post: operations["recordRestoreDrill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/health/retry-blocked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry every Note blocked by extractor breakage
+         * @description The last step of the yt-dlp update procedure, selecting on `notes_blocked_by_tooling`. Each Note starts a new run at its failed Stage.
+         */
+        post: operations["retryBlockedNotes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The live-update stream
+         * @description `text/event-stream`, cookie-authenticated, one per browser profile. Excluded from Go code
+         *     generation (see the document description). Frames:
+         *
+         *     | `event:`   | `id:`       | `data:`         | Durable |
+         *     | ---------- | ----------- | --------------- | ------- |
+         *     | `sync`     | the cursor  | `SyncEvent`     | yes     |
+         *     | `progress` | **omitted** | `ProgressEvent` | no      |
+         *     | `resync`   | omitted     | `ResyncEvent`   | --      |
+         *     | `revoked`  | omitted     | `RevokedEvent`  | --      |
+         *
+         *     A `:` comment heartbeat goes out every 30 seconds; the Device session is re-verified on each
+         *     one and the stream closes with `revoked` when it is gone. `retry: 5000` is sent once on
+         *     connect. Resume with `Last-Event-ID` (the browser does this itself) or `cursor` on a cold
+         *     start; a cursor older than the thirty-day outbox floor gets `resync`.
+         */
+        get: operations["streamEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/since": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Polling fallback
+         * @description The same payloads as `sync` frames, batched in cursor order. Progress is not in the outbox, so
+         *     a poller also refetches in-flight Notes. `resync_required` is true when the cursor predates
+         *     the retention floor; the client then rebuilds `notes`, `transcripts` and `topics` and never
+         *     touches its queues.
+         */
+        get: operations["listEventsSince"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push/vapid-public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The VAPID public key
+         * @description Derived at boot from the mounted private key and served rather than baked into the bundle, which CI builds before the key exists.
+         */
+        get: operations["getVapidPublicKey"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List this Owner's push subscriptions */
+        get: operations["listPushSubscriptions"];
+        /**
+         * Register or replace this device's subscription
+         * @description Keyed by endpoint, which is the subscription's identity. Bound to the calling PWA Device
+         *     session so revocation removes it by cascade; an extension session is refused. On
+         *     `pushsubscriptionchange` the service worker posts the new subscription with
+         *     `replaces_endpoint` set to the old one, so the row is swapped rather than duplicated.
+         */
+        put: operations["upsertPushSubscription"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: components["parameters"]["subscriptionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a subscription */
+        delete: operations["deletePushSubscription"];
+        options?: never;
+        head?: never;
+        /** Toggle note or ops notifications */
+        patch: operations["updatePushSubscription"];
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
-    responses: never;
-    parameters: never;
+    schemas: {
+        /** Format: uuid */
+        Uuid: string;
+        /**
+         * Format: date-time
+         * @description RFC 3339, UTC.
+         */
+        Timestamp: string;
+        /** @description USD as a decimal string. Never a float, because the ledger is `numeric(16,10)`. */
+        Money: string;
+        /**
+         * Format: int64
+         * @description A Sync cursor (ADR 0004). Monotonic per Owner; visible in commit order.
+         */
+        SyncCursor: number;
+        /** @description A stable Content block or Diagram element id. */
+        ElementId: string;
+        VideoId: string;
+        /** @description 32 random or hashed bytes, base64url without padding. */
+        Base64Url256: string;
+        ExtensionId: string;
+        /**
+         * @description The closed set of typed reasons. HTTP status and the keys `details` carries, per code:
+         *
+         *     | Code | Status | `details` |
+         *     | --- | --- | --- |
+         *     | `invalid_request` | 400 | `field`, `reason` from request validation |
+         *     | `mixed_transport` | 400 | -- |
+         *     | `unauthenticated` | 401 | -- (deliberately uniform, ADR 0003) |
+         *     | `csrf_rejected` | 403 | -- |
+         *     | `origin_rejected` | 403 | -- |
+         *     | `pairing_rejected` | 403 | -- (uniform across mismatch, replay, consumed) |
+         *     | `not_found` | 404 | -- |
+         *     | `note_purged` | 404 | -- (drop the offline queue for this Note) |
+         *     | `note_trashed` | 409 | -- |
+         *     | `note_not_trashed` | 409 | -- |
+         *     | `note_not_ready` | 409 | `processing_state` |
+         *     | `note_not_failed` | 409 | `processing_state` |
+         *     | `run_in_flight` | 409 | `processing_version` |
+         *     | `revision_not_active` | 409 | `active_revision_id` |
+         *     | `revision_not_awaiting_decision` | 409 | -- |
+         *     | `regeneration_in_flight` | 409 | -- |
+         *     | `takeaway_stale` | 409 | `server_text`, `server_cursor` |
+         *     | `roles_unconfigured` | 409 | `roles` (the blocking `AiRole` values) |
+         *     | `no_active_revision` | 409 | `processing_state` |
+         *     | `cost_hold_absent` | 409 | -- |
+         *     | `topic_in_use` | 409 | `note_count` |
+         *     | `topic_exists` | 409 | `topic_id` |
+         *     | `tag_exists` | 409 | `tag_id` |
+         *     | `pairing_not_approved` | 409 | -- (keep polling) |
+         *     | `pairing_decided` | 409 | `status` |
+         *     | `reindex_in_progress` | 409 | `model` |
+         *     | `no_reindex_in_progress` | 409 | -- |
+         *     | `reindex_incomplete` | 409 | `notes_missing` |
+         *     | `dimension_mismatch` | 409 | `model_dimension`, `column_dimension` |
+         *     | `pairing_expired` | 410 | -- |
+         *     | `pairing_denied` | 410 | -- |
+         *     | `mutation_expired` | 410 | -- |
+         *     | `url_unsupported` | 422 | `reason` |
+         *     | `validation_failed` | 422 | `rule`, `element_id` |
+         *     | `invalid_request_options` | 422 | `field`, `reason` |
+         *     | `endpoint_not_allowed` | 422 | `reason` |
+         *     | `rate_limited` | 429 | `retry_after_seconds` |
+         *     | `internal_error` | 500 | -- |
+         *     | `renderer_unavailable` | 502 | -- |
+         * @enum {string}
+         */
+        ErrorCode: "invalid_request" | "mixed_transport" | "unauthenticated" | "csrf_rejected" | "origin_rejected" | "pairing_rejected" | "not_found" | "note_purged" | "note_trashed" | "note_not_trashed" | "note_not_ready" | "note_not_failed" | "run_in_flight" | "revision_not_active" | "revision_not_awaiting_decision" | "regeneration_in_flight" | "takeaway_stale" | "roles_unconfigured" | "no_active_revision" | "cost_hold_absent" | "topic_in_use" | "topic_exists" | "tag_exists" | "pairing_not_approved" | "pairing_decided" | "reindex_in_progress" | "no_reindex_in_progress" | "reindex_incomplete" | "dimension_mismatch" | "pairing_expired" | "pairing_denied" | "mutation_expired" | "url_unsupported" | "validation_failed" | "invalid_request_options" | "endpoint_not_allowed" | "rate_limited" | "internal_error" | "renderer_unavailable";
+        ErrorBody: {
+            code: components["schemas"]["ErrorCode"];
+            /** @description For a person. Names the next available action (spec 15). Never a transcript, a key, or a provider payload. */
+            message: string;
+            /** @description Keys fixed per code; see `ErrorCode`. */
+            details?: {
+                [key: string]: unknown;
+            };
+        };
+        ErrorResponse: {
+            error: components["schemas"]["ErrorBody"];
+        };
+        LoginRequest: {
+            username: string;
+            password: string;
+            /** @description Shown in Settings. Defaults to a name derived from the user agent. */
+            device_name?: string;
+        };
+        PasswordChange: {
+            current_password: string;
+            new_password: string;
+        };
+        CsrfToken: {
+            /** @description The raw session-bound token for `X-CSRF-Token`. Keep in memory only. */
+            csrf_token: string;
+        };
+        Account: {
+            id: components["schemas"]["Uuid"];
+            username: string;
+            display_name: string;
+            /** @description IANA zone name. Groups Save times and fixes billing months. */
+            timezone: string;
+            created_at: components["schemas"]["Timestamp"];
+            password_changed_at: components["schemas"]["Timestamp"];
+        };
+        AccountUpdate: {
+            display_name?: string;
+            timezone?: string;
+        };
+        /** @enum {string} */
+        DeviceSessionKind: "pwa" | "extension";
+        DeviceSession: {
+            id: components["schemas"]["Uuid"];
+            kind: components["schemas"]["DeviceSessionKind"];
+            display_name: string;
+            /** @description Present for `extension` sessions. */
+            extension_id: string | null;
+            created_at: components["schemas"]["Timestamp"];
+            last_seen_at: components["schemas"]["Timestamp"];
+            last_refreshed_at: components["schemas"]["Timestamp"];
+            inactive_expires_at: components["schemas"]["Timestamp"];
+            /** @description Whether this is the session making the request. */
+            is_current: boolean;
+            /** @description Subscriptions bound to this session. Always 0 for an extension. */
+            push_subscriptions: number;
+        };
+        DeviceSessionList: {
+            sessions: components["schemas"]["DeviceSession"][];
+        };
+        /** @description What a cookie-transport login, refresh, or password change returns. */
+        SessionGrant: {
+            session: components["schemas"]["DeviceSession"];
+            account: components["schemas"]["Account"];
+            csrf_token: string;
+            access_expires_at: components["schemas"]["Timestamp"];
+            /**
+             * Format: int64
+             * @description The server's current cursor. 0 when nothing has ever been written.
+             */
+            sync_cursor: number;
+        };
+        SessionInfo: {
+            session: components["schemas"]["DeviceSession"];
+            account: components["schemas"]["Account"];
+            access_expires_at: components["schemas"]["Timestamp"];
+            /** Format: int64 */
+            sync_cursor: number;
+        };
+        /** @description What the extension receives from exchange and refresh. The only copy of both tokens. */
+        TokenGrant: {
+            access_token: string;
+            refresh_token: string;
+            access_expires_at: components["schemas"]["Timestamp"];
+            session: components["schemas"]["DeviceSession"];
+        };
+        RefreshTokensRequest: {
+            refresh_token: string;
+        };
+        PairingRequestCreate: {
+            challenge: components["schemas"]["Base64Url256"];
+            extension_id: components["schemas"]["ExtensionId"];
+            /** @description The browser name shown on the approval page and in Settings. */
+            display_name: string;
+        };
+        PairingRequestCreated: {
+            request_id: components["schemas"]["Base64Url256"];
+            expires_at: components["schemas"]["Timestamp"];
+            /**
+             * Format: uri
+             * @description The PWA page to open, `/pair/{requestId}`.
+             */
+            approval_url: string;
+        };
+        /** @enum {string} */
+        PairingRequestStatus: "pending" | "approved" | "denied" | "expired" | "consumed";
+        PairingRequest: {
+            request_id: components["schemas"]["Base64Url256"];
+            extension_id: components["schemas"]["ExtensionId"];
+            display_name: string;
+            status: components["schemas"]["PairingRequestStatus"];
+            created_at: components["schemas"]["Timestamp"];
+            expires_at: components["schemas"]["Timestamp"];
+        };
+        PairingExchange: {
+            request_id: components["schemas"]["Base64Url256"];
+            verifier: components["schemas"]["Base64Url256"];
+        };
+        SubmissionRequest: {
+            /** @description Any URL form spec 8.1 accepts. A playlist `list` parameter is ignored when `v` is present. */
+            url: string;
+        };
+        /** @enum {string} */
+        SubmissionOutcome: "created" | "duplicate" | "held";
+        SubmissionResult: components["schemas"]["SubmissionCreated"] | components["schemas"]["SubmissionDuplicate"] | components["schemas"]["SubmissionHeld"];
+        SubmissionCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "created";
+            note: components["schemas"]["NoteCard"];
+            undo_until: components["schemas"]["Timestamp"];
+        };
+        SubmissionDuplicate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "duplicate";
+            note: components["schemas"]["NoteCard"];
+        };
+        SubmissionHeld: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            outcome: "held";
+            note: components["schemas"]["NoteCard"];
+            month_charged_usd: components["schemas"]["Money"];
+            soft_cap_usd: components["schemas"]["Money"];
+        };
+        UndoResult: {
+            /** @enum {string} */
+            result: "undone" | "trashed";
+            note_id: components["schemas"]["Uuid"];
+        };
+        /** @enum {string} */
+        ProcessingState: "queued" | "metadata" | "captions" | "transcribing" | "generating" | "indexing" | "ready" | "failed" | "cancelling" | "cancelled";
+        /** @enum {string} */
+        StageKind: "metadata" | "captions" | "transcribing" | "generating" | "indexing";
+        /** @enum {string} */
+        StageStatus: "pending" | "running" | "ready" | "failed" | "skipped" | "cancelled";
+        /**
+         * @description `input` is a permanent failure of the video or the provider that waits for the user;
+         *     `extractor_breakage` is the pinned yt-dlp being broken upstream, which the Owner clears by
+         *     updating the pin (ADR 0009). The UI must never blame the video for the second.
+         * @enum {string}
+         */
+        FailureKind: "input" | "extractor_breakage";
+        /** @enum {string} */
+        Language: "en" | "hi" | "hinglish";
+        /** @enum {string} */
+        TranscriptSourceKind: "caption_human" | "caption_automatic" | "stt";
+        /** @enum {string} */
+        RevisionOrigin: "generated" | "manual" | "conflict" | "restore";
+        /** @enum {string} */
+        Provenance: "ai" | "user_edited";
+        /** @description The YouTube video a Note derives from. Fields after `canonical_url` are null until the `metadata` Stage has run. */
+        Source: {
+            video_id: components["schemas"]["VideoId"];
+            /** Format: uri */
+            canonical_url: string;
+            title: string | null;
+            channel_id: string | null;
+            channel_name: string | null;
+            duration_seconds: number | null;
+            /** Format: date-time */
+            published_at: string | null;
+            /** Format: date-time */
+            metadata_fetched_at: string | null;
+        };
+        StageError: {
+            /** @description The classifier's `error_code`, for example `extractor_breakage`. */
+            code: string;
+            /** @description The failure reason spec 8.4 writes for a person. */
+            message: string;
+            is_permanent: boolean;
+        };
+        StageProgress: {
+            stage: components["schemas"]["StageKind"];
+            status: components["schemas"]["StageStatus"];
+            /** @description Attempts made so far in this run, at most 4. */
+            attempts: number;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            last_error: components["schemas"]["StageError"] | null;
+        };
+        CostHold: {
+            since: components["schemas"]["Timestamp"];
+            estimate_usd: components["schemas"]["Money"];
+        };
+        /** @description The current run. `processing_version` bumps on every Submission, Retry and Regeneration (ADR 0006). */
+        ProcessingStatus: {
+            version: number;
+            state: components["schemas"]["ProcessingState"];
+            failure_stage: components["schemas"]["StageKind"] | null;
+            failure_kind: components["schemas"]["FailureKind"] | null;
+            /** @description Set while the run waits for cost confirmation. Orthogonal to `state`. */
+            cost_hold: components["schemas"]["CostHold"] | null;
+            cancel_requested: boolean;
+            /** @description The five Stages of this run in pipeline order; a bypassed `transcribing` is `skipped`, not absent. */
+            stages: components["schemas"]["StageProgress"][];
+        };
+        TopicRef: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+        };
+        TagRef: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+        };
+        /** @description The list rendering of spec 5.4 step 2, plus what Today needs to draw a processing card. No thumbnail. */
+        NoteCard: {
+            id: components["schemas"]["Uuid"];
+            source: components["schemas"]["Source"];
+            saved_at: components["schemas"]["Timestamp"];
+            processing: components["schemas"]["ProcessingStatus"];
+            /** @description Null only while processing or failed, or in Trash. */
+            primary_topic: components["schemas"]["TopicRef"] | null;
+            tags: components["schemas"]["TagRef"][];
+            /** @description The Active Revision's summary, for the two-line card. Null until ready. */
+            summary_text: string | null;
+            detected_language: components["schemas"]["Language"] | null;
+            transcript_source: components["schemas"]["TranscriptSourceKind"] | null;
+            /** Format: uuid */
+            active_revision_id: string | null;
+            /** @description Revisions off the live line waiting for the Owner (ADR 0004). */
+            awaiting_decisions: number;
+            /** Format: date-time */
+            trashed_at: string | null;
+            /** Format: date-time */
+            purge_after: string | null;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        NoteList: {
+            notes: components["schemas"]["NoteCard"][];
+            next_cursor: string | null;
+            /**
+             * Format: int64
+             * @description The server's current Sync cursor at the time of the read.
+             */
+            sync_cursor: number;
+        };
+        Takeaway: {
+            text: string;
+            /**
+             * Format: int64
+             * @description Compare-and-set token; 0 for a Takeaway never written.
+             */
+            updated_cursor: number;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** @description A diagram element's box. Seeded by the server when a Revision becomes Active (ADR 0011). */
+        Position: {
+            /** Format: double */
+            x: number;
+            /** Format: double */
+            y: number;
+            /** Format: double */
+            w: number;
+            /** Format: double */
+            h: number;
+        };
+        /** @description Keyed by element id. Keys that resolve to no element in the drawn Diagram are ignored by the renderer. */
+        PositionMap: {
+            [key: string]: components["schemas"]["Position"];
+        };
+        DiagramLayout: {
+            positions: components["schemas"]["PositionMap"];
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        /** @enum {string} */
+        AiRole: "transcription" | "note_generation" | "embeddings" | "visual_analysis";
+        /** @enum {string} */
+        BillingMode: "sync" | "batch";
+        /** @enum {string} */
+        UsageOutcome: "billed" | "no_charge" | "unknown";
+        /** @description Unit name to quantity, per `docs/design/cost-tracking.md`. Open-ended by design. */
+        UnitMap: {
+            [key: string]: number;
+        };
+        /** @description One billable provider call from the ledger (ADR 0007). */
+        UsageCall: {
+            id: components["schemas"]["Uuid"];
+            role: components["schemas"]["AiRole"];
+            provider: string;
+            model: string;
+            billing_mode: components["schemas"]["BillingMode"];
+            processing_version: number | null;
+            started_at: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description Null while the call is in flight. */
+            outcome: components["schemas"]["UsageOutcome"] | null;
+            estimated_units: components["schemas"]["UnitMap"];
+            reported_units: components["schemas"]["UnitMap"] | null;
+            unpriced_units: components["schemas"]["UnitMap"] | null;
+            charge_usd: components["schemas"]["Money"] | null;
+        };
+        /** @description Spec 7.4's estimated and reported AI usage, priced at read time from the Note's ledger rows. */
+        NoteCost: {
+            estimated_usd: components["schemas"]["Money"];
+            reported_usd: components["schemas"]["Money"];
+            /** @description True when any call is unknown, unpriced, or in flight, so the figure reads "at least". */
+            incomplete: boolean;
+            calls: components["schemas"]["UsageCall"][];
+        };
+        RoleUsed: {
+            role: components["schemas"]["AiRole"];
+            provider: string;
+            model: string;
+        };
+        RevisionSummary: {
+            id: components["schemas"]["Uuid"];
+            revision_number: number;
+            origin: components["schemas"]["RevisionOrigin"];
+            /** Format: uuid */
+            parent_revision_id: string | null;
+            generation_instruction: string | null;
+            /** Format: date-time */
+            awaiting_decision_since: string | null;
+            is_active: boolean;
+            /**
+             * Format: uuid
+             * @description The Device session whose mutation produced this Revision, while the mutation ledger still holds it.
+             */
+            origin_device_session_id: string | null;
+            created_at: components["schemas"]["Timestamp"];
+        };
+        Revision: components["schemas"]["RevisionSummary"] & {
+            payload: components["schemas"]["RevisionPayload"];
+        };
+        RevisionList: {
+            revisions: components["schemas"]["RevisionSummary"][];
+        };
+        Note: components["schemas"]["NoteCard"] & {
+            active_revision: components["schemas"]["Revision"] | null;
+            /** @description Revisions awaiting a decision, oldest first. */
+            pending_revisions: components["schemas"]["RevisionSummary"][];
+            takeaway: components["schemas"]["Takeaway"];
+            layout: components["schemas"]["DiagramLayout"];
+            cost: components["schemas"]["NoteCost"];
+            /** @description Models and providers by Processing role, from the Note's ledger rows. */
+            roles_used: components["schemas"]["RoleUsed"][];
+        };
+        /** @description Grounding, not a timestamp link. A chunk and a character span within it. */
+        SourceRef: {
+            chunk_id: components["schemas"]["Uuid"];
+            char_start: number;
+            char_end: number;
+        };
+        ContentBlock: {
+            id: components["schemas"]["ElementId"];
+            text: string;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+        };
+        /**
+         * @description The stored content of one Revision (ADR 0002). `primary_topic` and `tags` are the generator's
+         *     proposals at generation time and are kept as history; the Note's live Primary Topic and Tags
+         *     are relational and live on `NoteCard`. The normative rules -- word and count ranges for
+         *     generation, editing floors, the 12-visible and 24-total caps, tree structure, grounding --
+         *     are enforced by the server's validator, not by this shape.
+         */
+        RevisionPayload: {
+            /** @enum {integer} */
+            schema_version: 1;
+            detected_language: components["schemas"]["Language"];
+            primary_topic: string;
+            tags: string[];
+            summary: components["schemas"]["ContentBlock"];
+            key_points: components["schemas"]["ContentBlock"][];
+            important_details: components["schemas"]["ContentBlock"][];
+            practical_actions: components["schemas"]["ContentBlock"][];
+            diagram: components["schemas"]["Diagram"];
+        };
+        /** @description Exactly one Diagram type per Revision. The normative contract is `docs/design/diagram.schema.json`. */
+        Diagram: components["schemas"]["MindMapDiagram"] | components["schemas"]["ProcessFlowDiagram"] | components["schemas"]["TimelineDiagram"] | components["schemas"]["ComparisonDiagram"];
+        CollapsedGroup: {
+            id: components["schemas"]["ElementId"];
+            anchor_id: components["schemas"]["ElementId"];
+            member_ids: components["schemas"]["ElementId"][];
+            /** @enum {boolean} */
+            initially_collapsed: true;
+        };
+        /** @description Engine selection only; coordinates live in `DiagramLayout`. */
+        GraphLayout: {
+            /** @enum {string} */
+            engine: "layered" | "radial";
+            /** @enum {string} */
+            direction?: "TB" | "BT" | "LR" | "RL";
+        };
+        LinearLayout: {
+            /** @enum {string} */
+            orientation: "horizontal" | "vertical";
+        };
+        MindMapNode: {
+            id: components["schemas"]["ElementId"];
+            label: string;
+            /** @description Free text; exactly one node has kind `root`. */
+            kind: string;
+            group_id?: components["schemas"]["ElementId"];
+            initially_visible: boolean;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+        };
+        /** @description A process-flow node or a timeline event. */
+        OrderedNode: {
+            id: components["schemas"]["ElementId"];
+            label: string;
+            order: number;
+            group_id?: components["schemas"]["ElementId"];
+            initially_visible: boolean;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+        };
+        /** @description Grounding fields are present exactly when the edge carries a label. */
+        DiagramEdge: {
+            id: components["schemas"]["ElementId"];
+            from: components["schemas"]["ElementId"];
+            to: components["schemas"]["ElementId"];
+            label?: string;
+            order?: number;
+            provenance?: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs?: components["schemas"]["SourceRef"][];
+        };
+        MindMapDiagram: {
+            /** @enum {integer} */
+            schema_version: 1;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "mind_map";
+            nodes: components["schemas"]["MindMapNode"][];
+            edges: components["schemas"]["DiagramEdge"][];
+            collapsed_groups: components["schemas"]["CollapsedGroup"][];
+            layout: components["schemas"]["GraphLayout"];
+        };
+        ProcessFlowDiagram: {
+            /** @enum {integer} */
+            schema_version: 1;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "process_flow";
+            nodes: components["schemas"]["OrderedNode"][];
+            edges: components["schemas"]["DiagramEdge"][];
+            collapsed_groups: components["schemas"]["CollapsedGroup"][];
+            layout: components["schemas"]["GraphLayout"];
+        };
+        TimelineDiagram: {
+            /** @enum {integer} */
+            schema_version: 1;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "timeline";
+            events: components["schemas"]["OrderedNode"][];
+            collapsed_groups: components["schemas"]["CollapsedGroup"][];
+            layout: components["schemas"]["LinearLayout"];
+        };
+        ComparisonColumn: {
+            id: components["schemas"]["ElementId"];
+            label: string;
+            order: number;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+        };
+        ComparisonCell: {
+            text: string;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+        };
+        ComparisonRow: {
+            id: components["schemas"]["ElementId"];
+            label: string;
+            order: number;
+            provenance: components["schemas"]["Provenance"];
+            /**
+             * @description Absent means false.
+             * @default false
+             */
+            speaker_claim: boolean;
+            source_refs: components["schemas"]["SourceRef"][];
+            /** @description Keyed by column id. */
+            cells: {
+                [key: string]: components["schemas"]["ComparisonCell"];
+            };
+        };
+        ComparisonDiagram: {
+            /** @enum {integer} */
+            schema_version: 1;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "comparison";
+            columns: components["schemas"]["ComparisonColumn"][];
+            rows: components["schemas"]["ComparisonRow"][];
+        };
+        /** @enum {string} */
+        BlockSection: "summary" | "key_points" | "important_details" | "practical_actions";
+        /** @enum {string} */
+        ListSection: "key_points" | "important_details" | "practical_actions";
+        /** @description The envelope of `docs/design/mutation-protocol.md`. */
+        Mutation: {
+            mutation_id: components["schemas"]["Uuid"];
+            base_revision_id: components["schemas"]["Uuid"];
+            ops: components["schemas"]["MutationOp"][];
+        };
+        /** @description The closed operation catalogue. Anything absent is not representable. */
+        MutationOp: components["schemas"]["SetBlockTextOp"] | components["schemas"]["InsertBlockOp"] | components["schemas"]["DeleteBlockOp"] | components["schemas"]["ReorderBlocksOp"] | components["schemas"]["SetElementLabelOp"] | components["schemas"]["SetCellTextOp"] | components["schemas"]["DeleteElementOp"] | components["schemas"]["ReorderElementsOp"];
+        SetBlockTextOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "set_block_text";
+            section: components["schemas"]["BlockSection"];
+            /** @description Required for a list section; omitted for `summary`. */
+            id?: components["schemas"]["ElementId"];
+            text: string;
+        };
+        InsertBlockOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "insert_block";
+            section: components["schemas"]["ListSection"];
+            /** @description Client-minted, so a replay cannot duplicate the block. */
+            id: components["schemas"]["ElementId"];
+            text: string;
+            /** @description Null inserts at the head of the list. */
+            after_id: components["schemas"]["ElementId"] | null;
+        };
+        DeleteBlockOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "delete_block";
+            section: components["schemas"]["ListSection"];
+            id: components["schemas"]["ElementId"];
+        };
+        ReorderBlocksOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "reorder_blocks";
+            section: components["schemas"]["ListSection"];
+            /** @description A full permutation of the section's ids. */
+            ids: components["schemas"]["ElementId"][];
+        };
+        /** @description A node, edge label, timeline event, comparison column or row. */
+        SetElementLabelOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "set_element_label";
+            element_id: components["schemas"]["ElementId"];
+            label: string;
+        };
+        SetCellTextOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "set_cell_text";
+            row_id: components["schemas"]["ElementId"];
+            column_id: components["schemas"]["ElementId"];
+            text: string;
+        };
+        /** @description A node, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades. */
+        DeleteElementOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "delete_element";
+            element_id: components["schemas"]["ElementId"];
+        };
+        ReorderElementsOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "reorder_elements";
+            /** @enum {string} */
+            collection: "events" | "rows" | "columns";
+            /** @description A full permutation of the collection's ids. */
+            ids: components["schemas"]["ElementId"][];
+        };
+        /** @enum {string} */
+        MutationOutcome: "applied" | "conflicted";
+        MutationResult: {
+            mutation_id: components["schemas"]["Uuid"];
+            outcome: components["schemas"]["MutationOutcome"];
+            /** @description The Revision written. On `conflicted`, the Conflict Revision. */
+            revision_id: components["schemas"]["Uuid"];
+            /** @description On `conflicted`, what the client rolls back to. Always the Note's current pointer. */
+            active_revision_id: components["schemas"]["Uuid"];
+            sync_cursor: components["schemas"]["SyncCursor"];
+            /** @description True when this response was served from the idempotency ledger. */
+            replayed: boolean;
+        };
+        RevisionPointerResult: {
+            note_id: components["schemas"]["Uuid"];
+            /** @description The Revision acted on, or for restore the new `restore` Revision. */
+            revision_id: components["schemas"]["Uuid"];
+            active_revision_id: components["schemas"]["Uuid"];
+            sync_cursor: components["schemas"]["SyncCursor"];
+        };
+        TakeawayWrite: {
+            mutation_id: components["schemas"]["Uuid"];
+            text: string;
+            /** Format: int64 */
+            base_cursor: number;
+        };
+        TakeawayResult: {
+            takeaway: components["schemas"]["Takeaway"];
+            sync_cursor: components["schemas"]["SyncCursor"];
+        };
+        /** @description Exactly one of `topic_id` or `name`. */
+        PrimaryTopicWrite: {
+            mutation_id: components["schemas"]["Uuid"];
+            topic_id?: components["schemas"]["Uuid"];
+            name?: string;
+        };
+        PrimaryTopicResult: {
+            primary_topic: components["schemas"]["TopicRef"];
+            sync_cursor: components["schemas"]["SyncCursor"];
+        };
+        TagsWrite: {
+            mutation_id: components["schemas"]["Uuid"];
+            /** @description The complete set of Tag names the Note should carry. */
+            tags: string[];
+        };
+        NoteTagsResult: {
+            tags: components["schemas"]["TagRef"][];
+            sync_cursor: components["schemas"]["SyncCursor"];
+        };
+        LayoutWrite: {
+            positions: components["schemas"]["PositionMap"];
+        };
+        LayoutResult: {
+            layout: components["schemas"]["DiagramLayout"];
+            sync_cursor: components["schemas"]["SyncCursor"];
+        };
+        RegenerateRequest: {
+            /** @description A short steer such as "simplify this". */
+            instruction?: string;
+        };
+        /** @enum {string} */
+        RunOutcome: "started" | "held";
+        RunStartResult: {
+            outcome: components["schemas"]["RunOutcome"];
+            processing_version: number;
+            /** @description The projected charge, present when the gate ran synchronously. */
+            estimate_usd: components["schemas"]["Money"] | null;
+            note: components["schemas"]["NoteCard"];
+        };
+        CostConfirmation: {
+            processing_version: number;
+        };
+        CostConfirmationResult: {
+            processing_version: number;
+            /** @description Recomputed against the price set in force now. */
+            estimate_usd: components["schemas"]["Money"];
+            note: components["schemas"]["NoteCard"];
+        };
+        TranscriptChunk: {
+            id: components["schemas"]["Uuid"];
+            ordinal: number;
+            char_start: number;
+            char_end: number;
+            token_count: number;
+        };
+        Transcript: {
+            note_id: components["schemas"]["Uuid"];
+            source_kind: components["schemas"]["TranscriptSourceKind"];
+            language_code: string;
+            /** @description The normalized Transcript in its original language and script. */
+            text: string;
+            /** @description Spans into `text`, in ordinal order, so Source refs resolve on the client. */
+            chunks: components["schemas"]["TranscriptChunk"][];
+            created_at: components["schemas"]["Timestamp"];
+        };
+        /** @enum {string} */
+        SearchChildKind: "metadata" | "summary" | "key_point" | "diagram" | "takeaway" | "important_detail" | "practical_action" | "transcript_chunk";
+        /**
+         * @description `provider_error` is a fault; `soft_cap` is a budget the Owner chose. Word them differently.
+         * @enum {string}
+         */
+        SemanticUnavailableReason: "provider_error" | "soft_cap";
+        Excerpt: {
+            chunk_id: components["schemas"]["Uuid"];
+            text: string;
+        };
+        SearchResult: {
+            note: components["schemas"]["NoteCard"];
+            /** Format: double */
+            score: number;
+            /** @description Which kinds of child matched, so the card can say why it surfaced. */
+            matched_kinds: components["schemas"]["SearchChildKind"][];
+            /** @description Present only for a Transcript-only match. */
+            excerpts: components["schemas"]["Excerpt"][];
+        };
+        SearchResponse: {
+            results: components["schemas"]["SearchResult"][];
+            next_cursor: string | null;
+            /** @description The candidate depth ran out; there is no deeper page to offer. */
+            exhausted: boolean;
+            semantic_unavailable: components["schemas"]["SemanticUnavailableReason"] | null;
+        };
+        Topic: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            normalized_name: string;
+            /** @description Ready, non-Trash Notes filed under it. */
+            note_count: number;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        TopicList: {
+            topics: components["schemas"]["Topic"][];
+        };
+        TopicWrite: {
+            name: string;
+        };
+        TopicMerge: {
+            into_topic_id: components["schemas"]["Uuid"];
+        };
+        Tag: {
+            id: components["schemas"]["Uuid"];
+            name: string;
+            normalized_name: string;
+            note_count: number;
+            created_at: components["schemas"]["Timestamp"];
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        TagList: {
+            tags: components["schemas"]["Tag"][];
+        };
+        TagWrite: {
+            name: string;
+        };
+        AiRoleConfig: {
+            role: components["schemas"]["AiRole"];
+            provider: string;
+            model: string;
+            /** @description Null means the provider's canonical base URL. */
+            endpoint: string | null;
+            request_options: {
+                [key: string]: unknown;
+            };
+            key_configured: boolean;
+            /** @description The last four characters of the stored key, and nothing more. */
+            key_hint: string | null;
+            /** Format: date-time */
+            verified_at: string | null;
+            verification_error: string | null;
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        AiRoleDefault: {
+            role: components["schemas"]["AiRole"];
+            provider: string;
+            model: string;
+            request_options: {
+                [key: string]: unknown;
+            };
+            source_note: string | null;
+        };
+        AiSettings: {
+            roles: components["schemas"]["AiRoleConfig"][];
+            /** @description Roles that must be configured before a Submission is accepted. Empty means the pipeline can reach ready. */
+            blocking_submission: components["schemas"]["AiRole"][];
+            defaults: components["schemas"]["AiRoleDefault"][];
+        };
+        AiRoleWrite: {
+            provider: string;
+            model: string;
+            endpoint?: string | null;
+            request_options?: {
+                [key: string]: unknown;
+            };
+            /** @description Write-only. Omit to keep the stored key. */
+            api_key?: string;
+        };
+        VerificationResult: {
+            role: components["schemas"]["AiRole"];
+            /** Format: date-time */
+            verified_at: string | null;
+            verification_error: string | null;
+            /** @description Whether the check was billable and wrote a ledger row. */
+            charged: boolean;
+        };
+        ModelUsage: {
+            role: components["schemas"]["AiRole"];
+            provider: string;
+            model: string;
+            billing_mode: components["schemas"]["BillingMode"];
+            calls: number;
+            charge_usd: components["schemas"]["Money"];
+            reported_units: components["schemas"]["UnitMap"];
+            unpriced_units: components["schemas"]["UnitMap"];
+        };
+        UnpricedModel: {
+            provider: string;
+            model: string;
+            billing_mode: components["schemas"]["BillingMode"];
+        };
+        MonthlyUsage: {
+            month: string;
+            charged_usd: components["schemas"]["Money"];
+            billed_calls: number;
+            unknown_calls: number;
+            unpriced_calls: number;
+            in_flight_calls: number;
+            soft_cap_usd: components["schemas"]["Money"];
+            cap_reached: boolean;
+            /** @description Query embeddings are paused for this month and no override is in force. */
+            semantic_paused: boolean;
+            held_notes: number;
+            by_model: components["schemas"]["ModelUsage"][];
+            /** @description Models that reported units no price set covers. Settings asks for a price. */
+            unpriced_models: components["schemas"]["UnpricedModel"][];
+        };
+        CostSettings: {
+            soft_cap_usd: components["schemas"]["Money"];
+            /** @description The month for which semantic search was re-enabled past the cap, if any. */
+            semantic_override_month: string | null;
+            updated_at: components["schemas"]["Timestamp"];
+        };
+        CostSettingsWrite: {
+            soft_cap_usd: components["schemas"]["Money"];
+        };
+        PriceSet: {
+            id: components["schemas"]["Uuid"];
+            provider: string;
+            model: string;
+            billing_mode: components["schemas"]["BillingMode"];
+            effective_from: components["schemas"]["Timestamp"];
+            /** @description USD for one unit. */
+            unit_prices: components["schemas"]["UnitMap"];
+            source_note: string | null;
+            created_at: components["schemas"]["Timestamp"];
+        };
+        PriceSetList: {
+            price_sets: components["schemas"]["PriceSet"][];
+        };
+        PriceSetCreate: {
+            provider: string;
+            model: string;
+            billing_mode?: components["schemas"]["BillingMode"];
+            /** @description Defaults to now. May not be earlier than the latest existing version for the same model and mode. */
+            effective_from?: components["schemas"]["Timestamp"];
+            unit_prices: components["schemas"]["UnitMap"];
+            source_note?: string;
+        };
+        SearchIndexState: {
+            active_embedding_model: string;
+            embedding_dimension: number;
+            reindexing_into_model: string | null;
+            /** Format: date-time */
+            reindex_started_at: string | null;
+            /** @description Notes still lacking a current vector under the incoming model. 0 when no reindex is in progress. */
+            incomplete_notes: number;
+            /** @description The embedding worker's backlog under the active model. */
+            children_needing_embedding: number;
+        };
+        ReindexRequest: {
+            model: string;
+        };
+        /**
+         * @description `unknown` is never stored; the reader computes it from a stale `checked_at`.
+         * @enum {string}
+         */
+        HealthStatus: "ok" | "warn" | "alarm" | "unknown";
+        HealthCheck: {
+            check_name: string;
+            status: components["schemas"]["HealthStatus"];
+            message: string | null;
+            observed: {
+                [key: string]: unknown;
+            };
+            cadence_seconds: number;
+            checked_at: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            last_ok_at: string | null;
+            /** Format: date-time */
+            first_alarm_at: string | null;
+            /** Format: date-time */
+            last_notified_at: string | null;
+        };
+        /** @enum {string} */
+        BackupRepository: "local" | "offsite";
+        RestoreDrill: {
+            id: components["schemas"]["Uuid"];
+            completed_at: components["schemas"]["Timestamp"];
+            repository: components["schemas"]["BackupRepository"];
+            snapshot_id: string;
+            restore_seconds: number;
+            key_recovery_verified: boolean;
+            postgres_version: string;
+            pgvector_version: string;
+            notes: string | null;
+        };
+        RestoreDrillCreate: {
+            repository: components["schemas"]["BackupRepository"];
+            snapshot_id: string;
+            restore_seconds: number;
+            key_recovery_verified: boolean;
+            postgres_version: string;
+            pgvector_version: string;
+            notes?: string;
+        };
+        HealthReport: {
+            checks: components["schemas"]["HealthCheck"][];
+            /** @description Newest first. */
+            drills: components["schemas"]["RestoreDrill"][];
+            /** @description The drill alternates repositories (ADR 0009). */
+            next_drill_repository: components["schemas"]["BackupRepository"];
+            /** @description Notes whose current run failed with extractor breakage. */
+            blocked_by_tooling: number;
+            generated_at: components["schemas"]["Timestamp"];
+        };
+        RetryBlockedResult: {
+            retried: number;
+            note_ids: components["schemas"]["Uuid"][];
+        };
+        /** @enum {string} */
+        SyncEntityKind: "note" | "takeaway" | "topic" | "tag" | "diagram_layout";
+        /** @enum {string} */
+        SyncChange: "created" | "updated" | "deleted";
+        /** @description A `sync_events` row, verbatim. Durable and replayable by cursor. */
+        SyncEvent: {
+            cursor: components["schemas"]["SyncCursor"];
+            entity_kind: components["schemas"]["SyncEntityKind"];
+            entity_id: components["schemas"]["Uuid"];
+            /**
+             * Format: uuid
+             * @description The parent Note for takeaway, tag and diagram_layout events.
+             */
+            note_id: string | null;
+            change: components["schemas"]["SyncChange"];
+            /**
+             * Format: uuid
+             * @description Null for server-initiated changes. A client drops echoes of its own writes after advancing the cursor.
+             */
+            origin_device_session_id: string | null;
+            occurred_at: components["schemas"]["Timestamp"];
+        };
+        /** @description Best-effort and uncursored. The UI must never derive a durable conclusion from one. */
+        ProgressEvent: {
+            note_id: components["schemas"]["Uuid"];
+            processing_version: number;
+            processing_state: components["schemas"]["ProcessingState"];
+            stage_kind: components["schemas"]["StageKind"] | null;
+            stage_status: components["schemas"]["StageStatus"] | null;
+            attempt: number;
+        };
+        ResyncEvent: {
+            /** @enum {string} */
+            reason: "cursor_expired";
+        };
+        RevokedEvent: {
+            /** @enum {string} */
+            reason: "session_revoked" | "session_expired";
+        };
+        EventsSince: {
+            events: components["schemas"]["SyncEvent"][];
+            /**
+             * Format: int64
+             * @description Pass this back on the next poll. Equals the request cursor when nothing changed.
+             */
+            next_cursor: number;
+            resync_required: boolean;
+        };
+        VapidPublicKey: {
+            /** @description The uncompressed P-256 point, base64url, for `applicationServerKey`. */
+            public_key: string;
+        };
+        PushKeys: {
+            p256dh: string;
+            auth: string;
+        };
+        /** @description `PushSubscription.toJSON()` plus the two switches. */
+        PushSubscriptionWrite: {
+            /** Format: uri */
+            endpoint: string;
+            keys: components["schemas"]["PushKeys"];
+            /** Format: date-time */
+            expiration_time?: string | null;
+            /** @default true */
+            notes_enabled: boolean;
+            /** @default true */
+            ops_enabled: boolean;
+            /** @description The previous endpoint on `pushsubscriptionchange`, so the row is swapped rather than duplicated. */
+            replaces_endpoint?: string;
+        };
+        PushSubscriptionUpdate: {
+            notes_enabled?: boolean;
+            ops_enabled?: boolean;
+        };
+        PushSubscription: {
+            id: components["schemas"]["Uuid"];
+            device_session_id: components["schemas"]["Uuid"];
+            device_display_name: string;
+            endpoint: string;
+            /** Format: date-time */
+            expiration_time: string | null;
+            notes_enabled: boolean;
+            ops_enabled: boolean;
+            created_at: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            last_success_at: string | null;
+            /** Format: date-time */
+            last_failure_at: string | null;
+            consecutive_failures: number;
+        };
+        PushSubscriptionList: {
+            subscriptions: components["schemas"]["PushSubscription"][];
+        };
+    };
+    responses: {
+        /**
+         * @description Any non-2xx outcome. The HTTP status is fixed per `code`; see `ErrorCode`. A `429` also carries
+         *     `Retry-After`.
+         */
+        Error: {
+            headers: {
+                /** @description Seconds to wait. Present only on `429`. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+    };
+    parameters: {
+        noteId: components["schemas"]["Uuid"];
+        revisionId: components["schemas"]["Uuid"];
+        sessionId: components["schemas"]["Uuid"];
+        subscriptionId: components["schemas"]["Uuid"];
+        topicId: components["schemas"]["Uuid"];
+        tagId: components["schemas"]["Uuid"];
+        /** @description The public Pairing request id, 43 base64url characters. */
+        requestId: components["schemas"]["Base64Url256"];
+        role: components["schemas"]["AiRole"];
+        /** @description Opaque keyset cursor from a previous page's `next_cursor`. */
+        cursor: string;
+        /** @description Include the Transcript. Defaults off, matching spec 12's default contents. */
+        exportTranscript: boolean;
+        /** @description Render this Revision instead of the Active Revision. Must belong to the Note. */
+        exportRevision: components["schemas"]["Uuid"];
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. Cookies are set on this response. */
+            200: {
+                headers: {
+                    /** @description `__Host-vyn_access` (15 minutes, Path=/) and `__Secure-vyn_refresh` (Path=/auth/refresh), both Secure, HttpOnly, SameSite=Lax. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionGrant"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rotated. Cookies are set on this response. */
+            200: {
+                headers: {
+                    /** @description Replacement access and refresh cookies. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionGrant"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recoverCsrfToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current CSRF token. */
+            200: {
+                headers: {
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfToken"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    logoutViaRefresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked; cookies cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked; cookies cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session is live. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Password changed; this session's credentials were rotated. */
+            200: {
+                headers: {
+                    /** @description Replacement access and refresh cookies. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionGrant"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every unrevoked Device session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceSessionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    revokeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: components["parameters"]["sessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    revokeAllSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every session revoked; the caller's cookies are cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createPairingRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description Request created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRequestCreated"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getPairingRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request and its state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRequest"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    approvePairingRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved. The extension's next exchange succeeds. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRequest"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    denyPairingRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The public Pairing request id, 43 base64url characters. */
+                requestId: components["parameters"]["requestId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Denied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingRequest"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exchangePairingVerifier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairingExchange"];
+            };
+        };
+        responses: {
+            /** @description Paired. Store both tokens in `chrome.storage.local` and nowhere else. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenGrant"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    refreshExtensionTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokensRequest"];
+            };
+        };
+        responses: {
+            /** @description Rotated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenGrant"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    logoutExtension: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createSubmission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmissionRequest"];
+            };
+        };
+        responses: {
+            /** @description One of the three typed outcomes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    undoSubmission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What happened. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listNotes: {
+        parameters: {
+            query?: {
+                /** @description Earliest Save date, inclusive, in the account timezone. */
+                from?: string;
+                /** @description Latest Save date, inclusive, in the account timezone. */
+                to?: string;
+                topic_id?: components["schemas"]["Uuid"];
+                tag_id?: components["schemas"]["Uuid"];
+                channel_id?: string;
+                /** @description Restrict to these processing states. Repeat the parameter for several. */
+                state?: components["schemas"]["ProcessingState"][];
+                /** @description Only Notes waiting for cost confirmation. */
+                held?: boolean;
+                /** @description The Trash view. Defaults to false, which excludes trashed Notes. */
+                trashed?: boolean;
+                /** @description Opaque keyset cursor from a previous page's `next_cursor`. */
+                cursor?: components["parameters"]["cursor"];
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of cards. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Note. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    trashNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Note as it now stands in Trash. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    restoreNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored, with the state it had before deletion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteCard"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    purgeNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Purged. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    retryNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run started, or is held for cost confirmation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStartResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    regenerateNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description The run started, or is held for cost confirmation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStartResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    confirmNoteCost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Resumed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostConfirmationResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    mutateNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Mutation"];
+            };
+        };
+        responses: {
+            /** @description Applied or conflicted. Both wrote a Revision. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MutationResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listRevisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The history. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Revision with its payload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Revision"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    activateRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionPointerResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    restoreRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionPointerResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    discardRevision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+                revisionId: components["parameters"]["revisionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionPointerResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    setTakeaway: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakeawayWrite"];
+            };
+        };
+        responses: {
+            /** @description Written. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TakeawayResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    setPrimaryTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrimaryTopicWrite"];
+            };
+        };
+        responses: {
+            /** @description Set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrimaryTopicResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    setTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagsWrite"];
+            };
+        };
+        responses: {
+            /** @description Replaced. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteTagsResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutWrite"];
+            };
+        };
+        responses: {
+            /** @description The merged layout. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getTranscript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Transcript. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                q: string;
+                from?: string;
+                to?: string;
+                topic_id?: components["schemas"]["Uuid"];
+                channel_id?: string;
+                /** @description Seconds, inclusive. */
+                min_duration?: number;
+                /** @description Seconds, inclusive. */
+                max_duration?: number;
+                /** @description Opaque keyset cursor from a previous page's `next_cursor`. */
+                cursor?: components["parameters"]["cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listTopics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every Topic with its non-Trash Note count. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicWrite"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Topic"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: components["parameters"]["topicId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: components["parameters"]["topicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicWrite"];
+            };
+        };
+        responses: {
+            /** @description Renamed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Topic"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    mergeTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: components["parameters"]["topicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopicMerge"];
+            };
+        };
+        responses: {
+            /** @description The surviving Topic. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Topic"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every Tag with its non-Trash Note count. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: components["parameters"]["tagId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tagId: components["parameters"]["tagId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagWrite"];
+            };
+        };
+        responses: {
+            /** @description Renamed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tag"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportNotePdf: {
+        parameters: {
+            query?: {
+                /** @description Include the Transcript. Defaults off, matching spec 12's default contents. */
+                transcript?: components["parameters"]["exportTranscript"];
+                /** @description Render this Revision instead of the Active Revision. Must belong to the Note. */
+                revision?: components["parameters"]["exportRevision"];
+            };
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportNoteMarkdown: {
+        parameters: {
+            query?: {
+                /** @description Include the Transcript. Defaults off, matching spec 12's default contents. */
+                transcript?: components["parameters"]["exportTranscript"];
+                /** @description Render this Revision instead of the Active Revision. Must belong to the Note. */
+                revision?: components["parameters"]["exportRevision"];
+            };
+            header?: never;
+            path: {
+                noteId: components["parameters"]["noteId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archive. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archive, streamed. */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getAiSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The configuration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateAiRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiRoleWrite"];
+            };
+        };
+        responses: {
+            /** @description The role as stored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiRoleConfig"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    clearAiRoleKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The role without a key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiRoleConfig"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    verifyAiRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["parameters"]["role"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The verification outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getUsage: {
+        parameters: {
+            query?: {
+                /** @description Calendar month in the account timezone, `YYYY-MM`. Defaults to the current month. */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The month. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyUsage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getCostSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cost settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSettings"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateCostSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostSettingsWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSettings"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    enableSemanticForMonth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSettings"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listPriceSets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Price sets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceSetList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createPriceSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceSetCreate"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceSet"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getSearchIndex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Which model search reads, and any reindex in progress. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchIndexState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    startReindex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReindexRequest"];
+            };
+        };
+        responses: {
+            /** @description Reindex started. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchIndexState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    abandonReindex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Abandoned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchIndexState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    activateReindex: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flipped. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchIndexState"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The health report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthReport"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    recordRestoreDrill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreDrillCreate"];
+            };
+        };
+        responses: {
+            /** @description Recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreDrill"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    retryBlockedNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What was retried. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryBlockedResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    streamEvents: {
+        parameters: {
+            query?: {
+                /** @description Cold-start resume point. Ignored when `Last-Event-ID` is present. */
+                cursor?: components["schemas"]["SyncCursor"];
+            };
+            header?: {
+                "Last-Event-ID"?: components["schemas"]["SyncCursor"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stream. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listEventsSince: {
+        parameters: {
+            query: {
+                /** @description The last cursor the client has applied. 0 on first sign-in. */
+                cursor: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Events after the cursor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventsSince"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    getVapidPublicKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VapidPublicKey"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listPushSubscriptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every subscription, with the device it belongs to. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionList"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    upsertPushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionWrite"];
+            };
+        };
+        responses: {
+            /** @description The stored subscription. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscription"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deletePushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: components["parameters"]["subscriptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updatePushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionId: components["parameters"]["subscriptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscription"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+}

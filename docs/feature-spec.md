@@ -463,11 +463,12 @@ Start with two concurrent general jobs and run FFmpeg/STT preparation on a singl
 ### Recommended resource/API boundaries
 
 - `/auth/*` — login, refresh, logout, account, sessions
-- `/pairing/*` — extension pairing and revocation
+- `/pairing/*` — extension pairing, extension token refresh and logout, and revocation
 - `/submissions` — create/undo/deduplicate YouTube submissions
 - `/notes/*` — list, read, edit, regenerate, versions, restore, trash
 - `/search` — hybrid search and filters
-- `/topics/*` — primary topics and tags
+- `/topics/*` — primary topics
+- `/tags/*` — tags
 - `/exports/*` — note and library exports
 - `/settings/*` — AI roles, usage, cost cap, notifications
 - `/events` — authenticated SSE stream

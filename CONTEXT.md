@@ -223,3 +223,13 @@ _Avoid_: Version number, sequence, etag
 **Library backup**:
 The versioned JSON archive of all Notes, Transcripts, metadata, topics, Revisions, and Takeaways, excluding secrets.
 _Avoid_: Export (reserved for single-Note PDF/Markdown), dump
+
+### Contract
+
+**Error envelope**:
+The single shape every non-2xx API response carries: an Error code, a message written for a person that names the next available action, and details whose keys are fixed per code.
+_Avoid_: Error response, problem, fault
+
+**Error code**:
+The typed identifier inside an Error envelope, drawn from a closed set the contract publishes, that a client branches on.
+_Avoid_: Reason code (reserved for Security events), error type, status (that is the HTTP status)

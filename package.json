@@ -14,10 +14,11 @@
     "format:check": "prettier --check . && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 fmt --diff",
     "generate": "pnpm --filter @visual-notes/api-client generate && go -C backend generate ./...",
     "lint": "eslint . && go -C backend vet ./... && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run ./... && go -C backend run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...",
-    "test": "pnpm test:diagram-schema && pnpm test:extension-manifest && pnpm test:library-archive && pnpm test:spa-fallback && pnpm -r --if-present test && go -C backend test ./...",
+    "test": "pnpm test:diagram-schema && pnpm test:extension-manifest && pnpm test:library-archive && pnpm test:openapi && pnpm test:spa-fallback && pnpm -r --if-present test && go -C backend test ./...",
     "test:diagram-schema": "node docs/design/diagram-schema.test.mjs",
     "test:extension-manifest": "node docs/design/extension-manifest.test.mjs",
     "test:library-archive": "node docs/design/library-archive.test.mjs",
+    "test:openapi": "node docs/design/openapi.test.mjs",
     "test:race": "go -C backend test -race ./...",
     "test:spa-fallback": "node docs/design/spa-fallback.test.mjs",
     "typecheck": "pnpm -r --if-present typecheck"
@@ -31,6 +32,7 @@
     "prettier": "3.9.6",
     "prettier-plugin-svelte": "4.1.1",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.69.0"
+    "typescript-eslint": "8.69.0",
+    "yaml": "2.8.1"
   }
 }

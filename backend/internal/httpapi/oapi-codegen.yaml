@@ -6,3 +6,8 @@ generate:
   strict-server: true
 output-options:
   skip-prune: true
+  # GET /events is a Server-Sent Events stream. It needs per-frame flushing
+  # that a generated strict handler cannot provide, so the contract documents
+  # it and the implementation mounts it by hand on the same router (ADR 0015).
+  exclude-operation-ids:
+    - streamEvents
