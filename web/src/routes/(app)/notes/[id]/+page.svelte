@@ -4,6 +4,7 @@
   // applied locally, stored, and drained against the Revision this page
   // last saw as Active. Conflicts and stale takeaways are surfaced, never
   // silently resolved (ADR 0004).
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { onMount } from "svelte";
   import type { components } from "@visual-notes/api-client";
@@ -217,6 +218,90 @@
     void enqueueTags(note.id, tags);
   }
 
+  // Lifecycle actions (spec 5.5, 8.4): Regenerate from the Transcript with
+  // an optional instruction, Retry a failed run, Delete to Trash.
+  let actionMessage = $state<string | null>(null);
+  let actionFailed = $state(false);
+  let actionBusy = $state(false);
+  let instruction = $state("");
+  let showRegenerate = $state(false);
+
+  async function regenerate(event: SubmitEvent) {
+    event.preventDefault();
+    if (!note) return;
+    actionBusy = true;
+    const { data, error } = await api.POST("/notes/{noteId}/regenerate", {
+      params: { path: { noteId: note.id } },
+      body: instruction.trim() ? { instruction: instruction.trim() } : {},
+    });
+    actionBusy = false;
+    if (!data) {
+      actionFailed = true;
+      actionMessage = errorMessage(error, "The note could not be regenerated.");
+      return;
+    }
+    actionFailed = false;
+    actionMessage =
+      data.outcome === "held"
+        ? `Held for cost confirmation (about $${data.estimate_usd ?? "?"}); confirm it in Settings → Usage.`
+        : "Regenerating. Your takeaway is kept; the current version stays in the history.";
+    showRegenerate = false;
+    instruction = "";
+    await load();
+  }
+
+  async function retry() {
+    if (!note) return;
+    actionBusy = true;
+    const { data, error } = await api.POST("/notes/{noteId}/retry", {
+      params: { path: { noteId: note.id } },
+    });
+    actionBusy = false;
+    if (!data) {
+      actionFailed = true;
+      actionMessage = errorMessage(error, "The note could not be retried.");
+      return;
+    }
+    actionFailed = false;
+    actionMessage =
+      data.outcome === "held"
+        ? `Held for cost confirmation (about $${data.estimate_usd ?? "?"}); confirm it in Settings → Usage.`
+        : "Retrying from the step that failed. New AI charges may apply.";
+    await load();
+  }
+
+  async function trash() {
+    if (!note) return;
+    if (
+      !confirm(
+        "Move this note to the trash? You can restore it within thirty days.",
+      )
+    )
+      return;
+    actionBusy = true;
+    const { data, error } = await api.DELETE("/notes/{noteId}", {
+      params: { path: { noteId: note.id } },
+    });
+    actionBusy = false;
+    if (!data) {
+      actionFailed = true;
+      actionMessage = errorMessage(error, "The note could not be deleted.");
+      return;
+    }
+    await goto("/trash");
+  }
+
+  const failure = $derived(
+    note?.processing.stages.find((s) => s.last_error)?.last_error ?? null,
+  );
+  const failureText = $derived(
+    note?.processing.failure_kind === "extractor_breakage"
+      ? "The video is fine; the download tool needs an update before this note can be made. It will be retried once the tool is updated."
+      : failure
+        ? `The note could not be made. ${failure.message}${failure.is_permanent ? " Retry starts again from the step that failed." : ""}`
+        : "The note could not be made.",
+  );
+
   function duration(seconds: number | null | undefined): string {
     if (seconds == null) return "";
     const m = Math.round(seconds / 60);
@@ -251,15 +336,61 @@
     <header>
       <div class="row between top">
         <h1>{note.source.title ?? `Video ${note.source.video_id}`}</h1>
-        {#if payload}
-          <button
-            type="button"
-            class:primary={!editing}
-            aria-pressed={editing}
-            onclick={toggleEditing}>{editing ? "Done editing" : "Edit"}</button
-          >
-        {/if}
+        <div class="row wrap actions">
+          {#if payload}
+            <button
+              type="button"
+              class:primary={!editing}
+              aria-pressed={editing}
+              onclick={toggleEditing}
+              >{editing ? "Done editing" : "Edit"}</button
+            >
+            {#if note.processing.state === "ready" && !note.trashed_at}
+              <button
+                type="button"
+                disabled={actionBusy}
+                aria-expanded={showRegenerate}
+                onclick={() => (showRegenerate = !showRegenerate)}
+                >Regenerate</button
+              >
+            {/if}
+          {/if}
+          {#if !note.trashed_at}
+            <button
+              type="button"
+              class="danger"
+              disabled={actionBusy}
+              onclick={trash}>Delete</button
+            >
+          {/if}
+        </div>
       </div>
+      {#if showRegenerate}
+        <form class="card stack" aria-label="Regenerate" onsubmit={regenerate}>
+          <label class="field">
+            <span>Instruction (optional), such as “simplify this”</span>
+            <input type="text" maxlength="500" bind:value={instruction} />
+          </label>
+          <p class="muted">
+            Regeneration starts from the transcript, never from edited text.
+            Your takeaway is kept, and the current version stays in the history.
+            New AI charges apply.
+          </p>
+          <div class="row">
+            <button type="submit" class="primary" disabled={actionBusy}
+              >Regenerate now</button
+            >
+            <button type="button" onclick={() => (showRegenerate = false)}
+              >Cancel</button
+            >
+          </div>
+        </form>
+      {/if}
+      {#if actionMessage}
+        <p class={actionFailed ? "error" : "ok"} role="status">
+          {actionMessage}
+        </p>
+      {/if}
       <p class="muted meta">
         {#if note.source.channel_name}{note.source.channel_name} ·
         {/if}
@@ -525,12 +656,18 @@
       </details>
     {:else}
       <section class="card stack">
-        {#if note.processing.state === "failed"}
-          <p class="error">
-            The note could not be made. {note.processing.stages.find(
-              (s) => s.last_error,
-            )?.last_error?.message ?? ""}
-          </p>
+        {#if note.processing.state === "failed" || note.processing.state === "cancelled"}
+          <p class="error">{failureText}</p>
+          <div class="row wrap">
+            {#if note.processing.failure_kind !== "extractor_breakage" && !note.trashed_at}
+              <button
+                type="button"
+                class="primary"
+                disabled={actionBusy}
+                onclick={retry}>Retry</button
+              >
+            {/if}
+          </div>
         {:else if note.processing.cost_hold}
           <p class="warn">
             This note is waiting for cost confirmation (about ${note.processing
@@ -611,5 +748,12 @@
   }
   q {
     font-style: italic;
+  }
+  .actions {
+    gap: 0.4rem;
+    justify-content: flex-end;
+  }
+  .ok {
+    color: var(--accent);
   }
 </style>

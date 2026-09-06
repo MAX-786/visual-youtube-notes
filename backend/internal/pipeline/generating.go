@@ -49,6 +49,14 @@ func loadTranscript(ctx context.Context, q querier, noteID uuid.UUID) (*transcri
 // call, validation, free repairs, at most one re-ask, then the Revision
 // with its layout and search children in the completion transaction.
 func generatingWork(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun) (*result, error) {
+	return generate(ctx, d, note, sr, "", note.ActiveRevisionID)
+}
+
+// generateFunc is the generating Stage with a Regeneration's instruction
+// and recorded base; a first generation passes neither.
+type generateFunc func(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun, instruction string, base *uuid.UUID) (*result, error)
+
+func generate(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun, instruction string, base *uuid.UUID) (*result, error) {
 	tr, err := loadTranscript(ctx, d.Pool, note.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -68,7 +76,7 @@ func generatingWork(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun) (
 		duration = *note.DurationSeconds
 	}
 	meta := generation.Meta{Title: deref(note.Title), Channel: deref(note.ChannelName), Duration: duration}
-	input := generation.RenderInput(tr.Chunks, meta, "")
+	input := generation.RenderInput(tr.Chunks, meta, instruction)
 	schema := generation.RequestSchema()
 	client := ai.NewClient(*creds, d.AITransport)
 	logger := d.Logger.With("note", note.ID, "stage", StageGenerating)
@@ -116,7 +124,7 @@ func generatingWork(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun) (
 		}
 		switch cycle.Outcome {
 		case generation.Ready:
-			return buildRevision(cycle.Note, tr, res.RequestID, note.ActiveRevisionID)
+			return buildRevision(cycle.Note, tr, res.RequestID, base, instruction)
 		case generation.ReAsk:
 			previous = res.Text
 			feedback = cycle.Feedback
@@ -138,7 +146,7 @@ func truncate(s string, n int) string {
 
 // buildRevision prepares the completion: the stored payload, its fingerprint,
 // and the writes that make it the Note's Active Revision.
-func buildRevision(n *generation.Note, tr *transcriptRows, requestID string, base *uuid.UUID) (*result, error) {
+func buildRevision(n *generation.Note, tr *transcriptRows, requestID string, base *uuid.UUID, instruction string) (*result, error) {
 	stored := generation.ToStored(n, tr.Chunks)
 	payload, err := json.Marshal(stored)
 	if err != nil {
@@ -151,7 +159,7 @@ func buildRevision(n *generation.Note, tr *transcriptRows, requestID string, bas
 		size:              int64(len(payload)),
 		next:              StageIndexing,
 		apply: func(ctx context.Context, tx pgx.Tx, locked *NoteRow) error {
-			return storeRevision(ctx, tx, locked, tr.ID, stored, payload, base)
+			return storeRevision(ctx, tx, locked, tr.ID, stored, payload, base, instruction)
 		},
 	}, nil
 }
@@ -160,7 +168,7 @@ func buildRevision(n *generation.Note, tr *transcriptRows, requestID string, bas
 // points at the base this run recorded, activates it: the compare-and-set
 // of ADR 0004. Activation seeds the topic and tags the generator proposed,
 // the layout (ADR 0011) and the search children (ADR 0005).
-func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID uuid.UUID, stored *generation.StoredPayload, payload []byte, base *uuid.UUID) error {
+func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID uuid.UUID, stored *generation.StoredPayload, payload []byte, base *uuid.UUID, instruction string) error {
 	var number int
 	if err := tx.QueryRow(ctx, `SELECT coalesce(max(revision_number), 0) + 1 FROM note_revisions WHERE note_id = $1`, note.ID).Scan(&number); err != nil {
 		return err
@@ -175,9 +183,9 @@ func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID u
 	}
 	var revisionID uuid.UUID
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO note_revisions (user_id, note_id, revision_number, origin, parent_revision_id, generated_from_transcript_id, payload)
-		VALUES ($1, $2, $3, 'generated', $4, $5, $6) RETURNING id`,
-		note.UserID, note.ID, number, parent, transcriptID, payload).Scan(&revisionID); err != nil {
+		INSERT INTO note_revisions (user_id, note_id, revision_number, origin, parent_revision_id, generated_from_transcript_id, generation_instruction, payload)
+		VALUES ($1, $2, $3, 'generated', $4, $5, nullif($6, ''), $7) RETURNING id`,
+		note.UserID, note.ID, number, parent, transcriptID, instruction, payload).Scan(&revisionID); err != nil {
 		return fmt.Errorf("insert revision: %w", err)
 	}
 	if !equalUUID(note.ActiveRevisionID, base) {

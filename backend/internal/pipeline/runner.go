@@ -55,6 +55,9 @@ type Hooks struct {
 	Transcribing work
 	Generating   work
 	Indexing     work
+	// Regenerating is the generating Stage with an instruction and a
+	// recorded base; nil means the real one when AI is wired.
+	Regenerating generateFunc
 }
 
 // result is what a Stage's work hands back to the runner.

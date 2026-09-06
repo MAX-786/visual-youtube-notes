@@ -78,11 +78,6 @@ func (s *Server) LogoutExtension(_ context.Context, _ LogoutExtensionRequestObje
 	return nil, notImplemented("LogoutExtension")
 }
 
-// PurgeNote is not implemented yet.
-func (s *Server) PurgeNote(_ context.Context, _ PurgeNoteRequestObject) (PurgeNoteResponseObject, error) {
-	return nil, notImplemented("PurgeNote")
-}
-
 // RecordRestoreDrill is not implemented yet.
 func (s *Server) RecordRestoreDrill(_ context.Context, _ RecordRestoreDrillRequestObject) (RecordRestoreDrillResponseObject, error) {
 	return nil, notImplemented("RecordRestoreDrill")
@@ -91,31 +86,6 @@ func (s *Server) RecordRestoreDrill(_ context.Context, _ RecordRestoreDrillReque
 // RefreshExtensionTokens is not implemented yet.
 func (s *Server) RefreshExtensionTokens(_ context.Context, _ RefreshExtensionTokensRequestObject) (RefreshExtensionTokensResponseObject, error) {
 	return nil, notImplemented("RefreshExtensionTokens")
-}
-
-// RegenerateNote is not implemented yet.
-func (s *Server) RegenerateNote(_ context.Context, _ RegenerateNoteRequestObject) (RegenerateNoteResponseObject, error) {
-	return nil, notImplemented("RegenerateNote")
-}
-
-// RestoreNote is not implemented yet.
-func (s *Server) RestoreNote(_ context.Context, _ RestoreNoteRequestObject) (RestoreNoteResponseObject, error) {
-	return nil, notImplemented("RestoreNote")
-}
-
-// RetryBlockedNotes is not implemented yet.
-func (s *Server) RetryBlockedNotes(_ context.Context, _ RetryBlockedNotesRequestObject) (RetryBlockedNotesResponseObject, error) {
-	return nil, notImplemented("RetryBlockedNotes")
-}
-
-// RetryNote is not implemented yet.
-func (s *Server) RetryNote(_ context.Context, _ RetryNoteRequestObject) (RetryNoteResponseObject, error) {
-	return nil, notImplemented("RetryNote")
-}
-
-// TrashNote is not implemented yet.
-func (s *Server) TrashNote(_ context.Context, _ TrashNoteRequestObject) (TrashNoteResponseObject, error) {
-	return nil, notImplemented("TrashNote")
 }
 
 // UpdatePushSubscription is not implemented yet.

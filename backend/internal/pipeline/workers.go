@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 )
@@ -38,9 +39,41 @@ func RegisterWorkers(workers *river.Workers, d *Deps) {
 	if indexing == nil {
 		indexing = placeholder("Search indexing is not available in this build.")
 	}
+	regenerating := d.Hooks.Regenerating
+	if regenerating == nil && d.AI != nil {
+		regenerating = generate
+	}
+	if regenerating == nil {
+		regenerating = func(context.Context, *Deps, *NoteRow, *StageRun, string, *uuid.UUID) (*result, error) {
+			return nil, Fail(Permanent, "not_built", "Note generation is not available in this build.", nil)
+		}
+	}
+	river.AddWorker(workers, &regenerateWorker{deps: d, generate: regenerating})
 	river.AddWorker(workers, &stageWorker[TranscribingArgs]{deps: d, stage: StageTranscribing, do: transcribing, args: func(a TranscribingArgs) Run { return a.Run }})
 	river.AddWorker(workers, &stageWorker[GeneratingArgs]{deps: d, stage: StageGenerating, do: generating, args: func(a GeneratingArgs) Run { return a.Run }})
 	river.AddWorker(workers, &stageWorker[IndexingArgs]{deps: d, stage: StageIndexing, do: indexing, args: func(a IndexingArgs) Run { return a.Run }})
+}
+
+// regenerateWorker runs the generating Stage for a Regeneration job.
+type regenerateWorker struct {
+	river.WorkerDefaults[RegenerateArgs]
+	deps     *Deps
+	generate generateFunc
+}
+
+func (w *regenerateWorker) Work(ctx context.Context, job *river.Job[RegenerateArgs]) error {
+	run := Run{NoteID: job.Args.NoteID, ProcessingVersion: job.Args.ProcessingVersion}
+	return runStage(ctx, w.deps, job, run, StageGenerating, func(ctx context.Context, d *Deps, note *NoteRow, sr *StageRun) (*result, error) {
+		return w.generate(ctx, d, note, sr, job.Args.Instruction, job.Args.Base)
+	})
+}
+
+func (w *regenerateWorker) Timeout(*river.Job[RegenerateArgs]) time.Duration {
+	return StageTimeouts[StageGenerating]
+}
+
+func (w *regenerateWorker) NextRetry(job *river.Job[RegenerateArgs]) time.Time {
+	return NextRetry(job.Attempt, time.Now())
 }
 
 func placeholder(message string) work {

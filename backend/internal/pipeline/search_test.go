@@ -131,9 +131,17 @@ func sectionsFromTranscript(ctx context.Context, d *Deps, note *NoteRow, _ *Stag
 			if err := tx.QueryRow(ctx, `SELECT id FROM transcripts WHERE note_id = $1`, note.ID).Scan(&transcriptID); err != nil {
 				return err
 			}
+			var number int
+			if err := tx.QueryRow(ctx, `SELECT coalesce(max(revision_number), 0) + 1 FROM note_revisions WHERE note_id = $1`, note.ID).Scan(&number); err != nil {
+				return err
+			}
+			var parent *uuid.UUID
+			if number > 1 {
+				parent = note.ActiveRevisionID
+			}
 			if err := tx.QueryRow(ctx, `
-				INSERT INTO note_revisions (user_id, note_id, revision_number, origin, generated_from_transcript_id, payload)
-				VALUES ($1, $2, 1, 'generated', $3, $4::jsonb) RETURNING id`, note.UserID, note.ID, transcriptID, payload).Scan(&revisionID); err != nil {
+				INSERT INTO note_revisions (user_id, note_id, revision_number, origin, parent_revision_id, generated_from_transcript_id, payload)
+				VALUES ($1, $2, $3, 'generated', $4, $5, $6::jsonb) RETURNING id`, note.UserID, note.ID, number, parent, transcriptID, payload).Scan(&revisionID); err != nil {
 				return err
 			}
 			topicID, err := library.UpsertNamed(ctx, tx, "topics", note.UserID, "Learning")

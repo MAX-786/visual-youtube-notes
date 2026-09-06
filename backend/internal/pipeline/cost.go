@@ -114,8 +114,16 @@ func (s *Service) ConfirmCost(ctx context.Context, userID, noteID uuid.UUID, ver
 	if _, err := tx.Exec(ctx, `UPDATE notes SET cost_hold_since = NULL, cost_hold_estimate_usd = NULL WHERE id = $1`, noteID); err != nil {
 		return "", err
 	}
-	if err := enqueueStage(ctx, s.client, tx, Run{NoteID: noteID, ProcessingVersion: version}, next, time.Time{}); err != nil {
+	// A held Regeneration is its scheduled job; anything else is a plain
+	// Stage to enqueue.
+	released, err := s.releaseHeldRegeneration(ctx, tx, noteID, version)
+	if err != nil {
 		return "", err
+	}
+	if !released {
+		if err := enqueueStage(ctx, s.client, tx, Run{NoteID: noteID, ProcessingVersion: version}, next, time.Time{}); err != nil {
+			return "", err
+		}
 	}
 	if _, err := vsync.Append(ctx, tx, userID, vsync.EntityNote, noteID, nil, vsync.ChangeUpdated, nil); err != nil {
 		return "", err
