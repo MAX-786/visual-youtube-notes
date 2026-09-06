@@ -36,6 +36,26 @@ type Config struct {
 	// DevInsecure relaxes the Secure cookie attribute for plain-http local
 	// development. Never set in production.
 	DevInsecure bool
+	// Worker holds the settings only the worker process reads.
+	Worker Worker
+}
+
+// Worker is the worker process's configuration (ADR 0006, ADR 0008).
+type Worker struct {
+	// TempDir is the root of per-Attempt temporary directories.
+	TempDir string
+	// QueueDefaultWorkers and QueueMediaWorkers are River's per-queue
+	// concurrency; media stays at one so FFmpeg and speech to text serialize.
+	QueueDefaultWorkers int
+	QueueMediaWorkers   int
+	// HealthListen is the internal health endpoint's bind address.
+	HealthListen string
+	// YtDlpBin is the yt-dlp binary, on PATH by default.
+	YtDlpBin string
+	// YtDlpCacheDir persists Deno's solved player challenges across runs.
+	YtDlpCacheDir string
+	// TempMinFreeBytes is the preflight floor for the transcribing Stage.
+	TempMinFreeBytes int64
 }
 
 // Database is the PostgreSQL connection, with the password read from a file.
@@ -117,6 +137,16 @@ func Load() (*Config, error) {
 	if _, err := url.Parse(cfg.PublicOrigin); err != nil || !strings.HasPrefix(cfg.PublicOrigin, "http") {
 		problems = append(problems, "VYN_PUBLIC_ORIGIN must be an absolute origin")
 	}
+
+	cfg.Worker = Worker{
+		TempDir:       get("TEMP_DIR", "/var/lib/vyn/tmp"),
+		HealthListen:  get("HEALTH_LISTEN", ":8081"),
+		YtDlpBin:      get("YTDLP_BIN", "yt-dlp"),
+		YtDlpCacheDir: get("YTDLP_CACHE_DIR", "/var/cache/yt-dlp"),
+	}
+	cfg.Worker.QueueDefaultWorkers = intSetting(get("QUEUE_DEFAULT_WORKERS", "2"), &problems, "VYN_QUEUE_DEFAULT_WORKERS")
+	cfg.Worker.QueueMediaWorkers = intSetting(get("QUEUE_MEDIA_WORKERS", "1"), &problems, "VYN_QUEUE_MEDIA_WORKERS")
+	cfg.Worker.TempMinFreeBytes = int64(intSetting(get("TEMP_MIN_FREE_BYTES", "2147483648"), &problems, "VYN_TEMP_MIN_FREE_BYTES"))
 	if !isExtensionID(cfg.ExtensionID) {
 		problems = append(problems, "VYN_EXTENSION_ID must be 32 characters a-p")
 	}
@@ -139,6 +169,15 @@ func ReadSecretFile(path string) (string, error) {
 		return "", fmt.Errorf("secret %s is empty", path)
 	}
 	return value, nil
+}
+
+func intSetting(raw string, problems *[]string, name string) int {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		*problems = append(*problems, name+" must be a non-negative integer")
+		return 0
+	}
+	return n
 }
 
 func isExtensionID(id string) bool {

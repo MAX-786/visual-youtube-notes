@@ -9,14 +9,14 @@ River capabilities and their limits were established in
 
 ## Jobs and queues
 
-| Job kind       | Queue     | `MaxWorkers` | `JobTimeout` | Work                                                     |
-| -------------- | --------- | ------------ | ------------ | -------------------------------------------------------- |
-| `metadata`     | `default` | 2            | 60 s         | `yt-dlp -J`, eligibility, Source row                     |
-| `captions`     | `default` | 2            | 2 min        | fetch track, parse, usability test, normalize Transcript |
-| `transcribing` | `media`   | 1            | 45 min       | audio download, FFmpeg split, STT, overlap removal       |
-| `generating`   | `default` | 2            | 5 min        | note model call, validation, repair, Revision            |
-| `indexing`     | `default` | 2            | 10 min       | children, embeddings, then `ready`                       |
-| `regenerate`   | `default` | 2            | 5 min        | reuses `generating` then `indexing`                      |
+| Job kind       | Queue     | `MaxWorkers` | `JobTimeout` | Work                                                                      |
+| -------------- | --------- | ------------ | ------------ | ------------------------------------------------------------------------- |
+| `metadata`     | `default` | 2            | 60 s         | `yt-dlp -J`, which also writes the caption track; eligibility; Source row |
+| `captions`     | `default` | 2            | 2 min        | parse the stored track, usability test, normalize Transcript              |
+| `transcribing` | `media`   | 1            | 45 min       | audio download, FFmpeg split, STT, overlap removal                        |
+| `generating`   | `default` | 2            | 5 min        | note model call, validation, repair, Revision                             |
+| `indexing`     | `default` | 2            | 10 min       | children, embeddings, then `ready`                                        |
+| `regenerate`   | `default` | 2            | 5 min        | reuses `generating` then `indexing`                                       |
 
 `MaxAttempts: 4` everywhere — one try plus three retries. `RescueStuckJobsAfter` is
 `JobTimeout + 5m`, not River's 1-hour default, which would blow every target in section 15 after a

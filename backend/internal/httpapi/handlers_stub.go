@@ -48,11 +48,6 @@ func (s *Server) CreatePriceSet(_ context.Context, _ CreatePriceSetRequestObject
 	return nil, notImplemented("CreatePriceSet")
 }
 
-// CreateSubmission is not implemented yet.
-func (s *Server) CreateSubmission(_ context.Context, _ CreateSubmissionRequestObject) (CreateSubmissionResponseObject, error) {
-	return nil, notImplemented("CreateSubmission")
-}
-
 // CreateTopic is not implemented yet.
 func (s *Server) CreateTopic(_ context.Context, _ CreateTopicRequestObject) (CreateTopicResponseObject, error) {
 	return nil, notImplemented("CreateTopic")
@@ -123,11 +118,6 @@ func (s *Server) GetHealth(_ context.Context, _ GetHealthRequestObject) (GetHeal
 	return nil, notImplemented("GetHealth")
 }
 
-// GetNote is not implemented yet.
-func (s *Server) GetNote(_ context.Context, _ GetNoteRequestObject) (GetNoteResponseObject, error) {
-	return nil, notImplemented("GetNote")
-}
-
 // GetPairingRequest is not implemented yet.
 func (s *Server) GetPairingRequest(_ context.Context, _ GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error) {
 	return nil, notImplemented("GetPairingRequest")
@@ -156,11 +146,6 @@ func (s *Server) GetUsage(_ context.Context, _ GetUsageRequestObject) (GetUsageR
 // GetVapidPublicKey is not implemented yet.
 func (s *Server) GetVapidPublicKey(_ context.Context, _ GetVapidPublicKeyRequestObject) (GetVapidPublicKeyResponseObject, error) {
 	return nil, notImplemented("GetVapidPublicKey")
-}
-
-// ListNotes is not implemented yet.
-func (s *Server) ListNotes(_ context.Context, _ ListNotesRequestObject) (ListNotesResponseObject, error) {
-	return nil, notImplemented("ListNotes")
 }
 
 // ListPriceSets is not implemented yet.
@@ -271,11 +256,6 @@ func (s *Server) StartReindex(_ context.Context, _ StartReindexRequestObject) (S
 // TrashNote is not implemented yet.
 func (s *Server) TrashNote(_ context.Context, _ TrashNoteRequestObject) (TrashNoteResponseObject, error) {
 	return nil, notImplemented("TrashNote")
-}
-
-// UndoSubmission is not implemented yet.
-func (s *Server) UndoSubmission(_ context.Context, _ UndoSubmissionRequestObject) (UndoSubmissionResponseObject, error) {
-	return nil, notImplemented("UndoSubmission")
 }
 
 // UpdateAiRole is not implemented yet.

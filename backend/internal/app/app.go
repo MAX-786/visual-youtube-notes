@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/audit"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/auth"
@@ -19,6 +21,8 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/db"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/httpapi"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/notes"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ratelimit"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
@@ -66,15 +70,26 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 	brokerCtx, stop := context.WithCancel(context.Background())
 	go broker.Run(brokerCtx)
 
+	// An insert-only River client: the API enqueues the first Stage and
+	// cancels runs; it never works jobs.
+	riverClient, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Logger: logger})
+	if err != nil {
+		stop()
+		pool.Close()
+		return nil, fmt.Errorf("river client: %w", err)
+	}
+
 	handler := httpapi.NewRouter(httpapi.Deps{
-		Config:   cfg,
-		Pool:     pool,
-		Contract: c,
-		Limiter:  limiter,
-		Logger:   logger,
-		Audit:    recorder,
-		Auth:     authService,
-		Sync:     broker,
+		Config:      cfg,
+		Pool:        pool,
+		Contract:    c,
+		Limiter:     limiter,
+		Logger:      logger,
+		Audit:       recorder,
+		Auth:        authService,
+		Sync:        broker,
+		Submissions: pipeline.NewService(pool, riverClient, logger),
+		Notes:       notes.New(pool),
 		Authenticate: func(ctx context.Context, _ httpapi.Transport, credential string) *httpapi.Session {
 			s := authService.Authenticate(ctx, credential)
 			if s == nil {

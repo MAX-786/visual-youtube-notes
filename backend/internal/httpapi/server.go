@@ -24,6 +24,8 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/auth"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/contract"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/notes"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ratelimit"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
@@ -39,6 +41,9 @@ type Deps struct {
 	Audit    *audit.Recorder
 	Auth     *auth.Service
 	Sync     *vsync.Broker
+	// Submissions and Notes are the pipeline's write and read sides.
+	Submissions *pipeline.Service
+	Notes       *notes.Reader
 	// Authenticate identifies the Device session behind a request, or returns
 	// nil when the presented credential is absent or invalid. Every credential
 	// failure looks the same to the client (ADR 0003).
