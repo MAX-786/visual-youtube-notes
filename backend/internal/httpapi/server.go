@@ -26,6 +26,7 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/contract"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/edit"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/export"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/notes"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
@@ -55,6 +56,9 @@ type Deps struct {
 	Edit *edit.Service
 	// Push serves the VAPID public key; nil means Web Push is off.
 	Push *push.Sender
+	// Renderer turns the print document into a PDF (Gotenberg); nil answers
+	// every PDF export with renderer_unavailable (ADR 0011).
+	Renderer export.Renderer
 	// Authenticate identifies the Device session behind a request, or returns
 	// nil when the presented credential is absent or invalid. Every credential
 	// failure looks the same to the client (ADR 0003).

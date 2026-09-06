@@ -8,29 +8,9 @@ package httpapi
 
 import "context"
 
-// ExportLibrary is not implemented yet.
-func (s *Server) ExportLibrary(_ context.Context, _ ExportLibraryRequestObject) (ExportLibraryResponseObject, error) {
-	return nil, notImplemented("ExportLibrary")
-}
-
-// ExportNoteMarkdown is not implemented yet.
-func (s *Server) ExportNoteMarkdown(_ context.Context, _ ExportNoteMarkdownRequestObject) (ExportNoteMarkdownResponseObject, error) {
-	return nil, notImplemented("ExportNoteMarkdown")
-}
-
-// ExportNotePdf is not implemented yet.
-func (s *Server) ExportNotePdf(_ context.Context, _ ExportNotePdfRequestObject) (ExportNotePdfResponseObject, error) {
-	return nil, notImplemented("ExportNotePdf")
-}
-
 // GetHealth is not implemented yet.
 func (s *Server) GetHealth(_ context.Context, _ GetHealthRequestObject) (GetHealthResponseObject, error) {
 	return nil, notImplemented("GetHealth")
-}
-
-// GetTranscript is not implemented yet.
-func (s *Server) GetTranscript(_ context.Context, _ GetTranscriptRequestObject) (GetTranscriptResponseObject, error) {
-	return nil, notImplemented("GetTranscript")
 }
 
 // RecordRestoreDrill is not implemented yet.

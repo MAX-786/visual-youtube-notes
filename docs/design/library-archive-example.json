@@ -526,7 +526,7 @@
       },
       "transcript": {
         "id": "8c0a2e46-9d1b-4f37-a5e8-3b7c1d9f5a20",
-        "source_kind": "caption_auto",
+        "source_kind": "caption_automatic",
         "language_code": "en",
         "normalized_text": "A memory palace works because spatial memory is old and cheap. You are not learning the list, you are learning a walk you already know.",
         "created_at": "2026-07-28T07:45:31Z"
@@ -759,7 +759,7 @@
         },
         "unpriced_events": 0
       },
-      "checksum": "sha256:c41c3c96998edc07b12ff838dda3ff4d7a4fc6e3eaf0081015423ea7e786d15e"
+      "checksum": "sha256:526e24781ce7fb8a21b9426e2f03629e59f053933d5f007631fa88ceea76d216"
     }
   ],
   "integrity": {
@@ -771,6 +771,6 @@
       "notes": 2,
       "revisions": 3
     },
-    "digest": "sha256:0fedbc601252abf47f437f0e3cec7f9746ae1b1ef339cfb5057cd790f389018f"
+    "digest": "sha256:69fed5655b6561e5800b565a29d4aea03830edccab6e2ddfc3901fe8c8b5e4b9"
   }
 }

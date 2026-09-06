@@ -193,7 +193,9 @@
       "description": "Retained normalized text in the original language and script. Chunks do not travel: they are an indexing artifact that re-derives from this text.",
       "properties": {
         "id": { "$ref": "#/$defs/uuid" },
-        "source_kind": { "enum": ["caption_human", "caption_auto", "stt"] },
+        "source_kind": {
+          "enum": ["caption_human", "caption_automatic", "stt"]
+        },
         "language_code": { "$ref": "#/$defs/nonEmptyText" },
         "normalized_text": { "$ref": "#/$defs/nonEmptyText" },
         "created_at": { "$ref": "#/$defs/timestamp" }

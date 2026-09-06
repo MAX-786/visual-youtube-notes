@@ -226,6 +226,13 @@
   let instruction = $state("");
   let showRegenerate = $state(false);
 
+  // Exports are plain downloads streamed by the API (ADR 0011); the browser
+  // names the file from Content-Disposition. Transcript defaults off.
+  let exportTranscript = $state(false);
+  function exportHref(ext: "pdf" | "zip"): string {
+    return `/api/exports/notes/${noteId}.${ext}${exportTranscript ? "?transcript=true" : ""}`;
+  }
+
   async function regenerate(event: SubmitEvent) {
     event.preventDefault();
     if (!note) return;
@@ -365,6 +372,21 @@
           {/if}
         </div>
       </div>
+      {#if payload}
+        <details class="export">
+          <summary>Export</summary>
+          <div class="row wrap export-options">
+            <label class="row">
+              <input type="checkbox" bind:checked={exportTranscript} />
+              Include transcript
+            </label>
+            <a class="button" href={exportHref("pdf")} download>PDF</a>
+            <a class="button" href={exportHref("zip")} download
+              >Markdown (ZIP)</a
+            >
+          </div>
+        </details>
+      {/if}
       {#if showRegenerate}
         <form class="card stack" aria-label="Regenerate" onsubmit={regenerate}>
           <label class="field">
