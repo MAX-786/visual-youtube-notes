@@ -33,3 +33,11 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @visual-notes/web exec playwright install --with-deps chromium
       - run: pnpm e2e
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Applies every migration and .test.sql in a pgvector/pg17 container,
+      # then reverses the whole chain. See scripts/verify-migrations.sh.
+      - run: sh scripts/verify-migrations.sh
