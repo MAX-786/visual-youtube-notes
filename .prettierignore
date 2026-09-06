@@ -8,4 +8,5 @@ playwright-report
 test-results
 pnpm-lock.yaml
 backend/internal/httpapi/generated.gen.go
+docs/design/generation/generation-prototype.html
 packages/api-client/src/generated/schema.ts
