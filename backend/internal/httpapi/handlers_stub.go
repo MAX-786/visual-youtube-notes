@@ -18,11 +18,6 @@ func (s *Server) ActivateReindex(_ context.Context, _ ActivateReindexRequestObje
 	return nil, notImplemented("ActivateReindex")
 }
 
-// ActivateRevision is not implemented yet.
-func (s *Server) ActivateRevision(_ context.Context, _ ActivateRevisionRequestObject) (ActivateRevisionResponseObject, error) {
-	return nil, notImplemented("ActivateRevision")
-}
-
 // ApprovePairingRequest is not implemented yet.
 func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingRequestRequestObject) (ApprovePairingRequestResponseObject, error) {
 	return nil, notImplemented("ApprovePairingRequest")
@@ -43,34 +38,14 @@ func (s *Server) CreatePriceSet(_ context.Context, _ CreatePriceSetRequestObject
 	return nil, notImplemented("CreatePriceSet")
 }
 
-// CreateTopic is not implemented yet.
-func (s *Server) CreateTopic(_ context.Context, _ CreateTopicRequestObject) (CreateTopicResponseObject, error) {
-	return nil, notImplemented("CreateTopic")
-}
-
 // DeletePushSubscription is not implemented yet.
 func (s *Server) DeletePushSubscription(_ context.Context, _ DeletePushSubscriptionRequestObject) (DeletePushSubscriptionResponseObject, error) {
 	return nil, notImplemented("DeletePushSubscription")
 }
 
-// DeleteTag is not implemented yet.
-func (s *Server) DeleteTag(_ context.Context, _ DeleteTagRequestObject) (DeleteTagResponseObject, error) {
-	return nil, notImplemented("DeleteTag")
-}
-
-// DeleteTopic is not implemented yet.
-func (s *Server) DeleteTopic(_ context.Context, _ DeleteTopicRequestObject) (DeleteTopicResponseObject, error) {
-	return nil, notImplemented("DeleteTopic")
-}
-
 // DenyPairingRequest is not implemented yet.
 func (s *Server) DenyPairingRequest(_ context.Context, _ DenyPairingRequestRequestObject) (DenyPairingRequestResponseObject, error) {
 	return nil, notImplemented("DenyPairingRequest")
-}
-
-// DiscardRevision is not implemented yet.
-func (s *Server) DiscardRevision(_ context.Context, _ DiscardRevisionRequestObject) (DiscardRevisionResponseObject, error) {
-	return nil, notImplemented("DiscardRevision")
 }
 
 // EnableSemanticForMonth is not implemented yet.
@@ -113,11 +88,6 @@ func (s *Server) GetPairingRequest(_ context.Context, _ GetPairingRequestRequest
 	return nil, notImplemented("GetPairingRequest")
 }
 
-// GetRevision is not implemented yet.
-func (s *Server) GetRevision(_ context.Context, _ GetRevisionRequestObject) (GetRevisionResponseObject, error) {
-	return nil, notImplemented("GetRevision")
-}
-
 // GetSearchIndex is not implemented yet.
 func (s *Server) GetSearchIndex(_ context.Context, _ GetSearchIndexRequestObject) (GetSearchIndexResponseObject, error) {
 	return nil, notImplemented("GetSearchIndex")
@@ -148,34 +118,9 @@ func (s *Server) ListPushSubscriptions(_ context.Context, _ ListPushSubscription
 	return nil, notImplemented("ListPushSubscriptions")
 }
 
-// ListRevisions is not implemented yet.
-func (s *Server) ListRevisions(_ context.Context, _ ListRevisionsRequestObject) (ListRevisionsResponseObject, error) {
-	return nil, notImplemented("ListRevisions")
-}
-
-// ListTags is not implemented yet.
-func (s *Server) ListTags(_ context.Context, _ ListTagsRequestObject) (ListTagsResponseObject, error) {
-	return nil, notImplemented("ListTags")
-}
-
-// ListTopics is not implemented yet.
-func (s *Server) ListTopics(_ context.Context, _ ListTopicsRequestObject) (ListTopicsResponseObject, error) {
-	return nil, notImplemented("ListTopics")
-}
-
 // LogoutExtension is not implemented yet.
 func (s *Server) LogoutExtension(_ context.Context, _ LogoutExtensionRequestObject) (LogoutExtensionResponseObject, error) {
 	return nil, notImplemented("LogoutExtension")
-}
-
-// MergeTopic is not implemented yet.
-func (s *Server) MergeTopic(_ context.Context, _ MergeTopicRequestObject) (MergeTopicResponseObject, error) {
-	return nil, notImplemented("MergeTopic")
-}
-
-// MutateNote is not implemented yet.
-func (s *Server) MutateNote(_ context.Context, _ MutateNoteRequestObject) (MutateNoteResponseObject, error) {
-	return nil, notImplemented("MutateNote")
 }
 
 // PurgeNote is not implemented yet.
@@ -203,11 +148,6 @@ func (s *Server) RestoreNote(_ context.Context, _ RestoreNoteRequestObject) (Res
 	return nil, notImplemented("RestoreNote")
 }
 
-// RestoreRevision is not implemented yet.
-func (s *Server) RestoreRevision(_ context.Context, _ RestoreRevisionRequestObject) (RestoreRevisionResponseObject, error) {
-	return nil, notImplemented("RestoreRevision")
-}
-
 // RetryBlockedNotes is not implemented yet.
 func (s *Server) RetryBlockedNotes(_ context.Context, _ RetryBlockedNotesRequestObject) (RetryBlockedNotesResponseObject, error) {
 	return nil, notImplemented("RetryBlockedNotes")
@@ -221,21 +161,6 @@ func (s *Server) RetryNote(_ context.Context, _ RetryNoteRequestObject) (RetryNo
 // Search is not implemented yet.
 func (s *Server) Search(_ context.Context, _ SearchRequestObject) (SearchResponseObject, error) {
 	return nil, notImplemented("Search")
-}
-
-// SetPrimaryTopic is not implemented yet.
-func (s *Server) SetPrimaryTopic(_ context.Context, _ SetPrimaryTopicRequestObject) (SetPrimaryTopicResponseObject, error) {
-	return nil, notImplemented("SetPrimaryTopic")
-}
-
-// SetTags is not implemented yet.
-func (s *Server) SetTags(_ context.Context, _ SetTagsRequestObject) (SetTagsResponseObject, error) {
-	return nil, notImplemented("SetTags")
-}
-
-// SetTakeaway is not implemented yet.
-func (s *Server) SetTakeaway(_ context.Context, _ SetTakeawayRequestObject) (SetTakeawayResponseObject, error) {
-	return nil, notImplemented("SetTakeaway")
 }
 
 // StartReindex is not implemented yet.
@@ -253,24 +178,9 @@ func (s *Server) UpdateCostSettings(_ context.Context, _ UpdateCostSettingsReque
 	return nil, notImplemented("UpdateCostSettings")
 }
 
-// UpdateLayout is not implemented yet.
-func (s *Server) UpdateLayout(_ context.Context, _ UpdateLayoutRequestObject) (UpdateLayoutResponseObject, error) {
-	return nil, notImplemented("UpdateLayout")
-}
-
 // UpdatePushSubscription is not implemented yet.
 func (s *Server) UpdatePushSubscription(_ context.Context, _ UpdatePushSubscriptionRequestObject) (UpdatePushSubscriptionResponseObject, error) {
 	return nil, notImplemented("UpdatePushSubscription")
-}
-
-// UpdateTag is not implemented yet.
-func (s *Server) UpdateTag(_ context.Context, _ UpdateTagRequestObject) (UpdateTagResponseObject, error) {
-	return nil, notImplemented("UpdateTag")
-}
-
-// UpdateTopic is not implemented yet.
-func (s *Server) UpdateTopic(_ context.Context, _ UpdateTopicRequestObject) (UpdateTopicResponseObject, error) {
-	return nil, notImplemented("UpdateTopic")
 }
 
 // UpsertPushSubscription is not implemented yet.

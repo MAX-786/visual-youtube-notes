@@ -47,4 +47,5 @@ jobs:
       - run: sh scripts/verify-migrations.sh
       # Then the Go integration tests, against a freshly migrated container.
       - run: echo "VYN_TEST_DATABASE_URL=$(sh scripts/dev-db.sh)" >> "$GITHUB_ENV"
-      - run: go -C backend test ./...
+      # One package at a time: the integration tests share the one database.
+      - run: go -C backend test -p 1 ./...

@@ -13,6 +13,7 @@ import (
 
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/generation"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/library"
 )
 
 // expectedOutputTokens is the measured size of a note (cost-tracking.md).
@@ -196,7 +197,7 @@ func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID u
 	if topicName == "" {
 		topicName = "Uncategorized"
 	}
-	topicID, err := upsertNamed(ctx, tx, "topics", note.UserID, topicName)
+	topicID, err := library.UpsertNamed(ctx, tx, "topics", note.UserID, topicName)
 	if err != nil {
 		return err
 	}
@@ -207,12 +208,12 @@ func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID u
 		seen := map[string]bool{}
 		for _, tag := range stored.Tags {
 			name := strings.TrimSpace(tag)
-			key := NormalizeName(name)
+			key := library.NormalizeName(name)
 			if name == "" || seen[key] {
 				continue
 			}
 			seen[key] = true
-			tagID, err := upsertNamed(ctx, tx, "tags", note.UserID, name)
+			tagID, err := library.UpsertNamed(ctx, tx, "tags", note.UserID, name)
 			if err != nil {
 				return err
 			}
@@ -224,128 +225,13 @@ func storeRevision(ctx context.Context, tx pgx.Tx, note *NoteRow, transcriptID u
 	if _, err := tx.Exec(ctx, `INSERT INTO note_takeaways (note_id, user_id) VALUES ($1, $2) ON CONFLICT (note_id) DO NOTHING`, note.ID, note.UserID); err != nil {
 		return err
 	}
-	if err := seedLayout(ctx, tx, note, &stored.Diagram); err != nil {
+	if err := library.SeedLayout(ctx, tx, note.UserID, note.ID, &stored.Diagram); err != nil {
 		return err
 	}
-	if err := rebuildChildren(ctx, tx, note, stored, transcriptID); err != nil {
+	if err := library.RebuildChildren(ctx, tx, library.NoteHead{ID: note.ID, UserID: note.UserID, Title: deref(note.Title), Channel: deref(note.ChannelName), Payload: stored, Transcript: &transcriptID}); err != nil {
 		return err
 	}
 	return appendNoteUpdated(ctx, tx, note)
-}
-
-// NormalizeName is the identity of a Topic or Tag: case-folded, single
-// spaces, trimmed.
-func NormalizeName(name string) string {
-	return strings.ToLower(strings.Join(strings.Fields(name), " "))
-}
-
-// upsertNamed finds or creates a topic or tag by normalized name, keeping the
-// Owner's spelling when one exists.
-func upsertNamed(ctx context.Context, tx pgx.Tx, table string, userID uuid.UUID, name string) (uuid.UUID, error) {
-	var id uuid.UUID
-	err := tx.QueryRow(ctx, `
-		INSERT INTO `+table+` (user_id, name, normalized_name) VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, normalized_name) DO UPDATE SET name = `+table+`.name
-		RETURNING id`, userID, name, NormalizeName(name)).Scan(&id)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("upsert %s: %w", table, err)
-	}
-	return id, nil
-}
-
-// seedLayout gives every element a position, computing only the missing
-// ones and merging into the map (ADR 0011).
-func seedLayout(ctx context.Context, tx pgx.Tx, note *NoteRow, diagram *generation.StoredDiagram) error {
-	existing := map[string]generation.Position{}
-	var raw []byte
-	if err := tx.QueryRow(ctx, `SELECT positions FROM note_diagram_layouts WHERE note_id = $1`, note.ID).Scan(&raw); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-	if len(raw) > 0 {
-		_ = json.Unmarshal(raw, &existing)
-	}
-	missing := generation.Layout(diagram, existing)
-	if len(missing) == 0 {
-		return nil
-	}
-	data, err := json.Marshal(missing)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO note_diagram_layouts (note_id, user_id, positions) VALUES ($1, $2, $3)
-		ON CONFLICT (note_id) DO UPDATE SET positions = note_diagram_layouts.positions || EXCLUDED.positions, updated_at = now()`,
-		note.ID, note.UserID, data)
-	return err
-}
-
-// rebuildChildren replaces the Note's section children and makes sure every
-// Transcript chunk has one (search-ranking.md). tsv is generated, so
-// lexical search is correct the moment this commits; embeddings follow in
-// the indexing Stage.
-func rebuildChildren(ctx context.Context, tx pgx.Tx, note *NoteRow, stored *generation.StoredPayload, transcriptID uuid.UUID) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM search_children WHERE note_id = $1 AND kind <> 'transcript_chunk'`, note.ID); err != nil {
-		return err
-	}
-	insert := func(kind, weight string, ordinal int, elementID string, content string) error {
-		content = strings.TrimSpace(content)
-		if content == "" {
-			return nil
-		}
-		sum := sha256.Sum256([]byte(content))
-		var element *string
-		if elementID != "" {
-			element = &elementID
-		}
-		_, err := tx.Exec(ctx, `
-			INSERT INTO search_children (user_id, note_id, kind, weight, ordinal, element_id, content, content_hash)
-			VALUES ($1, $2, $3::search_child_kind, $4::"char", $5, $6, $7, $8)`,
-			note.UserID, note.ID, kind, weight, ordinal, element, content, sum[:])
-		return err
-	}
-	var topic, tags string
-	if err := tx.QueryRow(ctx, `
-		SELECT coalesce((SELECT t.name FROM topics t JOIN notes n ON n.primary_topic_id = t.id WHERE n.id = $1), ''),
-		       coalesce((SELECT string_agg(g.name, ' ' ORDER BY g.name) FROM note_tags nt JOIN tags g ON g.id = nt.tag_id WHERE nt.note_id = $1), '')`, note.ID).Scan(&topic, &tags); err != nil {
-		return err
-	}
-	if err := insert("metadata", "A", 0, "", strings.Join([]string{deref(note.Title), deref(note.ChannelName), topic, tags}, " ")); err != nil {
-		return err
-	}
-	if err := insert("summary", "B", 0, stored.Summary.ID, stored.Summary.Text); err != nil {
-		return err
-	}
-	for i, b := range stored.KeyPoints {
-		if err := insert("key_point", "B", i, b.ID, b.Text); err != nil {
-			return err
-		}
-	}
-	if err := insert("diagram", "B", 0, "", generation.TextAlternative(&stored.Diagram)); err != nil {
-		return err
-	}
-	var takeaway string
-	if err := tx.QueryRow(ctx, `SELECT text FROM note_takeaways WHERE note_id = $1`, note.ID).Scan(&takeaway); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-	if err := insert("takeaway", "B", 0, "", takeaway); err != nil {
-		return err
-	}
-	for i, b := range stored.ImportantDetails {
-		if err := insert("important_detail", "C", i, b.ID, b.Text); err != nil {
-			return err
-		}
-	}
-	for i, b := range stored.PracticalActions {
-		if err := insert("practical_action", "C", i, b.ID, b.Text); err != nil {
-			return err
-		}
-	}
-	_, err := tx.Exec(ctx, `
-		INSERT INTO search_children (user_id, note_id, kind, weight, ordinal, transcript_chunk_id, content, content_hash)
-		SELECT $1, $2, 'transcript_chunk', 'D', c.ordinal, c.id, c.chunk_text, sha256(convert_to(c.chunk_text, 'UTF8'))
-		  FROM transcript_chunks c WHERE c.transcript_id = $3
-		ON CONFLICT (transcript_chunk_id) WHERE transcript_chunk_id IS NOT NULL DO NOTHING`, note.UserID, note.ID, transcriptID)
-	return err
 }
 
 func equalUUID(a, b *uuid.UUID) bool {

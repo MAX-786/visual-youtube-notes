@@ -1,17 +1,54 @@
 <script lang="ts">
+  // The Note page: the Active Revision rendered and, in editing mode, edited
+  // in place. Every change goes through the write-through queue (ADR 0012):
+  // applied locally, stored, and drained against the Revision this page
+  // last saw as Active. Conflicts and stale takeaways are surfaced, never
+  // silently resolved (ADR 0004).
   import { page } from "$app/state";
   import { onMount } from "svelte";
+  import type { components } from "@visual-notes/api-client";
   import { api, errorMessage } from "$lib/api";
   import { getNote, putNoteDetail, type Note } from "$lib/db";
   import { onSync } from "$lib/live.svelte";
-  import { deriveTextAlternative } from "$lib/diagram";
-  import DiagramCanvas from "$lib/components/DiagramCanvas.svelte";
-  import TimelineList from "$lib/components/TimelineList.svelte";
+  import { deriveTextAlternative, type PositionMap } from "$lib/diagram";
+  import {
+    enqueueLayout,
+    enqueueMutation,
+    enqueueTags,
+    enqueueTakeaway,
+    enqueueTopic,
+    onQueueResult,
+    queue,
+  } from "$lib/queue.svelte";
+  import BlockEditor from "$lib/components/BlockEditor.svelte";
   import ComparisonTable from "$lib/components/ComparisonTable.svelte";
+  import ConflictBanner from "$lib/components/ConflictBanner.svelte";
+  import DiagramCanvas from "$lib/components/DiagramCanvas.svelte";
+  import DiagramEditor from "$lib/components/DiagramEditor.svelte";
+  import TimelineList from "$lib/components/TimelineList.svelte";
+  import VersionHistory from "$lib/components/VersionHistory.svelte";
+
+  type MutationOp = components["schemas"]["MutationOp"];
+
+  const TAKEAWAY_DEBOUNCE_MS = 2000;
 
   let note = $state<Note | null>(null);
   let error = $state<string | null>(null);
+  let editing = $state(false);
+  /** The Revision the next edit is based on: the Active one as last seen. */
+  let base = $state("");
+  let takeawayDraft = $state("");
+  let takeawayCursor = $state(0);
+  let takeawayDirty = $state(false);
+  let takeawayTimer: ReturnType<typeof setTimeout> | null = null;
+  let topicDraft = $state("");
+  let topicDirty = $state(false);
+  let tagsDraft = $state("");
+  let tagsDirty = $state(false);
+  let topicNames = $state<string[]>([]);
+  let history: ReturnType<typeof VersionHistory> | undefined = $state();
 
+  const noteId = $derived(page.params.id ?? "");
   const revision = $derived(note?.active_revision ?? null);
   const payload = $derived(revision?.payload ?? null);
   const textAlternative = $derived(
@@ -27,18 +64,43 @@
         }[payload.diagram.type]
       : "",
   );
+  const stale = $derived(queue.staleTakeaways.get(noteId) ?? null);
+  const dropped = $derived(queue.dropped.get(noteId) ?? null);
+  const conflict = $derived(queue.conflicts.get(noteId) ?? null);
+
+  const dropReasons: Record<string, string> = {
+    validation_failed:
+      "the change would have left the note in an invalid shape",
+    mutation_expired: "it waited more than thirty days to sync",
+    note_trashed: "the note is in the trash",
+    note_purged: "the note has been deleted for good",
+    revision_not_active:
+      "a regenerated version was waiting for a decision at the time",
+    takeaway_stale: "another device wrote a takeaway first",
+  };
+
+  function apply(fresh: Note) {
+    note = fresh;
+    base = fresh.active_revision_id ?? "";
+    if (!takeawayDirty) {
+      takeawayDraft = fresh.takeaway.text;
+      takeawayCursor = fresh.takeaway.updated_cursor;
+    }
+    if (!topicDirty) topicDraft = fresh.primary_topic?.name ?? "";
+    if (!tagsDirty) tagsDraft = fresh.tags.map((t) => t.name).join(", ");
+  }
 
   async function load() {
-    const id = page.params.id ?? "";
+    const id = noteId;
     const cached = await getNote(id);
-    if (cached?.detail) note = cached.detail;
+    if (cached?.detail) apply(cached.detail);
     const {
       data,
       error: failure,
       response,
     } = await api.GET("/notes/{noteId}", { params: { path: { noteId: id } } });
     if (data) {
-      note = data;
+      apply(data);
       await putNoteDetail(data);
     } else if (!note) {
       error =
@@ -50,14 +112,110 @@
 
   onMount(() => {
     void load();
-    return onSync((event) => {
-      if (
-        event.note_id === page.params.id ||
-        event.entity_id === page.params.id
-      )
-        void load();
+    const offSync = onSync((event) => {
+      if (event.note_id === noteId || event.entity_id === noteId) void load();
     });
+    const offQueue = onQueueResult((id, body) => {
+      if (id !== noteId) return;
+      const result = body as {
+        outcome?: string;
+        revision_id?: string;
+        takeaway?: { updated_cursor?: number };
+      } | null;
+      if (result?.outcome === "applied" && result.revision_id) {
+        base = result.revision_id;
+      }
+      if (result?.takeaway?.updated_cursor != null) {
+        takeawayCursor = result.takeaway.updated_cursor;
+        takeawayDirty = false;
+      }
+      void load();
+      void history?.load();
+    });
+    return () => {
+      offSync();
+      offQueue();
+    };
   });
+
+  async function toggleEditing() {
+    editing = !editing;
+    if (editing && topicNames.length === 0) {
+      const { data } = await api.GET("/topics");
+      if (data) topicNames = data.topics.map((t) => t.name);
+    }
+    if (!editing) flushTakeaway();
+  }
+
+  function emit(ops: MutationOp[]) {
+    if (!note || ops.length === 0) return;
+    void enqueueMutation(note.id, base, ops);
+  }
+
+  function moved(positions: PositionMap) {
+    if (!note) return;
+    void enqueueLayout(note.id, positions);
+  }
+
+  function takeawayTyped() {
+    takeawayDirty = true;
+    if (takeawayTimer) clearTimeout(takeawayTimer);
+    takeawayTimer = setTimeout(flushTakeaway, TAKEAWAY_DEBOUNCE_MS);
+  }
+  function flushTakeaway() {
+    if (takeawayTimer) clearTimeout(takeawayTimer);
+    takeawayTimer = null;
+    if (!note || !takeawayDirty) return;
+    if (takeawayDraft === note.takeaway.text) {
+      takeawayDirty = false;
+      return;
+    }
+    void enqueueTakeaway(note.id, takeawayDraft, takeawayCursor);
+  }
+  function keepMyTakeaway() {
+    if (!note || !stale) return;
+    const cursor = stale.server_cursor;
+    queue.staleTakeaways.delete(note.id);
+    queue.dropped.delete(note.id);
+    takeawayCursor = cursor;
+    takeawayDirty = true;
+    void enqueueTakeaway(note.id, takeawayDraft, cursor);
+  }
+  function takeTheirTakeaway() {
+    if (!note || !stale) return;
+    takeawayDraft = stale.server_text;
+    takeawayCursor = stale.server_cursor;
+    takeawayDirty = false;
+    queue.staleTakeaways.delete(note.id);
+    queue.dropped.delete(note.id);
+  }
+
+  function commitTopic() {
+    if (!note) return;
+    const name = topicDraft.trim();
+    topicDirty = false;
+    if (!name || name === (note.primary_topic?.name ?? "")) return;
+    void enqueueTopic(note.id, { name });
+  }
+  function commitTags() {
+    if (!note) return;
+    const tags = [
+      ...new Set(
+        tagsDraft
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      ),
+    ];
+    tagsDirty = false;
+    const current = note.tags.map((t) => t.name);
+    if (
+      tags.length === current.length &&
+      tags.every((t, i) => t === current[i])
+    )
+      return;
+    void enqueueTags(note.id, tags);
+  }
 
   function duration(seconds: number | null | undefined): string {
     if (seconds == null) return "";
@@ -91,7 +249,17 @@
 {:else}
   <article class="note stack">
     <header>
-      <h1>{note.source.title ?? `Video ${note.source.video_id}`}</h1>
+      <div class="row between top">
+        <h1>{note.source.title ?? `Video ${note.source.video_id}`}</h1>
+        {#if payload}
+          <button
+            type="button"
+            class:primary={!editing}
+            aria-pressed={editing}
+            onclick={toggleEditing}>{editing ? "Done editing" : "Edit"}</button
+          >
+        {/if}
+      </div>
       <p class="muted meta">
         {#if note.source.channel_name}{note.source.channel_name} ·
         {/if}
@@ -121,22 +289,93 @@
             >{stageLabel[note.processing.state] ?? note.processing.state}</span
           >
         {/if}
+        {#if queue.pending > 0}
+          <span class="badge processing" role="status"
+            >{queue.pending === 1
+              ? "1 edit waiting to sync"
+              : `${queue.pending} edits waiting to sync`}</span
+          >
+        {/if}
       </p>
     </header>
 
-    {#if payload}
-      <section class="card">
-        <p class="summary" class:claim={payload.summary.speaker_claim}>
-          {payload.summary.text}
-        </p>
+    {#if editing}
+      <section class="card stack" aria-label="Topic and tags">
+        <label class="field">
+          <span>Topic</span>
+          <input
+            type="text"
+            list="topic-names"
+            maxlength="120"
+            bind:value={topicDraft}
+            oninput={() => (topicDirty = true)}
+            onchange={commitTopic}
+          />
+        </label>
+        <datalist id="topic-names">
+          {#each topicNames as name (name)}<option value={name}></option>{/each}
+        </datalist>
+        <label class="field">
+          <span>Tags, separated by commas</span>
+          <input
+            type="text"
+            bind:value={tagsDraft}
+            oninput={() => (tagsDirty = true)}
+            onchange={commitTags}
+          />
+        </label>
       </section>
+    {/if}
+
+    <ConflictBanner {note} onchange={load} />
+
+    {#if conflict}
+      <div class="card warn row between" role="status">
+        <span>
+          Another device changed this note first, so your edit was kept as a
+          separate version for you to decide on.
+        </span>
+        <button type="button" onclick={() => queue.conflicts.delete(noteId)}
+          >Dismiss</button
+        >
+      </div>
+    {/if}
+    {#if dropped && dropped !== "takeaway_stale"}
+      <div class="card warn row between" role="alert">
+        <span>
+          An edit could not be saved because {dropReasons[dropped] ??
+            "the server refused it"}. The note shows the server's version.
+        </span>
+        <button type="button" onclick={() => queue.dropped.delete(noteId)}
+          >Dismiss</button
+        >
+      </div>
+    {/if}
+
+    {#if payload}
+      {#if editing}
+        <BlockEditor
+          title="Summary"
+          section="summary"
+          blocks={[payload.summary]}
+          {emit}
+        />
+      {:else}
+        <section class="card">
+          <p class="summary" class:claim={payload.summary.speaker_claim}>
+            {payload.summary.text}
+          </p>
+        </section>
+      {/if}
 
       <section class="stack">
         <div class="row between">
           <h2>{diagramName}</h2>
           <span class="muted small">
             {#if payload.diagram.type === "mind_map" || payload.diagram.type === "process_flow"}
-              drag to pan, pinch or scroll to zoom, tap a “+” to expand
+              {editing
+                ? "drag a box to move it, tap a “+” to expand"
+                : "drag to pan, pinch or scroll to zoom, tap a “+” to expand"}
             {/if}
           </span>
         </div>
@@ -144,11 +383,16 @@
           <DiagramCanvas
             diagram={payload.diagram}
             positions={note.layout.positions}
+            editable={editing}
+            onmove={moved}
           />
         {:else if payload.diagram.type === "timeline"}
           <TimelineList diagram={payload.diagram} />
         {:else}
           <ComparisonTable diagram={payload.diagram} />
+        {/if}
+        {#if editing}
+          <DiagramEditor diagram={payload.diagram} {emit} />
         {/if}
         <details class="card">
           <summary>Text version of the diagram</summary>
@@ -156,78 +400,108 @@
         </details>
       </section>
 
-      <section class="card stack">
-        <h2>Key points</h2>
-        <ul class="blocks">
-          {#each payload.key_points as block (block.id)}
-            <li class:claim={block.speaker_claim} data-element-id={block.id}>
-              {block.text}
-              {#if block.speaker_claim}<span class="badge">speaker claim</span
-                >{/if}
-            </li>
-          {/each}
-        </ul>
-      </section>
-
-      {#if payload.important_details.length > 0}
+      {#if editing}
+        <BlockEditor
+          title="Key points"
+          section="key_points"
+          blocks={payload.key_points}
+          minimum={1}
+          {emit}
+        />
+        <BlockEditor
+          title="Important details"
+          section="important_details"
+          blocks={payload.important_details}
+          {emit}
+        />
+        <BlockEditor
+          title="What I can use"
+          section="practical_actions"
+          blocks={payload.practical_actions}
+          {emit}
+        />
+      {:else}
         <section class="card stack">
-          <h2>Important details</h2>
+          <h2>Key points</h2>
           <ul class="blocks">
-            {#each payload.important_details as block (block.id)}
+            {#each payload.key_points as block (block.id)}
               <li class:claim={block.speaker_claim} data-element-id={block.id}>
                 {block.text}
                 {#if block.speaker_claim}<span class="badge">speaker claim</span
+                  >{/if}
+                {#if block.provenance === "user_edited"}<span class="badge"
+                    >edited</span
                   >{/if}
               </li>
             {/each}
           </ul>
         </section>
-      {/if}
 
-      {#if payload.practical_actions.length > 0}
-        <section class="card stack">
-          <h2>What I can use</h2>
-          <ul class="blocks">
-            {#each payload.practical_actions as block (block.id)}
-              <li class:claim={block.speaker_claim} data-element-id={block.id}>
-                {block.text}
-              </li>
-            {/each}
-          </ul>
-        </section>
+        {#if payload.important_details.length > 0}
+          <section class="card stack">
+            <h2>Important details</h2>
+            <ul class="blocks">
+              {#each payload.important_details as block (block.id)}
+                <li
+                  class:claim={block.speaker_claim}
+                  data-element-id={block.id}
+                >
+                  {block.text}
+                  {#if block.speaker_claim}<span class="badge"
+                      >speaker claim</span
+                    >{/if}
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
+
+        {#if payload.practical_actions.length > 0}
+          <section class="card stack">
+            <h2>What I can use</h2>
+            <ul class="blocks">
+              {#each payload.practical_actions as block (block.id)}
+                <li
+                  class:claim={block.speaker_claim}
+                  data-element-id={block.id}
+                >
+                  {block.text}
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
       {/if}
 
       <section class="card stack">
         <h2>My takeaway</h2>
-        {#if note.takeaway.text}
-          <p>{note.takeaway.text}</p>
-        {:else}
-          <p class="muted">
-            Nothing written yet. Editing arrives with the next release of this
-            app.
-          </p>
+        <textarea
+          rows="3"
+          aria-label="My takeaway"
+          maxlength="20000"
+          placeholder="What will you do with this?"
+          bind:value={takeawayDraft}
+          oninput={takeawayTyped}
+          onblur={flushTakeaway}></textarea>
+        {#if stale}
+          <div class="card warn stack" role="alert">
+            <p>
+              Another device wrote a takeaway first. Theirs reads:
+              <q>{stale.server_text}</q>
+            </p>
+            <div class="row">
+              <button type="button" class="primary" onclick={keepMyTakeaway}
+                >Keep mine</button
+              >
+              <button type="button" onclick={takeTheirTakeaway}
+                >Use theirs</button
+              >
+            </div>
+          </div>
         {/if}
       </section>
 
-      <details class="card">
-        <summary>
-          Version history · revision {revision?.revision_number}
-          {#if note.pending_revisions.length > 0}
-            · {note.pending_revisions.length} awaiting a decision{/if}
-        </summary>
-        <ul class="blocks">
-          <li>
-            Revision {revision?.revision_number} ({revision?.origin}), active,
-            {when(revision?.created_at)}
-          </li>
-          {#each note.pending_revisions as pending (pending.id)}
-            <li>
-              Revision {pending.revision_number} ({pending.origin}), awaiting a
-              decision since {when(pending.awaiting_decision_since)}
-            </li>
-          {/each}
-        </ul>
-      </details>
+      <VersionHistory bind:this={history} {noteId} onchange={load} />
 
       <details class="card">
         <summary>Processing and cost</summary>
@@ -279,6 +553,13 @@
 {/if}
 
 <style>
+  .top {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .top h1 {
+    margin: 0;
+  }
   .meta {
     margin: 0.25rem 0 0;
   }
@@ -322,5 +603,13 @@
   }
   h2 {
     margin: 0;
+  }
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  q {
+    font-style: italic;
   }
 </style>

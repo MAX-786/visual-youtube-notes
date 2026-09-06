@@ -5,6 +5,7 @@
   import { page } from "$app/state";
   import Nav from "$lib/components/Nav.svelte";
   import { startLive, stopLive } from "$lib/live.svelte";
+  import { startQueue } from "$lib/queue.svelte";
   import { session } from "$lib/session.svelte";
 
   let { children } = $props();
@@ -16,9 +17,15 @@
     }
   });
 
+  let queueStarted = false;
   $effect(() => {
-    if (session.status === "signed-in") startLive();
-    else stopLive();
+    if (session.status === "signed-in") {
+      startLive();
+      if (!queueStarted) {
+        queueStarted = true;
+        startQueue();
+      }
+    } else stopLive();
   });
 </script>
 

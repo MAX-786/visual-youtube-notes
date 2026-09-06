@@ -20,6 +20,7 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/contract"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/db"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/edit"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/httpapi"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/notes"
@@ -92,6 +93,7 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 		Submissions: pipeline.NewService(pool, riverClient, logger),
 		Notes:       notes.New(pool),
 		AI:          ai.NewStore(pool, ring),
+		Edit:        edit.New(pool),
 		Authenticate: func(ctx context.Context, _ httpapi.Transport, credential string) *httpapi.Session {
 			s := authService.Authenticate(ctx, credential)
 			if s == nil {

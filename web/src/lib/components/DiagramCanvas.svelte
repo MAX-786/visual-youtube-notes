@@ -2,6 +2,8 @@
   // Mind maps and process flows: an SVG drawn from the server's boxes
   // (ADR 0011), with pan and zoom, collapsed groups behind their anchors,
   // and selectable text. The client never lays out; it renders coordinates.
+  // In editing mode a box can be dragged; the move is reported once the
+  // pointer lifts and the server keeps it in the Layout (ADR 0004).
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import {
     groupOf,
@@ -15,12 +17,20 @@
   let {
     diagram,
     positions,
-  }: { diagram: GraphDiagram; positions: PositionMap } = $props();
+    editable = false,
+    onmove,
+  }: {
+    diagram: GraphDiagram;
+    positions: PositionMap;
+    editable?: boolean;
+    onmove?: (positions: PositionMap) => void;
+  } = $props();
 
   const LINE = 20;
   const PAD_X = 14;
   const PAD_Y = 10;
   const MARGIN = 32;
+  const DRAG_THRESHOLD_PX = 4;
 
   let expanded = new SvelteSet<string>();
   let scale = $state(1);
@@ -28,13 +38,35 @@
   let ty = $state(0);
   let host = $state<HTMLDivElement | null>(null);
 
+  // Boxes moved here and not yet echoed back by the server.
+  let moved = $state<PositionMap>({});
+  const shown = $derived<PositionMap>({ ...positions, ...moved });
+  $effect(() => {
+    const landed = Object.keys(moved).filter((id) => {
+      const server = positions[id];
+      const local = moved[id];
+      return (
+        server &&
+        server.x === local.x &&
+        server.y === local.y &&
+        server.w === local.w &&
+        server.h === local.h
+      );
+    });
+    if (landed.length > 0) {
+      const next = { ...moved };
+      for (const id of landed) delete next[id];
+      moved = next;
+    }
+  });
+
   const hidden = $derived(groupOf(diagram));
   const badges = $derived(membersByAnchor(diagram));
   const isFlow = $derived(diagram.type === "process_flow");
 
   const visibleNodes = $derived(
     diagram.nodes.filter((node) => {
-      if (!positions[node.id]) return false;
+      if (!shown[node.id]) return false;
       const group = hidden.get(node.id);
       return node.initially_visible || (group ? expanded.has(group) : false);
     }),
@@ -49,7 +81,7 @@
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const node of visibleNodes) {
-      const p = positions[node.id];
+      const p = shown[node.id];
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x + p.w);
@@ -91,8 +123,8 @@
     return { x: c.x + dx * t, y: c.y + dy * t };
   }
   function segment(fromId: string, toId: string) {
-    const a = positions[fromId];
-    const b = positions[toId];
+    const a = shown[fromId];
+    const b = shown[toId];
     const start = exitPoint(a, center(b));
     const end = exitPoint(b, center(a));
     return {
@@ -130,9 +162,32 @@
   // Capture only once a drag has begun, so a plain tap still reaches the
   // badge or node underneath it.
   let captured = false;
+  // A box being dragged, with where the pointer went down.
+  let drag: {
+    id: string;
+    startX: number;
+    startY: number;
+    box: Position;
+    travelled: number;
+  } | null = null;
+
+  function onNodePointerDown(nodeId: string, event: PointerEvent) {
+    if (!editable || pointers.size > 0) return;
+    const box = shown[nodeId];
+    drag = {
+      id: nodeId,
+      startX: event.clientX,
+      startY: event.clientY,
+      box,
+      travelled: 0,
+    };
+  }
   function onPointerDown(event: PointerEvent) {
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.size === 2) pinchDistance = distance();
+    if (pointers.size === 2) {
+      pinchDistance = distance();
+      drag = null;
+    }
   }
   function distance(): number {
     const [a, b] = [...pointers.values()];
@@ -146,7 +201,20 @@
       captured = true;
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     }
-    if (pointers.size === 1) {
+    if (pointers.size === 1 && drag) {
+      const k = unitsPerPixel() / scale;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      drag.travelled = Math.max(drag.travelled, Math.hypot(dx, dy));
+      moved = {
+        ...moved,
+        [drag.id]: {
+          ...drag.box,
+          x: Math.round(drag.box.x + dx * k),
+          y: Math.round(drag.box.y + dy * k),
+        },
+      };
+    } else if (pointers.size === 1) {
       const k = unitsPerPixel();
       tx += (event.clientX - previous.x) * k;
       ty += (event.clientY - previous.y) * k;
@@ -160,6 +228,17 @@
     pointers.delete(event.pointerId);
     pinchDistance = 0;
     if (pointers.size === 0) captured = false;
+    if (drag) {
+      const finished = drag;
+      drag = null;
+      if (finished.travelled >= DRAG_THRESHOLD_PX && moved[finished.id]) {
+        onmove?.({ [finished.id]: moved[finished.id] });
+      } else if (moved[finished.id]) {
+        const next = { ...moved };
+        delete next[finished.id];
+        moved = next;
+      }
+    }
   }
   function onWheel(event: WheelEvent) {
     event.preventDefault();
@@ -169,6 +248,7 @@
 
 <div
   class="canvas"
+  class:editable
   bind:this={host}
   role="application"
   aria-label={isFlow ? "Process flow diagram" : "Mind map diagram"}
@@ -215,14 +295,17 @@
         {/if}
       {/each}
       {#each visibleNodes as node (node.id)}
-        {@const p = positions[node.id]}
+        {@const p = shown[node.id]}
         {@const badge = badges.get(node.id) ?? 0}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <g
           class="node"
           class:root={"kind" in node && node.kind === "root"}
           class:claim={node.speaker_claim}
           class:anchor={badge > 0}
+          class:movable={editable}
           data-element-id={node.id}
+          onpointerdown={(e) => onNodePointerDown(node.id, e)}
         >
           <rect x={p.x} y={p.y} width={p.w} height={p.h} rx="8" />
           <text
@@ -293,6 +376,9 @@
   .canvas:active {
     cursor: grabbing;
   }
+  .canvas.editable {
+    border-color: var(--accent);
+  }
   svg {
     width: 100%;
     height: 100%;
@@ -335,6 +421,9 @@
   }
   .node.anchor {
     cursor: pointer;
+  }
+  .node.movable {
+    cursor: move;
   }
   .badge circle {
     fill: var(--accent);
