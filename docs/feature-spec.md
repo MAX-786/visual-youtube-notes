@@ -567,7 +567,7 @@ V1 is done when all of the following pass on the production-like OCI deployment:
 - Offline edits and a shared URL sync when connectivity returns without silent loss.
 - Access-token refresh maintains a trusted 30-day session; rotating refresh reuse is rejected.
 - The user can revoke one session or all sessions, including the extension.
-- Push notifications can be enabled/disabled and occur only for ready or failed jobs.
+- Push notifications can be enabled/disabled and occur only when a job reaches a state that waits for the user: ready, failed, or held at the cost cap. Intermediate pipeline stages never notify. Note notifications and operational alerts can be enabled independently.
 
 ### Cost and operations
 

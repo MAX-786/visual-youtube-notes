@@ -28,7 +28,7 @@ reachable signed out, `(app)` sits behind the session gate.
 | `/settings/account` | 5 Settings           | `(app)`  | Password, sessions, sign out everywhere.                                 |
 | `/settings/ai`      | 5 Settings           | `(app)`  | Roles, models, `request_options`, key entry and verification.            |
 | `/settings/usage`   | 5 Settings           | `(app)`  | Per-note and monthly spend, soft cap, held Notes.                        |
-| `/settings/backups` | 5 Settings           | `(app)`  | Backup health, library archive download.                                 |
+| `/settings/health`  | 5 Settings           | `(app)`  | Every `system_health` row, drill log, library archive download.          |
 | `/trash`            | 6 Trash              | `(app)`  | Restore and purge.                                                       |
 | `/pair/[requestId]` | —                    | `(app)`  | Extension pairing approval. Two segments — needs the fallback fix below. |
 

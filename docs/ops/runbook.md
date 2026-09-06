@@ -34,6 +34,11 @@ Read this once, now, rather than inferring it during an incident.
 | age recovery identity (`vyn-recovery.txt`) | **Password manager only**                           | **No.** Never on this host            |
 | `extension_signing_key.pem`                | **Developer machine and password manager**          | Regenerable, but see below            |
 
+Rotating `vapid_private_key` invalidates **every** Web Push subscription: RFC 8292 binds a
+subscription to the key that created it, so rotation means truncating `push_subscriptions` and
+re-subscribing each device from Settings. See
+[ADR 0014](../adr/0014-web-push-subscriptions-and-notification-copy.md).
+
 `extension_signing_key.pem` is the odd one out: it is **not** a Compose secret and never reaches
 this host. It pins the Chromium extension's ID (`fjodmlmkfifedoamachdbgigfpaldicm`) via the `key`
 committed to the manifest. Regenerating it is technically easy and operationally expensive — a new
