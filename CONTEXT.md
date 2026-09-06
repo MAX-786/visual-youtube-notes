@@ -153,7 +153,7 @@ One user-visible step of a Job: queued, metadata, captions, transcribing, genera
 _Avoid_: Step, phase, state
 
 **Attempt**:
-One try at a Stage, persisted before every external call. At most three automatic Attempts per Stage.
+One try at a Stage, persisted before every external call. One initial Attempt plus at most three automatic retries per Stage.
 _Avoid_: Retry (that is the act of creating another Attempt)
 
 **Transient failure**:

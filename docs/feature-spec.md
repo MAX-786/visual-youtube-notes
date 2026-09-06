@@ -302,7 +302,7 @@ User-visible states are:
 
 Internal lifecycle also includes `cancelling` and `cancelled`. Undo during the five-second delay hard-deletes the pending note/job. Delete after work begins moves the note to Trash, requests cooperative cancellation, and discards late results. An already accepted external request may still finish and incur cost.
 
-Any stage may become `failed`. Each stage receives at most three automatic attempts with delays of approximately 30 seconds, two minutes, and ten minutes. Network failures, timeouts, provider 429/5xx responses, and extractor breakage are transient. Validation failures and provider 4xx responses other than 408/409/429 are permanent unless the user changes settings/input. The UI shows the exact failed stage and offers only **Retry** and **Delete**.
+Any stage may become `failed`. Each stage receives one initial attempt plus at most three automatic retries, delayed approximately 30 seconds, two minutes, and ten minutes. Network failures, timeouts, provider 429/5xx responses, and extractor breakage are transient. Validation failures and provider 4xx responses other than 408/409/429 are permanent unless the user changes settings/input. The UI shows the exact failed stage and offers only **Retry** and **Delete**.
 
 Manual Retry creates a new attempt, reuses stored metadata/captions/transcript, never reuses temporary media, and warns that new AI charges may occur. Persist a stage/attempt record before every external call and its response fingerprint afterward; use provider idempotency keys when available. A crash between a provider response and persistence can still cause a duplicate paid call and is recorded as an accepted at-least-once boundary.
 
@@ -403,7 +403,7 @@ For each role, store provider, model identifier, endpoint where applicable, and 
 - Retry the configured model, but never silently switch providers.
 - Show monthly aggregate usage in Settings and per-note cost in note metadata.
 - Default to a configurable $10 monthly soft cap covering all AI roles, including regeneration and query embeddings. The calendar month follows the account timezone.
-- Check the estimated charge before enqueue. In-flight work finishes and counts toward the current month. At the cap, each new transcript-based job requires one explicit cost confirmation; V1.1 visual enhancement is disabled first.
+- Check the estimated charge at the first point it can be computed and before any paid call: after the free metadata and caption stages for a new submission, or at submission for a regeneration or a retry that already holds a transcript. In-flight work finishes and counts toward the current month. At the cap, each run requires one explicit cost confirmation before its first paid call; a held submission notifies the owner and waits, and is never resumed automatically. V1.1 visual enhancement is disabled first.
 - At the cap, semantic query embeddings pause and Search visibly falls back to keyword results until the user raises the cap or explicitly re-enables semantic search for the month.
 - Keep versioned per-model price settings because providers may report tokens/seconds without monetary cost. Changing a price never rewrites historical estimates.
 
@@ -452,11 +452,13 @@ Docker Compose services:
 - Go API
 - Go worker
 - PostgreSQL with `pgvector`
+- One-shot migration job that gates the API and worker
+- Headless Chromium (Gotenberg) for PDF rendering, kept out of the worker image
 - Backup job/container
 
 The OCI host provides 4 vCPU and 24 GB RAM. Default worker concurrency should be conservative and configurable so downloads, FFmpeg, and indexing do not starve PostgreSQL or the API.
 
-Start with two concurrent general jobs but serialize FFmpeg/STT preparation per job when CPU or disk pressure crosses configured thresholds. Compose uses explicit persistent volumes, health checks, restart policies, migration jobs, disk-usage alerts, and bounded structured-log retention. Deployment documentation includes forward migration, rollback procedure, stuck-job inspection, backup-failure alerting, and `yt-dlp` update/rollback.
+Start with two concurrent general jobs and run FFmpeg/STT preparation on a single-worker queue so it is always serialized; before media preparation begins, check free space on the temporary volume and fail the stage clearly below a configured floor. Compose uses explicit persistent volumes, health checks, restart policies, migration jobs, disk-usage alerts, and bounded structured-log retention. Deployment documentation includes forward migration, rollback procedure, stuck-job inspection, backup-failure alerting, and `yt-dlp` update/rollback.
 
 ### Recommended resource/API boundaries
 
