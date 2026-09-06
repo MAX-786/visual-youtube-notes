@@ -8,16 +8,6 @@ package httpapi
 
 import "context"
 
-// AbandonReindex is not implemented yet.
-func (s *Server) AbandonReindex(_ context.Context, _ AbandonReindexRequestObject) (AbandonReindexResponseObject, error) {
-	return nil, notImplemented("AbandonReindex")
-}
-
-// ActivateReindex is not implemented yet.
-func (s *Server) ActivateReindex(_ context.Context, _ ActivateReindexRequestObject) (ActivateReindexResponseObject, error) {
-	return nil, notImplemented("ActivateReindex")
-}
-
 // ApprovePairingRequest is not implemented yet.
 func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingRequestRequestObject) (ApprovePairingRequestResponseObject, error) {
 	return nil, notImplemented("ApprovePairingRequest")
@@ -66,11 +56,6 @@ func (s *Server) GetHealth(_ context.Context, _ GetHealthRequestObject) (GetHeal
 // GetPairingRequest is not implemented yet.
 func (s *Server) GetPairingRequest(_ context.Context, _ GetPairingRequestRequestObject) (GetPairingRequestResponseObject, error) {
 	return nil, notImplemented("GetPairingRequest")
-}
-
-// GetSearchIndex is not implemented yet.
-func (s *Server) GetSearchIndex(_ context.Context, _ GetSearchIndexRequestObject) (GetSearchIndexResponseObject, error) {
-	return nil, notImplemented("GetSearchIndex")
 }
 
 // GetTranscript is not implemented yet.
@@ -126,16 +111,6 @@ func (s *Server) RetryBlockedNotes(_ context.Context, _ RetryBlockedNotesRequest
 // RetryNote is not implemented yet.
 func (s *Server) RetryNote(_ context.Context, _ RetryNoteRequestObject) (RetryNoteResponseObject, error) {
 	return nil, notImplemented("RetryNote")
-}
-
-// Search is not implemented yet.
-func (s *Server) Search(_ context.Context, _ SearchRequestObject) (SearchResponseObject, error) {
-	return nil, notImplemented("Search")
-}
-
-// StartReindex is not implemented yet.
-func (s *Server) StartReindex(_ context.Context, _ StartReindexRequestObject) (StartReindexResponseObject, error) {
-	return nil, notImplemented("StartReindex")
 }
 
 // TrashNote is not implemented yet.

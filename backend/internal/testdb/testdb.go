@@ -38,7 +38,8 @@ func Reset(t *testing.T, pool *pgxpool.Pool) {
 		         note_mutations, sync_events, sync_cursors,
 		         search_embeddings, search_children, stage_attempts, note_stages,
 		         note_diagram_layouts, note_takeaways, note_tags, note_revisions,
-		         transcript_chunks, transcripts, notes, tags, topics, sources, users
+		         transcript_chunks, transcripts, notes, tags, topics, sources, users,
+		         river_job
 		RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("reset test database: %v", err)

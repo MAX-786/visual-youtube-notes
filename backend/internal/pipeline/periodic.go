@@ -38,6 +38,7 @@ func PeriodicJobs() []*river.PeriodicJob {
 	return []*river.PeriodicJob{
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour), func() (river.JobArgs, *river.InsertOpts) { return SweepArgs{}, nil }, &river.PeriodicJobOpts{RunOnStart: true}),
 		river.NewPeriodicJob(river.PeriodicInterval(15*time.Minute), func() (river.JobArgs, *river.InsertOpts) { return ReapArgs{}, nil }, &river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Hour), func() (river.JobArgs, *river.InsertOpts) { return EmbedSweepArgs{}, nil }, &river.PeriodicJobOpts{RunOnStart: true}),
 	}
 }
 
@@ -45,6 +46,8 @@ func PeriodicJobs() []*river.PeriodicJob {
 func RegisterPeriodicWorkers(workers *river.Workers, d *Deps) {
 	river.AddWorker(workers, &sweepWorker{deps: d})
 	river.AddWorker(workers, &reapWorker{deps: d})
+	river.AddWorker(workers, &reindexWorker{deps: d})
+	river.AddWorker(workers, &embedSweepWorker{deps: d})
 }
 
 type sweepWorker struct {

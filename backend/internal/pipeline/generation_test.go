@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,10 +107,8 @@ func (f *fakeOpenAI) RoundTrip(req *http.Request) (*http.Response, error) {
 		raw, _ := io.ReadAll(req.Body)
 		_ = json.Unmarshal(raw, &in)
 		data := make([]any, len(in.Input))
-		for i := range in.Input {
-			vec := make([]float32, f.dimension)
-			vec[i%f.dimension] = 1
-			data[i] = map[string]any{"index": i, "embedding": vec}
+		for i, text := range in.Input {
+			data[i] = map[string]any{"index": i, "embedding": fakeEmbedding(text, f.dimension)}
 		}
 		body = map[string]any{"data": data, "usage": map[string]any{"total_tokens": 1234}}
 	default:
@@ -116,6 +116,37 @@ func (f *fakeOpenAI) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	raw, _ := json.Marshal(body)
 	return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(raw)), Header: http.Header{"Content-Type": {"application/json"}}, Request: req}, nil
+}
+
+// fakeEmbedding hashes each word's first five letters into a dimension and
+// normalizes, so texts sharing stems are close and unrelated ones are not.
+func fakeEmbedding(text string, dimension int) []float32 {
+	vec := make([]float32, dimension)
+	var norm float64
+	for _, word := range strings.Fields(strings.ToLower(text)) {
+		word = strings.Trim(word, ".,;:!?\"'()[]")
+		if len(word) < 3 {
+			continue
+		}
+		if len(word) > 5 {
+			word = word[:5]
+		}
+		h := fnv.New32a()
+		_, _ = h.Write([]byte(word))
+		vec[int(h.Sum32()%uint32(dimension))]++
+	}
+	for _, v := range vec {
+		norm += float64(v * v)
+	}
+	if norm == 0 {
+		vec[0] = 1
+		return vec
+	}
+	scale := float32(1 / math.Sqrt(norm))
+	for i := range vec {
+		vec[i] *= scale
+	}
+	return vec
 }
 
 type fixtureTranscript struct {

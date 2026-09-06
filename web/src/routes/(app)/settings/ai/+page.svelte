@@ -190,6 +190,54 @@
   }
 
   onMount(() => void load());
+  // The search index: which model search reads, and the reindex that moves
+  // it to another (ADR 0005). Search keeps reading the old model until the
+  // flip, which is gated on every ready Note having vectors.
+  type SearchIndexState = components["schemas"]["SearchIndexState"];
+  let index = $state<SearchIndexState | null>(null);
+  let indexMessage = $state<string | null>(null);
+  let indexFailed = $state(false);
+  let reindexModel = $state("");
+  let indexBusy = $state(false);
+
+  async function loadIndex() {
+    const { data } = await api.GET("/settings/search-index");
+    if (data) index = data;
+  }
+
+  async function indexAction(
+    action: "reindex" | "activate" | "abandon",
+    okText: string,
+  ) {
+    indexBusy = true;
+    indexMessage = null;
+    const { data, error, response } =
+      action === "reindex"
+        ? await api.POST("/settings/search-index/reindex", {
+            body: { model: reindexModel.trim() },
+          })
+        : action === "activate"
+          ? await api.POST("/settings/search-index/activate")
+          : await api.DELETE("/settings/search-index/reindex");
+    indexBusy = false;
+    if (!data) {
+      const details = (
+        error as { error?: { details?: Record<string, unknown> } } | undefined
+      )?.error?.details;
+      const missing = details?.incomplete_notes;
+      indexFailed = true;
+      indexMessage =
+        response.status === 409 && missing != null
+          ? `Not yet: ${String(missing)} notes still lack vectors under the incoming model. Wait for the reindex to finish.`
+          : errorMessage(error, "That could not be done.");
+      return;
+    }
+    index = data;
+    indexFailed = false;
+    indexMessage = okText;
+  }
+
+  onMount(() => void loadIndex());
 </script>
 
 <svelte:head>
@@ -322,6 +370,86 @@
       {/if}
     {/each}
   </div>
+{/if}
+
+{#if index}
+  <section class="card stack" aria-label="Search index">
+    <h2>Search index</h2>
+    <p class="muted">
+      Search reads <strong>{index.active_embedding_model}</strong>
+      ({index.embedding_dimension}
+      dimensions).
+      {#if index.children_needing_embedding > 0}
+        {index.children_needing_embedding} recently edited sections are waiting for
+        vectors; the hourly sweep embeds them.
+      {/if}
+    </p>
+    {#if index.reindexing_into_model}
+      <p>
+        Reindexing into <strong>{index.reindexing_into_model}</strong> since
+        {new Date(index.reindex_started_at ?? "").toLocaleString()}.
+        {#if index.incomplete_notes > 0}
+          {index.incomplete_notes} notes still lack vectors.
+        {:else}
+          Every note is covered; the flip can go ahead.
+        {/if}
+      </p>
+      <div class="row">
+        <button
+          type="button"
+          class="primary"
+          disabled={indexBusy}
+          onclick={() =>
+            indexAction("activate", "Search now reads the new model.")}
+        >
+          Activate the new model
+        </button>
+        <button
+          type="button"
+          disabled={indexBusy}
+          onclick={() =>
+            indexAction(
+              "abandon",
+              "Reindex abandoned; the incoming vectors were removed.",
+            )}
+        >
+          Abandon
+        </button>
+      </div>
+    {:else}
+      <form
+        class="row wrap"
+        aria-label="Start a reindex"
+        onsubmit={(e) => {
+          e.preventDefault();
+          void indexAction(
+            "reindex",
+            "Reindex started. Search keeps reading the current model until you activate the new one.",
+          );
+        }}
+      >
+        <label class="field">
+          <span>Reindex into model</span>
+          <input
+            type="text"
+            bind:value={reindexModel}
+            required
+            maxlength="128"
+            placeholder="text-embedding-3-small"
+          />
+        </label>
+        <button type="submit" disabled={indexBusy}>Start reindex</button>
+      </form>
+      <p class="muted">
+        Set the embeddings role to that model first; the reindex calls with that
+        role&rsquo;s key and options, and the model must produce {index.embedding_dimension}-dimensional
+        vectors.
+      </p>
+    {/if}
+    {#if indexMessage}
+      <p class={indexFailed ? "error" : "ok"} role="status">{indexMessage}</p>
+    {/if}
+  </section>
 {/if}
 
 <style>

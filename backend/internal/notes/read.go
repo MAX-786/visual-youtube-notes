@@ -247,6 +247,28 @@ func (r *Reader) Card(ctx context.Context, userID, noteID uuid.UUID) (*Card, err
 	return scanCard(r.pool.QueryRow(ctx, cardSelect+` WHERE n.id = $1 AND n.user_id = $2`, noteID, userID))
 }
 
+// Cards reads several cards at once, keyed by id; ids the user does not
+// own are simply absent.
+func (r *Reader) Cards(ctx context.Context, userID uuid.UUID, ids []uuid.UUID) (map[uuid.UUID]*Card, error) {
+	out := map[uuid.UUID]*Card{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, cardSelect+` WHERE n.user_id = $1 AND n.id = ANY($2::uuid[])`, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		card, err := scanCard(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[card.ID] = card
+	}
+	return out, rows.Err()
+}
+
 // List pages cards by Save time descending, then id ascending.
 func (r *Reader) List(ctx context.Context, userID uuid.UUID, f Filter) (*Page, error) {
 	var tz string

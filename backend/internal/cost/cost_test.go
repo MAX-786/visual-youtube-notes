@@ -114,9 +114,10 @@ func TestRaisingAPriceNeverChangesASnapshottedCharge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Ten times the price, effective now: a new version, never an edit.
+	// Ten times the price, in force a minute ago (the database clock may
+	// trail this one): a new version, never an edit.
 	note := "cost_test"
-	created, err := CreatePriceSet(ctx, pool, PriceSet{Provider: "openai", Model: "gpt-transcribe", UnitPrices: ai.UnitMap{"audio_seconds": tenfoldPrice}, EffectiveFrom: time.Now(), SourceNote: &note})
+	created, err := CreatePriceSet(ctx, pool, PriceSet{Provider: "openai", Model: "gpt-transcribe", UnitPrices: ai.UnitMap{"audio_seconds": tenfoldPrice}, EffectiveFrom: time.Now().Add(-time.Minute), SourceNote: &note})
 	if err != nil {
 		t.Fatal(err)
 	}

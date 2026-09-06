@@ -126,6 +126,7 @@ func setupWith(t *testing.T, configure func(*Deps)) (*Deps, *Service, *fakeExtra
 	}
 	workers := river.NewWorkers()
 	RegisterWorkers(workers, deps)
+	RegisterPeriodicWorkers(workers, deps)
 	client, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Queues:            map[string]river.QueueConfig{QueueDefault: {MaxWorkers: 2}, QueueMedia: {MaxWorkers: 1}},
 		Workers:           workers,
