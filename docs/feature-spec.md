@@ -399,7 +399,7 @@ An admin-only Settings page configures four independent processing roles:
 
 For each role, store provider, model identifier, endpoint where applicable, and API key. Model identifiers are runtime configuration rather than hard-coded product assumptions. Preferred models may be selected when their APIs are actually available.
 
-- Encrypt API keys at rest with an application master key supplied through the server environment.
+- Encrypt API keys at rest with an application master key supplied to the server as a mounted secret file rather than an environment variable, because the worker continuously spawns child processes that would inherit it. The file holds versioned keys so the current and previous key can both be loaded during a rotation.
 - Retry the configured model, but never silently switch providers.
 - Show monthly aggregate usage in Settings and per-note cost in note metadata.
 - Default to a configurable $10 monthly soft cap covering all AI roles, including regeneration and query embeddings. The calendar month follows the account timezone.

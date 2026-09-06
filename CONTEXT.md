@@ -168,6 +168,10 @@ _Avoid_: Hard error, fatal
 A failure caused by the pinned extraction tool being broken by an upstream change rather than by the video or the network. Permanent under the current pin and cleared by updating it, so it is the Owner's to fix, not the user's to retry.
 _Avoid_: Extractor failure (it read as Transient and hid this case)
 
+**Master key**:
+The application encryption key that seals provider API keys at rest. Supplied to the server as a mounted file holding versioned keys, never through the environment, and backed up separately under an owner-held recovery secret.
+_Avoid_: Encryption key (ambiguous with the backup repository password), secret
+
 **Processing role**:
 One of the four independently configured AI slots: transcription, note generation, embeddings, visual analysis.
 _Avoid_: Model slot, provider
