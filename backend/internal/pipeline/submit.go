@@ -56,6 +56,14 @@ type Service struct {
 	pool   *pgxpool.Pool
 	client *river.Client[pgx.Tx]
 	log    *slog.Logger
+	// push, when true, queues note notifications for the worker to send.
+	push bool
+}
+
+// WithPush turns on notification jobs for the runs this service starts.
+func (s *Service) WithPush() *Service {
+	s.push = true
+	return s
 }
 
 // NewService builds the submission service around an insert-only River

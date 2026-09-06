@@ -6,8 +6,8 @@
 // The service worker caches the application shell and nothing else
 // (ADR 0012): every cached byte of user data lives in IndexedDB, written by
 // the application, so there is one invalidation mechanism rather than two.
-// `/api/*` is never intercepted. Push handlers are added by the Web Push
-// slice.
+// `/api/*` is never intercepted. Push messages carry their own copy and
+// route (ADR 0014); the service worker shows them and never fetches.
 import { build, files, version } from "$service-worker";
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
@@ -78,6 +78,112 @@ sw.addEventListener("fetch", (event) => {
         }
       }
       return fetch(request);
+    })(),
+  );
+});
+
+// Web Push (ADR 0014): the payload carries the copy, the URL and the tag,
+// encrypted end to end, so nothing is fetched here. The tag collapses a
+// later message about the same Note onto the earlier one.
+type PushPayload = {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  kind: string;
+  noteId?: string;
+};
+
+sw.addEventListener("push", (event) => {
+  let payload: PushPayload | null;
+  try {
+    payload = event.data ? (event.data.json() as PushPayload) : null;
+  } catch {
+    payload = null;
+  }
+  const title = payload?.title ?? "Visual Notes";
+  event.waitUntil(
+    sw.registration.showNotification(title, {
+      body: payload?.body ?? "",
+      tag: payload?.tag ?? "vyn",
+      data: { url: payload?.url ?? "/", kind: payload?.kind ?? "" },
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+    }),
+  );
+});
+
+sw.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(
+    (event.notification.data as { url?: string } | undefined)?.url ?? "/",
+    sw.location.origin,
+  ).href;
+  event.waitUntil(
+    (async () => {
+      const clientList = await sw.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of clientList) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(target);
+          return;
+        }
+      }
+      await sw.clients.openWindow(target);
+    })(),
+  );
+});
+
+// The push service rotated the subscription: re-subscribe with the same
+// options and hand the server both endpoints so it swaps the row.
+sw.addEventListener("pushsubscriptionchange", (event) => {
+  const change = event as Event & {
+    oldSubscription: PushSubscription | null;
+    newSubscription: PushSubscription | null;
+  };
+  event.waitUntil(
+    (async () => {
+      const old = change.oldSubscription;
+      const options = old?.options;
+      const fresh =
+        change.newSubscription ??
+        (options
+          ? await sw.registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: options.applicationServerKey,
+            })
+          : null);
+      if (!fresh) return;
+      const key = (name: PushEncryptionKeyName) => {
+        const raw = fresh.getKey(name);
+        if (!raw) return "";
+        let text = "";
+        for (const b of new Uint8Array(raw)) text += String.fromCharCode(b);
+        return btoa(text)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/, "");
+      };
+      await fetch("/api/push-subscriptions", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: fresh.endpoint,
+          keys: { p256dh: key("p256dh"), auth: key("auth") },
+          expiration_time: fresh.expirationTime
+            ? new Date(fresh.expirationTime).toISOString()
+            : null,
+          notes_enabled: true,
+          ops_enabled: true,
+          ...(old && old.endpoint !== fresh.endpoint
+            ? { replaces_endpoint: old.endpoint }
+            : {}),
+        }),
+      }).catch(() => undefined);
     })(),
   );
 });

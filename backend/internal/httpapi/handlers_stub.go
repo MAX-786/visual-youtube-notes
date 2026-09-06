@@ -8,11 +8,6 @@ package httpapi
 
 import "context"
 
-// DeletePushSubscription is not implemented yet.
-func (s *Server) DeletePushSubscription(_ context.Context, _ DeletePushSubscriptionRequestObject) (DeletePushSubscriptionResponseObject, error) {
-	return nil, notImplemented("DeletePushSubscription")
-}
-
 // ExportLibrary is not implemented yet.
 func (s *Server) ExportLibrary(_ context.Context, _ ExportLibraryRequestObject) (ExportLibraryResponseObject, error) {
 	return nil, notImplemented("ExportLibrary")
@@ -38,27 +33,7 @@ func (s *Server) GetTranscript(_ context.Context, _ GetTranscriptRequestObject) 
 	return nil, notImplemented("GetTranscript")
 }
 
-// GetVapidPublicKey is not implemented yet.
-func (s *Server) GetVapidPublicKey(_ context.Context, _ GetVapidPublicKeyRequestObject) (GetVapidPublicKeyResponseObject, error) {
-	return nil, notImplemented("GetVapidPublicKey")
-}
-
-// ListPushSubscriptions is not implemented yet.
-func (s *Server) ListPushSubscriptions(_ context.Context, _ ListPushSubscriptionsRequestObject) (ListPushSubscriptionsResponseObject, error) {
-	return nil, notImplemented("ListPushSubscriptions")
-}
-
 // RecordRestoreDrill is not implemented yet.
 func (s *Server) RecordRestoreDrill(_ context.Context, _ RecordRestoreDrillRequestObject) (RecordRestoreDrillResponseObject, error) {
 	return nil, notImplemented("RecordRestoreDrill")
-}
-
-// UpdatePushSubscription is not implemented yet.
-func (s *Server) UpdatePushSubscription(_ context.Context, _ UpdatePushSubscriptionRequestObject) (UpdatePushSubscriptionResponseObject, error) {
-	return nil, notImplemented("UpdatePushSubscription")
-}
-
-// UpsertPushSubscription is not implemented yet.
-func (s *Server) UpsertPushSubscription(_ context.Context, _ UpsertPushSubscriptionRequestObject) (UpsertPushSubscriptionResponseObject, error) {
-	return nil, notImplemented("UpsertPushSubscription")
 }

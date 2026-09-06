@@ -25,6 +25,7 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/notes"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ratelimit"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
@@ -81,6 +82,20 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 		return nil, fmt.Errorf("river client: %w", err)
 	}
 
+	// Web Push (ADR 0014): the API serves the public key and sends the
+	// operational alerts, because the worker may be the thing that died.
+	var sender *push.Sender
+	if keys, err := push.LoadKeys(cfg.VapidPrivateKeyFile); err != nil {
+		logger.Warn("web push disabled: the VAPID key could not be loaded", "err", err)
+	} else {
+		sender = push.NewSender(keys, cfg.PublicOrigin, logger)
+		go push.NewOps(pool, sender, logger).Run(brokerCtx)
+	}
+	submissions := pipeline.NewService(pool, riverClient, logger)
+	if sender != nil {
+		submissions = submissions.WithPush()
+	}
+
 	handler := httpapi.NewRouter(httpapi.Deps{
 		Config:      cfg,
 		Pool:        pool,
@@ -90,10 +105,11 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 		Audit:       recorder,
 		Auth:        authService,
 		Sync:        broker,
-		Submissions: pipeline.NewService(pool, riverClient, logger),
+		Submissions: submissions,
 		Notes:       notes.New(pool),
 		AI:          ai.NewStore(pool, ring),
 		Edit:        edit.New(pool),
+		Push:        sender,
 		Authenticate: func(ctx context.Context, _ httpapi.Transport, credential string) *httpapi.Session {
 			s := authService.Authenticate(ctx, credential)
 			if s == nil {

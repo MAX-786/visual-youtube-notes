@@ -12,6 +12,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/cost"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
 
@@ -110,6 +111,8 @@ func (s *Service) Retry(ctx context.Context, userID, noteID uuid.UUID) (*RunStar
 		if err := enqueueStage(ctx, s.client, tx, Run{NoteID: noteID, ProcessingVersion: version}, failed, time.Time{}); err != nil {
 			return nil, err
 		}
+	} else if err := s.notifyHeld(ctx, tx, note); err != nil {
+		return nil, err
 	}
 	if _, err := vsync.Append(ctx, tx, userID, vsync.EntityNote, noteID, nil, vsync.ChangeUpdated, nil); err != nil {
 		return nil, err
@@ -178,6 +181,11 @@ func (s *Service) Regenerate(ctx context.Context, userID, noteID uuid.UUID, inst
 	if err := setStageJob(ctx, tx, Run{NoteID: noteID, ProcessingVersion: version}, StageGenerating, inserted.Job.ID); err != nil {
 		return nil, err
 	}
+	if start.Held {
+		if err := s.notifyHeld(ctx, tx, note); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := vsync.Append(ctx, tx, userID, vsync.EntityNote, noteID, nil, vsync.ChangeUpdated, nil); err != nil {
 		return nil, err
 	}
@@ -240,6 +248,15 @@ func gateNow(ctx context.Context, tx pgx.Tx, note *NoteRow) (bool, string, error
 		return false, "", err
 	}
 	return true, projection.TotalUSD, nil
+}
+
+// notifyHeld tells every device a run waits for the Owner's confirmation.
+func (s *Service) notifyHeld(ctx context.Context, tx pgx.Tx, note *NoteRow) error {
+	if !s.push {
+		return nil
+	}
+	_, err := s.client.InsertTx(ctx, tx, PushNoteArgs{UserID: note.UserID, NoteID: note.ID, Event: push.Held, Title: deref(note.Title)}, nil)
+	return err
 }
 
 // rolesConfigured refuses a run when a required role holds no key.

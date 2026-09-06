@@ -22,6 +22,7 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/db"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
 )
 
 func main() {
@@ -66,6 +67,11 @@ func run(logger *slog.Logger) error {
 		// The only image with FFmpeg (spec 13); the binaries are on PATH there.
 		Media:            pipeline.NewFFmpeg(cfg.Worker.FFmpegBin, cfg.Worker.FFprobeBin),
 		TempMinFreeBytes: cfg.Worker.TempMinFreeBytes,
+	}
+	if keys, err := push.LoadKeys(cfg.VapidPrivateKeyFile); err != nil {
+		logger.Warn("web push disabled: the VAPID key could not be loaded", "err", err)
+	} else {
+		deps.Push = push.NewSender(keys, cfg.PublicOrigin, logger)
 	}
 	deps.Hooks.BeforePaidStage = pipeline.CostGate
 	// A restart means no Attempt of this worker is running: whatever is

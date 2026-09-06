@@ -17,6 +17,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
 	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
 
@@ -39,6 +40,8 @@ type Deps struct {
 	Media            Media
 	TempMinFreeBytes int64
 	MaxUploadBytes   int64
+	// Push sends note notifications (ADR 0014); nil sends none.
+	Push *push.Sender
 	// Hooks let later slices plug the paid Stages in without the runner
 	// knowing them: the cost gate after captions, and the providers.
 	Hooks Hooks
@@ -169,6 +172,7 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 			if err := failStage(context.WithoutCancel(ctx), d.Pool, run, stage); err != nil {
 				return err
 			}
+			notifyFailure(context.WithoutCancel(ctx), d, note, se)
 			return river.JobCancel(workErr)
 		}
 		if job.Attempt >= job.MaxAttempts {
@@ -176,6 +180,7 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 			if err := failStage(context.WithoutCancel(ctx), d.Pool, run, stage); err != nil {
 				return err
 			}
+			notifyFailure(context.WithoutCancel(ctx), d, note, se)
 		}
 		return workErr
 	}
@@ -238,6 +243,9 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 		if err := publishProgress(ctx, tx, locked.UserID, run, "ready", "", "", job.Attempt); err != nil {
 			logger.Warn("progress publish failed", "err", err)
 		}
+		if err := enqueueNotePush(ctx, d, tx, locked, push.Ready, ""); err != nil {
+			return err
+		}
 	} else if res.next != "" {
 		proceed := true
 		// The gate sits after captions, the last free Stage, whatever the
@@ -252,6 +260,8 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 			if err := enqueueStage(ctx, d.Client, tx, run, res.next, time.Time{}); err != nil {
 				return err
 			}
+		} else if err := enqueueNotePush(ctx, d, tx, locked, push.Held, ""); err != nil {
+			return err
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -259,6 +269,18 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 	}
 	logger.Info("stage ready")
 	return nil
+}
+
+// notifyFailure sends the failed notification, extractor breakage worded
+// as the tool's fault rather than the video's (ADR 0009, ADR 0014).
+func notifyFailure(ctx context.Context, d *Deps, note *NoteRow, se *StageError) {
+	kind := push.Failed
+	if se.Verdict == ExtractorBreakage {
+		kind = push.FailedExtractor
+	}
+	if err := EnqueueNotePushNow(ctx, d, note, kind, se.Message); err != nil {
+		d.Logger.Warn("failure notification not queued", "note", note.ID, "err", err)
+	}
 }
 
 // enqueueStage inserts the next Stage's job and records it on its row.
