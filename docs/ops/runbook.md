@@ -53,6 +53,88 @@ is explicit that there is no recovery path.
 
 ## First deploy (one-time)
 
+### 0. Prepare the host and bring the stack up
+
+Everything below runs on the OCI host as a user in the `docker` group, from `~/vyn/deploy`. The host
+holds `compose.yaml`, `.env`, and `secrets/` and never the source tree (ADR 0008).
+
+1. **Install Docker Engine with the Compose plugin** (Ubuntu 24.04: the `docker-ce`,
+   `docker-ce-cli`, `containerd.io`, `docker-compose-plugin` packages from Docker's apt repository;
+   Compose must be v2.24 or newer for `deploy.resources.limits` outside Swarm, and v5 is what the
+   stack was verified on). Open ports 80 and 443 in the OCI security list **and** in the host
+   firewall (`iptables`/`ufw` on Oracle images block them by default).
+
+2. **Fetch the deploy directory.** The repository is private, so pull the three files with an
+   authenticated clone or copy them over SFTP from your checkout:
+
+   ```bash
+   mkdir -p ~/vyn && cd ~/vyn
+   git clone --depth 1 --filter=blob:none --sparse git@github.com:MAX-786/visual-youtube-notes.git src
+   git -C src sparse-checkout set deploy
+   cp -r src/deploy . && rm -rf src
+   cd deploy && mkdir -p secrets && chmod 700 secrets
+   ```
+
+3. **Log in to GHCR** so the host can pull the private images. Create a classic personal access
+   token with only `read:packages`, then:
+
+   ```bash
+   echo "<token>" | docker login ghcr.io -u MAX-786 --password-stdin
+   ```
+
+4. **Write the secrets.** One file each, no trailing newline except where noted, mode 600:
+
+   ```bash
+   umask 077
+   openssl rand -hex 24 > secrets/postgres_password
+   printf '1:%s\n' "$(openssl rand -base64 32)" > secrets/master_key
+   openssl rand -hex 24 > secrets/restic_password
+   openssl rand -hex 24 > secrets/restic_sftp_password
+   ssh-keygen -t ed25519 -N '' -C vyn-backup -f secrets/restic_sftp_key   # its .pub goes on the laptop
+   openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > secrets/vapid_private_key
+   ```
+
+   Put `restic_password` and `restic_sftp_password` in your password manager **now**: they are the
+   two secrets with no recovery path (see the table above). `master_key` is the file the API refuses
+   to boot without when a stored provider key names a version it lacks (ADR 0010); it is backed up
+   inside every snapshot under the recovery identity from step 2 below.
+
+5. **Write `.env`** from `.env.example`. `APP_VERSION` is the tag the "Build images" workflow
+   printed in its summary for the commit you are deploying (`YYYY.MM.DD-<sha8>`);
+   `BACKUP_RECOVERY_RECIPIENT` is the public line of the identity from step 2 below;
+   `RESTIC_SFTP_REPO` may stay empty for the very first boot and be filled in later.
+
+6. **Pull and start:**
+
+   ```bash
+   docker compose pull
+   docker compose up -d postgres
+   docker compose run --rm --entrypoint restic backup --repo /var/lib/restic --password-file /run/secrets/restic_password init
+   docker compose up -d
+   docker compose ps
+   ```
+
+   Within about a minute `river-migrate` and `migrate` show `Exited (0)` and every other service
+   shows `healthy`. The backup repository is initialised before the full `up` because the sidecar
+   refuses to start against a missing one (step 1 below explains why).
+
+7. **Create the Owner** (the only account; the command refuses a second):
+
+   ```bash
+   docker compose exec -e VYN_DATABASE_PASSWORD_FILE=/run/secrets/postgres_password api \
+     api create-owner --username <name> --display-name "<Display name>" --timezone Asia/Calcutta --password-stdin
+   ```
+
+   Type the password (12 characters or more) and press Enter, then Ctrl-D.
+
+8. **Point Cloudflare at the host**: a proxied `A` record for `yt-track.mkhismkh.com` to the host's
+   public IP, SSL/TLS mode **Full** (not strict: Caddy uses its internal CA), and "Always Use HTTPS"
+   on. Then open https://yt-track.mkhismkh.com, sign in, go to Settings → AI, and paste the OpenAI
+   key into Note generation and Embeddings (and Transcription, if you want speech to text). Each
+   save verifies the key against OpenAI and shows the verdict beside its four-character hint.
+
+Then continue with the numbered steps below; step 3 is the one that produces a fact nobody has yet.
+
 ### 1. Initialise the backup repositories
 
 Nothing creates these automatically. The daily script refuses to start against a missing repository,

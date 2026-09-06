@@ -1,0 +1,19 @@
+# The image builds copy the repository root as their context (deploy/images/*).
+# Keep the host's dependency trees, build output, secrets and scratch out of
+# it: a copied pnpm symlink farm breaks the in-image install, and nothing
+# below is needed to build an image.
+.git
+.github
+**/node_modules
+**/.svelte-kit
+**/build
+**/dist
+**/test-results
+**/playwright-report
+**/*.exe
+**/*.log
+deploy/secrets
+deploy/.env
+docs
+*.md
+!deploy/**/*.md

@@ -11,9 +11,13 @@ FROM node:24-trixie-slim AS web
 RUN corepack enable
 WORKDIR /src
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
+# The whole workspace: the lockfile describes every member, and pnpm resolves
+# the api-client's own dependencies only when the workspace is complete.
+# .dockerignore keeps the host's node_modules and build output out.
 COPY packages/ ./packages/
+COPY extension/ ./extension/
 COPY web/ ./web/
-RUN pnpm install --frozen-lockfile --filter ./web...
+RUN pnpm install --frozen-lockfile
 RUN pnpm --filter ./web build
 
 FROM caddy:2.10-alpine

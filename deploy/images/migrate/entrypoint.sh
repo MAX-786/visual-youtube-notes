@@ -24,10 +24,16 @@ die() { echo "migrate[$MODE]: $*" >&2; exit 1; }
 
 [ -r "$PGPASSWORD_FILE" ] || die "cannot read password file $PGPASSWORD_FILE"
 
-# The password is read here rather than interpolated into a Compose `command:`
-# so it never appears in `docker inspect` or in this process's argv.
-PGPASSWORD="$(cat "$PGPASSWORD_FILE")"
-DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}?sslmode=disable"
+# The password is read here rather than interpolated into a Compose `command:`.
+# tr strips the trailing newline and any carriage return a secret written
+# on Windows may carry; initdb strips both when it sets the password.
+PGPASSWORD="$(tr -d '\r\n' < "$PGPASSWORD_FILE")"
+export PGPASSWORD
+# The password travels in PGPASSWORD, which pgx (River's CLI) and lib/pq
+# (golang-migrate) both read, and never in the URL: it stays out of argv and
+# out of `docker inspect`, and River's CLI rejected the same password when
+# it was embedded in --database-url.
+DATABASE_URL="postgres://${PGUSER}@${PGHOST}:${PGPORT}/${PGDATABASE}?sslmode=disable"
 
 # --------------------------------------------------------------------------
 # River's schema

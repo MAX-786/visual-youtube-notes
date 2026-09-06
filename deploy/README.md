@@ -17,11 +17,22 @@ host only ever pulls, so it carries `compose.yaml`, `.env`, and `secrets/` and n
 | `images/`      | Dockerfiles for the images CI builds                               |
 | `ops/queries/` | Stuck-job inspection SQL, referenced by the runbook                |
 | `secrets/`     | Secret files, never committed                                      |
+| `versions.env` | Pinned yt-dlp, Deno, restic, age and supercronic with checksums    |
+| `.env.example` | Every non-secret setting the host `.env` must carry                |
+
+## Images
+
+`.github/workflows/build.yml` builds all five images on every push and pushes them to GHCR from
+`main`, tagged `<YYYY.MM.DD>-<sha8>` (the `APP_VERSION` to put in `.env`) and `sha-<commit>`; the
+worker also carries `ytdlp-<CalVer>`. The pins come from `versions.env`, River's CLI version from
+`backend/go.mod`. The packages are private, so the host logs in to GHCR with a token that has
+`read:packages` before its first pull. A local build from a checkout is
+`docker compose --env-file .env --env-file versions.env build`.
 
 ## Before the first `up`
 
 `.env` must set `APP_VERSION`, `RIVER_VERSION` (matching `backend/go.mod`), `RESTIC_SFTP_REPO`, and
-`BACKUP_RECOVERY_RECIPIENT`. `secrets/` must hold `postgres_password`, `master_key`,
+`BACKUP_RECOVERY_RECIPIENT`; start from `.env.example`. `secrets/` must hold `postgres_password`, `master_key`,
 `restic_password`, `restic_sftp_password`, `restic_sftp_key`, and `vapid_private_key`.
 
 Then follow **First deploy** in the runbook — the backup repositories do not create themselves, and

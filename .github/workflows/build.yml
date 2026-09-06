@@ -1,0 +1,92 @@
+name: Build images
+
+# Builds the five images CI owns (ADR 0008: the host only ever pulls) on every
+# push, and pushes them to GHCR from main. Each image is tagged with
+# APP_VERSION and the commit; the worker also carries its yt-dlp CalVer so a
+# yt-dlp rollback is a tag change (ADR 0009). Every pinned binary and its
+# checksum comes from deploy/versions.env; River's CLI version is read from
+# backend/go.mod so the schema and the library cannot drift apart.
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_BASE: ghcr.io/max-786/visual-youtube-notes
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.pins.outputs.app_version }}
+      river_version: ${{ steps.pins.outputs.river_version }}
+      ytdlp_version: ${{ steps.pins.outputs.ytdlp_version }}
+      build_args: ${{ steps.pins.outputs.build_args }}
+      push: ${{ steps.pins.outputs.push }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          # deploy/versions.env is KEY=VALUE, one pin per line.
+          set -a; . deploy/versions.env; set +a
+          river="$(awk '$1 == "github.com/riverqueue/river" {sub(/^v/, "", $2); print $2}' backend/go.mod)"
+          test -n "$river"
+          app_version="$(date -u +%Y.%m.%d)-$(git rev-parse --short=8 HEAD)"
+          {
+            echo "app_version=$app_version"
+            echo "river_version=$river"
+            echo "ytdlp_version=$YTDLP_VERSION"
+            echo "push=${{ github.ref == 'refs/heads/main' }}"
+            echo "build_args<<EOF"
+            echo "RIVER_VERSION=$river"
+            grep -E '^[A-Z0-9_]+=' deploy/versions.env
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=$app_version" >> "$GITHUB_STEP_SUMMARY"
+
+  images:
+    needs: versions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, migrate, caddy, backup]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - if: needs.versions.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${IMAGE_BASE}/${{ matrix.image }}"
+          tags="${base}:${{ needs.versions.outputs.app_version }}"
+          tags="${tags},${base}:sha-${GITHUB_SHA}"
+          if [ "${{ matrix.image }}" = "worker" ]; then
+            tags="${tags},${base}:ytdlp-${{ needs.versions.outputs.ytdlp_version }}"
+          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/images/${{ matrix.image }}/Dockerfile
+          push: ${{ needs.versions.outputs.push == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: ${{ needs.versions.outputs.build_args }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+      - shell: bash
+        run: |
+          echo "${{ matrix.image }}: ${{ steps.tags.outputs.tags }} (pushed: ${{ needs.versions.outputs.push }})" >> "$GITHUB_STEP_SUMMARY"

@@ -26,7 +26,8 @@ export PGHOST PGDATABASE PGUSER
 # Exporting PGPASSWORD from inside the script keeps it out of the container's
 # declared environment, so it does not appear in `docker inspect`.
 if [ -r "$PGPASSWORD_FILE" ]; then
-	PGPASSWORD="$(cat "$PGPASSWORD_FILE")"
+	# Strip the newline and any carriage return; initdb strips both.
+	PGPASSWORD="$(tr -d '\r\n' < "$PGPASSWORD_FILE")"
 	export PGPASSWORD
 fi
 
