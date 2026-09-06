@@ -63,6 +63,14 @@ func run(logger *slog.Logger) error {
 		TempDir:   cfg.Worker.TempDir,
 		Logger:    logger,
 		AI:        ai.NewStore(pool, ring),
+		// The only image with FFmpeg (spec 13); the binaries are on PATH there.
+		Media:            pipeline.NewFFmpeg(cfg.Worker.FFmpegBin, cfg.Worker.FFprobeBin),
+		TempMinFreeBytes: cfg.Worker.TempMinFreeBytes,
+	}
+	// A restart means no Attempt of this worker is running: whatever is
+	// left in its temporary volume is media a crashed job did not remove.
+	if err := pipeline.RemoveAllTemp(cfg.Worker.TempDir); err != nil {
+		logger.Warn("startup cleanup of temporary media failed", "err", err)
 	}
 	workers := river.NewWorkers()
 	pipeline.RegisterWorkers(workers, deps)

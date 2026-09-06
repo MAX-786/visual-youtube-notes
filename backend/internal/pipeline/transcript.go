@@ -213,6 +213,19 @@ func Normalize(cues []Cue) *Normalized {
 	return n
 }
 
+// NormalizeText is Normalize for text that never had cues: speech to text
+// output. Only whitespace is normalized; the script is kept as spoken.
+func NormalizeText(text string) *Normalized {
+	text = strings.TrimSpace(spaces.ReplaceAllString(text, " "))
+	n := &Normalized{Text: text}
+	if text == "" {
+		return n
+	}
+	n.Words = len(strings.Fields(text))
+	n.Chunks = chunkText(text)
+	return n
+}
+
 // chunkText splits on sentence boundaries into ~500-token chunks with a
 // ~75-token overlap carried from the tail of the previous chunk.
 func chunkText(text string) []Chunk {

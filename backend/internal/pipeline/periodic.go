@@ -98,6 +98,23 @@ func Sweep(ctx context.Context, d *Deps, olderThan time.Duration) error {
 	})
 }
 
+// RemoveAllTemp empties the temporary root at worker startup: with one
+// worker per volume, nothing in it can belong to a running Attempt
+// (docs/design/pipeline.md, "Temporary directories").
+func RemoveAllTemp(root string) error {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	var first error
+	for _, entry := range entries {
+		if err := os.RemoveAll(filepath.Join(root, entry.Name())); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 func attemptExists(ctx context.Context, d *Deps, id string) bool {
 	attemptID, err := uuid.Parse(id)
 	if err != nil {

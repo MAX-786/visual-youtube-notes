@@ -37,6 +37,17 @@ type fakeOpenAI struct {
 	dimension int
 	responses int
 	paths     []string
+	// Speech to text: the piece texts served in order (the last repeats),
+	// an optional gate every call waits on, a started signal per call, and
+	// the most calls ever in flight at once.
+	transcriptions []string
+	sttCalls       int
+	sttGate        chan struct{}
+	sttStarted     chan struct{}
+	sttInFlight    int
+	sttMaxInFlight int
+	// sttStatus, when set, is the HTTP status every transcription call fails with.
+	sttStatus int
 }
 
 func (f *fakeOpenAI) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -53,6 +64,40 @@ func (f *fakeOpenAI) RoundTrip(req *http.Request) (*http.Response, error) {
 			"output": []any{map[string]any{"type": "message", "content": []any{map[string]any{"type": "output_text", "text": f.notes[i]}}}},
 			"usage":  map[string]any{"input_tokens": 5000, "input_tokens_details": map[string]any{"cached_tokens": 1000}, "output_tokens": 2000},
 		}
+	case "/v1/audio/transcriptions":
+		f.sttInFlight++
+		f.sttMaxInFlight = max(f.sttMaxInFlight, f.sttInFlight)
+		i := min(f.sttCalls, len(f.transcriptions)-1)
+		f.sttCalls++
+		gate, started := f.sttGate, f.sttStarted
+		f.mu.Unlock()
+		if started != nil {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+		}
+		var gateErr error
+		if gate != nil {
+			select {
+			case <-gate:
+			case <-req.Context().Done():
+				gateErr = req.Context().Err()
+			}
+		}
+		f.mu.Lock()
+		f.sttInFlight--
+		if gateErr != nil {
+			return nil, gateErr
+		}
+		if f.sttStatus != 0 {
+			return &http.Response{StatusCode: f.sttStatus, Body: io.NopCloser(strings.NewReader(`{"error":{"message":"Unsupported file format","type":"invalid_request_error"}}`)), Header: http.Header{}, Request: req}, nil
+		}
+		text := ""
+		if i >= 0 {
+			text = f.transcriptions[i]
+		}
+		body = map[string]any{"text": text, "usage": map[string]any{"type": "duration", "seconds": 60}}
 	case "/v1/embeddings":
 		var in struct {
 			Input []string `json:"input"`

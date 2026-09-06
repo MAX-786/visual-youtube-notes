@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,8 @@ type fakeExtractor struct {
 	vtt      map[string]string
 	failWith map[string]error
 	calls    int
+	// audio, when set, is what Audio writes into the Attempt directory.
+	audio []byte
 }
 
 func (f *fakeExtractor) Metadata(_ context.Context, videoID string) (*VideoInfo, error) {
@@ -50,8 +53,15 @@ func (f *fakeExtractor) FetchCaptions(_ context.Context, format CaptionFormat) (
 	return []byte(vtt), nil
 }
 
-func (f *fakeExtractor) Audio(context.Context, string, string) (string, error) {
-	return "", Fail(Permanent, "audio_missing", "no audio in tests", nil)
+func (f *fakeExtractor) Audio(_ context.Context, _ string, dir string) (string, error) {
+	if f.audio == nil {
+		return "", Fail(Permanent, "audio_missing", "no audio in tests", nil)
+	}
+	path := filepath.Join(dir, "audio.webm")
+	if err := os.WriteFile(path, f.audio, 0o600); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 // captionedVTT is a plausible track: every line distinct, since the 40%

@@ -32,6 +32,13 @@ type Deps struct {
 	// no-network double the tests inject beneath the provider clients.
 	AI          *ai.Store
 	AITransport http.RoundTripper
+	// Media is FFmpeg for the transcribing Stage; nil keeps that Stage a
+	// placeholder. TempMinFreeBytes is the preflight floor (ADR 0008) and
+	// MaxUploadBytes the provider file limit above which audio is split
+	// (zero means OpenAI's 25 MB).
+	Media            Media
+	TempMinFreeBytes int64
+	MaxUploadBytes   int64
 	// Hooks let later slices plug the paid Stages in without the runner
 	// knowing them: the cost gate after captions, and the providers.
 	Hooks Hooks
@@ -135,6 +142,22 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 	res, workErr := do(ctx, d, note, &StageRun{Run: run, Stage: stage, AttemptID: attemptID, AttemptNo: job.Attempt, Dir: dir})
 	if workErr != nil {
 		se := classify(ctx, workErr)
+		// A context cut short by a Delete (docs/design/pipeline.md,
+		// "Cancellation mid-Stage"): the Stage ends cancelled, not retried.
+		// A Stage timeout also cancels the context but requests nothing, so
+		// it rides the ladder below.
+		if ctx.Err() != nil {
+			if fresh, err := loadNote(context.WithoutCancel(ctx), d.Pool, run.NoteID, false); err == nil && (fresh.CancelRequestedAt != nil || fresh.ProcessingVersion != run.ProcessingVersion) {
+				se = Fail(Permanent, "cancelled", "The run was cancelled.", workErr)
+				if err := closeAttemptFailed(context.WithoutCancel(ctx), d.Pool, attemptID, se); err != nil {
+					logger.Error("close attempt", "err", err)
+				}
+				if err := cancelStage(context.WithoutCancel(ctx), d.Pool, run, stage); err != nil {
+					return err
+				}
+				return river.JobCancel(errors.New("cancelled during work"))
+			}
+		}
 		if err := closeAttemptFailed(context.WithoutCancel(ctx), d.Pool, attemptID, se); err != nil {
 			logger.Error("close attempt", "err", err)
 		}

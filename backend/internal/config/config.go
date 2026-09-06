@@ -52,6 +52,9 @@ type Worker struct {
 	HealthListen string
 	// YtDlpBin is the yt-dlp binary, on PATH by default.
 	YtDlpBin string
+	// FFmpegBin and FFprobeBin split and measure audio for speech to text.
+	FFmpegBin  string
+	FFprobeBin string
 	// YtDlpCacheDir persists Deno's solved player challenges across runs.
 	YtDlpCacheDir string
 	// TempMinFreeBytes is the preflight floor for the transcribing Stage.
@@ -142,6 +145,8 @@ func Load() (*Config, error) {
 		TempDir:       get("TEMP_DIR", "/var/lib/vyn/tmp"),
 		HealthListen:  get("HEALTH_LISTEN", ":8081"),
 		YtDlpBin:      get("YTDLP_BIN", "yt-dlp"),
+		FFmpegBin:     get("FFMPEG_BIN", "ffmpeg"),
+		FFprobeBin:    get("FFPROBE_BIN", "ffprobe"),
 		YtDlpCacheDir: get("YTDLP_CACHE_DIR", "/var/cache/yt-dlp"),
 	}
 	cfg.Worker.QueueDefaultWorkers = intSetting(get("QUEUE_DEFAULT_WORKERS", "2"), &problems, "VYN_QUEUE_DEFAULT_WORKERS")

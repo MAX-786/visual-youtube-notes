@@ -18,6 +18,9 @@ func RegisterWorkers(workers *river.Workers, d *Deps) {
 	river.AddWorker(workers, &stageWorker[MetadataArgs]{deps: d, stage: StageMetadata, do: metadataWork, args: func(a MetadataArgs) Run { return a.Run }})
 	river.AddWorker(workers, &stageWorker[CaptionsArgs]{deps: d, stage: StageCaptions, do: captionsWork, args: func(a CaptionsArgs) Run { return a.Run }})
 	transcribing := d.Hooks.Transcribing
+	if transcribing == nil && d.AI != nil && d.Media != nil {
+		transcribing = transcribingWork
+	}
 	if transcribing == nil {
 		transcribing = placeholder("Speech to text is not available in this build.")
 	}
