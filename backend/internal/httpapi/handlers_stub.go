@@ -28,11 +28,6 @@ func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingReques
 	return nil, notImplemented("ApprovePairingRequest")
 }
 
-// ClearAiRoleKey is not implemented yet.
-func (s *Server) ClearAiRoleKey(_ context.Context, _ ClearAiRoleKeyRequestObject) (ClearAiRoleKeyResponseObject, error) {
-	return nil, notImplemented("ClearAiRoleKey")
-}
-
 // ConfirmNoteCost is not implemented yet.
 func (s *Server) ConfirmNoteCost(_ context.Context, _ ConfirmNoteCostRequestObject) (ConfirmNoteCostResponseObject, error) {
 	return nil, notImplemented("ConfirmNoteCost")
@@ -101,11 +96,6 @@ func (s *Server) ExportNoteMarkdown(_ context.Context, _ ExportNoteMarkdownReque
 // ExportNotePdf is not implemented yet.
 func (s *Server) ExportNotePdf(_ context.Context, _ ExportNotePdfRequestObject) (ExportNotePdfResponseObject, error) {
 	return nil, notImplemented("ExportNotePdf")
-}
-
-// GetAiSettings is not implemented yet.
-func (s *Server) GetAiSettings(_ context.Context, _ GetAiSettingsRequestObject) (GetAiSettingsResponseObject, error) {
-	return nil, notImplemented("GetAiSettings")
 }
 
 // GetCostSettings is not implemented yet.
@@ -258,11 +248,6 @@ func (s *Server) TrashNote(_ context.Context, _ TrashNoteRequestObject) (TrashNo
 	return nil, notImplemented("TrashNote")
 }
 
-// UpdateAiRole is not implemented yet.
-func (s *Server) UpdateAiRole(_ context.Context, _ UpdateAiRoleRequestObject) (UpdateAiRoleResponseObject, error) {
-	return nil, notImplemented("UpdateAiRole")
-}
-
 // UpdateCostSettings is not implemented yet.
 func (s *Server) UpdateCostSettings(_ context.Context, _ UpdateCostSettingsRequestObject) (UpdateCostSettingsResponseObject, error) {
 	return nil, notImplemented("UpdateCostSettings")
@@ -291,9 +276,4 @@ func (s *Server) UpdateTopic(_ context.Context, _ UpdateTopicRequestObject) (Upd
 // UpsertPushSubscription is not implemented yet.
 func (s *Server) UpsertPushSubscription(_ context.Context, _ UpsertPushSubscriptionRequestObject) (UpsertPushSubscriptionResponseObject, error) {
 	return nil, notImplemented("UpsertPushSubscription")
-}
-
-// VerifyAiRole is not implemented yet.
-func (s *Server) VerifyAiRole(_ context.Context, _ VerifyAiRoleRequestObject) (VerifyAiRoleResponseObject, error) {
-	return nil, notImplemented("VerifyAiRole")
 }

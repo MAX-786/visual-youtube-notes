@@ -14,6 +14,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/audit"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/auth"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
@@ -54,7 +55,7 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 		pool.Close()
 		return nil, err
 	}
-	if err := checkKeyVersions(ctx, pool, ring); err != nil {
+	if err := ai.CheckKeyVersions(ctx, pool, ring); err != nil {
 		pool.Close()
 		return nil, err
 	}
@@ -90,6 +91,7 @@ func New(ctx context.Context, logger *slog.Logger) (*App, error) {
 		Sync:        broker,
 		Submissions: pipeline.NewService(pool, riverClient, logger),
 		Notes:       notes.New(pool),
+		AI:          ai.NewStore(pool, ring),
 		Authenticate: func(ctx context.Context, _ httpapi.Transport, credential string) *httpapi.Session {
 			s := authService.Authenticate(ctx, credential)
 			if s == nil {
@@ -116,28 +118,6 @@ func (a *App) Close() {
 	if a.Pool != nil {
 		a.Pool.Close()
 	}
-}
-
-// checkKeyVersions refuses to boot when a provider key was sealed under a
-// master key version the file no longer holds (ADR 0010). Booting anyway
-// would turn a configuration problem into a per-Note decrypt failure that
-// reads like a provider fault.
-func checkKeyVersions(ctx context.Context, pool *pgxpool.Pool, ring *keys.Ring) error {
-	rows, err := pool.Query(ctx, `SELECT DISTINCT key_version FROM ai_role_configs WHERE key_version IS NOT NULL`)
-	if err != nil {
-		return fmt.Errorf("read key versions: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var version int
-		if err := rows.Scan(&version); err != nil {
-			return err
-		}
-		if _, ok := ring.ByVersion(version); !ok {
-			return fmt.Errorf("provider keys are sealed under master key version %d, which the key file does not hold; restore it before starting", version)
-		}
-	}
-	return rows.Err()
 }
 
 // rateLimitSink records the transition into a limited state as a

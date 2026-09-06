@@ -17,6 +17,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/db"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
@@ -45,7 +46,11 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
-	if _, err := keys.Load(cfg.MasterKeyFile); err != nil {
+	ring, err := keys.Load(cfg.MasterKeyFile)
+	if err != nil {
+		return err
+	}
+	if err := ai.CheckKeyVersions(ctx, pool, ring); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(cfg.Worker.TempDir, 0o750); err != nil {

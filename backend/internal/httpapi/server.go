@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/apierr"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/audit"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/auth"
@@ -44,6 +45,10 @@ type Deps struct {
 	// Submissions and Notes are the pipeline's write and read sides.
 	Submissions *pipeline.Service
 	Notes       *notes.Reader
+	// AI is the Processing role configuration; AITransport, when set, is the
+	// no-network double the tests inject beneath the provider clients.
+	AI          *ai.Store
+	AITransport http.RoundTripper
 	// Authenticate identifies the Device session behind a request, or returns
 	// nil when the presented credential is absent or invalid. Every credential
 	// failure looks the same to the client (ADR 0003).
