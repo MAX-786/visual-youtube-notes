@@ -168,20 +168,25 @@ export async function clearForResync(): Promise<void> {
   ]);
 }
 
-/** Sign-out clears everything, queues included (spec 9). */
-export async function clearAll(): Promise<void> {
+/**
+ * Sign-out clears everything, queues included (spec 9). A session that is
+ * merely gone keeps the share holding pen: a link shared while signed out
+ * must survive the sign-in it triggers (spec 5.2).
+ */
+export async function clearAll(
+  options: { keepPendingSubmissions?: boolean } = {},
+): Promise<void> {
   const database = await db();
-  await Promise.all(
-    (
-      [
-        "notes",
-        "transcripts",
-        "topics",
-        "mutation_queue",
-        "position_queue",
-        "pending_submissions",
-        "meta",
-      ] as const
-    ).map((store) => database.clear(store)),
-  );
+  const stores = [
+    "notes",
+    "transcripts",
+    "topics",
+    "mutation_queue",
+    "position_queue",
+    "meta",
+  ] as const;
+  await Promise.all(stores.map((store) => database.clear(store)));
+  if (!options.keepPendingSubmissions) {
+    await database.clear("pending_submissions");
+  }
 }

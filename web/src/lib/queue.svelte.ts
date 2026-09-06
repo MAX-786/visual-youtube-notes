@@ -6,6 +6,7 @@ import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { api, withLock } from "./api";
 import { db, type QueuedMutation } from "./db";
 import { drainNote, forNote, nowIso, type Sent } from "./queue-core";
+import { drainShares } from "./share";
 import { uuidv7 } from "./uuid";
 import { session } from "./session.svelte";
 
@@ -256,6 +257,7 @@ async function drainOnce(): Promise<void> {
     });
   }
   await drainPositions();
+  await drainShares();
 }
 
 /**

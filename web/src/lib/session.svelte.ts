@@ -120,7 +120,9 @@ export async function signOut(
   session.account = null;
   session.device = null;
   session.syncCursor = 0;
-  await clearAll().catch(() => undefined);
+  await clearAll({ keepPendingSubmissions: Boolean(options.local) }).catch(
+    () => undefined,
+  );
   if ("caches" in window) {
     const keys = await caches.keys();
     await Promise.all(keys.map((key) => caches.delete(key)));

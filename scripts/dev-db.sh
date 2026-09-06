@@ -21,6 +21,12 @@ until docker exec "$NAME" pg_isready -U vyn -d vyn >/dev/null 2>&1; do
 	[ "$i" -lt 60 ] || { echo "postgres did not become ready" >&2; exit 1; }
 	sleep 1
 done
+i=0
+until docker exec "$NAME" psql -U vyn -d vyn -tAc "select 1" >/dev/null 2>&1; do
+	i=$((i + 1))
+	[ "$i" -lt 60 ] || { echo "database vyn did not become ready" >&2; exit 1; }
+	sleep 1
+done
 URL="postgres://vyn:devpass@127.0.0.1:$PORT/vyn?sslmode=disable"
 
 # River owns River's schema (ADR 0009); the CLI version is the library's.

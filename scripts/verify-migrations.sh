@@ -23,6 +23,12 @@ until docker exec "$NAME" pg_isready -U vyn -d vyn >/dev/null 2>&1; do
 	[ "$i" -lt 60 ] || { echo "postgres did not become ready" >&2; exit 1; }
 	sleep 1
 done
+i=0
+until docker exec "$NAME" psql -U vyn -d vyn -tAc "select 1" >/dev/null 2>&1; do
+	i=$((i + 1))
+	[ "$i" -lt 60 ] || { echo "database vyn did not become ready" >&2; exit 1; }
+	sleep 1
+done
 docker cp deploy/migrations "$NAME":/mig >/dev/null
 
 run_sql() {
