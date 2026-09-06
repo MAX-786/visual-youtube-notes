@@ -67,6 +67,7 @@ func run(logger *slog.Logger) error {
 		Media:            pipeline.NewFFmpeg(cfg.Worker.FFmpegBin, cfg.Worker.FFprobeBin),
 		TempMinFreeBytes: cfg.Worker.TempMinFreeBytes,
 	}
+	deps.Hooks.BeforePaidStage = pipeline.CostGate
 	// A restart means no Attempt of this worker is running: whatever is
 	// left in its temporary volume is media a crashed job did not remove.
 	if err := pipeline.RemoveAllTemp(cfg.Worker.TempDir); err != nil {

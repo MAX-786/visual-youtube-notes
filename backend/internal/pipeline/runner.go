@@ -237,7 +237,9 @@ func runStage[T river.JobArgs](ctx context.Context, d *Deps, job *river.Job[T], 
 		}
 	} else if res.next != "" {
 		proceed := true
-		if res.next == StageGenerating && d.Hooks.BeforePaidStage != nil {
+		// The gate sits after captions, the last free Stage, whatever the
+		// next paid Stage is; one confirmation per run (ADR 0007).
+		if stage == StageCaptions && d.Hooks.BeforePaidStage != nil {
 			proceed, err = d.Hooks.BeforePaidStage(ctx, tx, locked)
 			if err != nil {
 				return err

@@ -23,19 +23,9 @@ func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingReques
 	return nil, notImplemented("ApprovePairingRequest")
 }
 
-// ConfirmNoteCost is not implemented yet.
-func (s *Server) ConfirmNoteCost(_ context.Context, _ ConfirmNoteCostRequestObject) (ConfirmNoteCostResponseObject, error) {
-	return nil, notImplemented("ConfirmNoteCost")
-}
-
 // CreatePairingRequest is not implemented yet.
 func (s *Server) CreatePairingRequest(_ context.Context, _ CreatePairingRequestRequestObject) (CreatePairingRequestResponseObject, error) {
 	return nil, notImplemented("CreatePairingRequest")
-}
-
-// CreatePriceSet is not implemented yet.
-func (s *Server) CreatePriceSet(_ context.Context, _ CreatePriceSetRequestObject) (CreatePriceSetResponseObject, error) {
-	return nil, notImplemented("CreatePriceSet")
 }
 
 // DeletePushSubscription is not implemented yet.
@@ -46,11 +36,6 @@ func (s *Server) DeletePushSubscription(_ context.Context, _ DeletePushSubscript
 // DenyPairingRequest is not implemented yet.
 func (s *Server) DenyPairingRequest(_ context.Context, _ DenyPairingRequestRequestObject) (DenyPairingRequestResponseObject, error) {
 	return nil, notImplemented("DenyPairingRequest")
-}
-
-// EnableSemanticForMonth is not implemented yet.
-func (s *Server) EnableSemanticForMonth(_ context.Context, _ EnableSemanticForMonthRequestObject) (EnableSemanticForMonthResponseObject, error) {
-	return nil, notImplemented("EnableSemanticForMonth")
 }
 
 // ExchangePairingVerifier is not implemented yet.
@@ -73,11 +58,6 @@ func (s *Server) ExportNotePdf(_ context.Context, _ ExportNotePdfRequestObject) 
 	return nil, notImplemented("ExportNotePdf")
 }
 
-// GetCostSettings is not implemented yet.
-func (s *Server) GetCostSettings(_ context.Context, _ GetCostSettingsRequestObject) (GetCostSettingsResponseObject, error) {
-	return nil, notImplemented("GetCostSettings")
-}
-
 // GetHealth is not implemented yet.
 func (s *Server) GetHealth(_ context.Context, _ GetHealthRequestObject) (GetHealthResponseObject, error) {
 	return nil, notImplemented("GetHealth")
@@ -98,19 +78,9 @@ func (s *Server) GetTranscript(_ context.Context, _ GetTranscriptRequestObject) 
 	return nil, notImplemented("GetTranscript")
 }
 
-// GetUsage is not implemented yet.
-func (s *Server) GetUsage(_ context.Context, _ GetUsageRequestObject) (GetUsageResponseObject, error) {
-	return nil, notImplemented("GetUsage")
-}
-
 // GetVapidPublicKey is not implemented yet.
 func (s *Server) GetVapidPublicKey(_ context.Context, _ GetVapidPublicKeyRequestObject) (GetVapidPublicKeyResponseObject, error) {
 	return nil, notImplemented("GetVapidPublicKey")
-}
-
-// ListPriceSets is not implemented yet.
-func (s *Server) ListPriceSets(_ context.Context, _ ListPriceSetsRequestObject) (ListPriceSetsResponseObject, error) {
-	return nil, notImplemented("ListPriceSets")
 }
 
 // ListPushSubscriptions is not implemented yet.
@@ -171,11 +141,6 @@ func (s *Server) StartReindex(_ context.Context, _ StartReindexRequestObject) (S
 // TrashNote is not implemented yet.
 func (s *Server) TrashNote(_ context.Context, _ TrashNoteRequestObject) (TrashNoteResponseObject, error) {
 	return nil, notImplemented("TrashNote")
-}
-
-// UpdateCostSettings is not implemented yet.
-func (s *Server) UpdateCostSettings(_ context.Context, _ UpdateCostSettingsRequestObject) (UpdateCostSettingsResponseObject, error) {
-	return nil, notImplemented("UpdateCostSettings")
 }
 
 // UpdatePushSubscription is not implemented yet.
