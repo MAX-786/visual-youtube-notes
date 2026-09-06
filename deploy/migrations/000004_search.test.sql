@@ -137,13 +137,13 @@ INSERT INTO search_children (id, user_id, note_id, kind, weight, ordinal, elemen
    'memory memory memory Veritasium', sha256('m4'::bytea));
 
 INSERT INTO search_embeddings (child_id, embedding_model, embedding, content_hash) VALUES
-  ('00000000-0000-0000-0000-000000001001','voyage-4', test_vec(7,1.0),           sha256('m1'::bytea)),
-  ('00000000-0000-0000-0000-000000001002','voyage-4', test_vec2(7,0.9,8,0.4),    sha256('k1'::bytea)),
-  ('00000000-0000-0000-0000-000000001003','voyage-4', test_vec2(7,0.5,9,0.8),    sha256('s1'::bytea)),
-  ('00000000-0000-0000-0000-000000001004','voyage-4', test_vec2(7,0.45,9,0.8),   sha256('k2'::bytea)),
-  ('00000000-0000-0000-0000-000000001005','voyage-4', test_vec(9,1.0),           sha256('t2'::bytea)),
-  ('00000000-0000-0000-0000-000000001006','voyage-4', test_vec2(7,0.15,11,0.99), sha256('s3'::bytea)),
-  ('00000000-0000-0000-0000-000000001008','voyage-4', test_vec(7,1.0),           sha256('m4'::bytea));
+  ('00000000-0000-0000-0000-000000001001',(SELECT active_embedding_model FROM search_index_state), test_vec(7,1.0),           sha256('m1'::bytea)),
+  ('00000000-0000-0000-0000-000000001002',(SELECT active_embedding_model FROM search_index_state), test_vec2(7,0.9,8,0.4),    sha256('k1'::bytea)),
+  ('00000000-0000-0000-0000-000000001003',(SELECT active_embedding_model FROM search_index_state), test_vec2(7,0.5,9,0.8),    sha256('s1'::bytea)),
+  ('00000000-0000-0000-0000-000000001004',(SELECT active_embedding_model FROM search_index_state), test_vec2(7,0.45,9,0.8),   sha256('k2'::bytea)),
+  ('00000000-0000-0000-0000-000000001005',(SELECT active_embedding_model FROM search_index_state), test_vec(9,1.0),           sha256('t2'::bytea)),
+  ('00000000-0000-0000-0000-000000001006',(SELECT active_embedding_model FROM search_index_state), test_vec2(7,0.15,11,0.99), sha256('s3'::bytea)),
+  ('00000000-0000-0000-0000-000000001008',(SELECT active_embedding_model FROM search_index_state), test_vec(7,1.0),           sha256('m4'::bytea));
 
 -- Child 1007 has a vector only under the INCOMING model.
 INSERT INTO search_embeddings (child_id, embedding_model, embedding, content_hash) VALUES
@@ -257,7 +257,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM search_embeddings v JOIN search_children c ON c.id = v.child_id
          WHERE c.id = '00000000-0000-0000-0000-000000001003'
-           AND v.embedding_model = 'voyage-4'
+           AND v.embedding_model = (SELECT active_embedding_model FROM search_index_state)
            AND v.content_hash <> c.content_hash
     ) THEN
         RAISE EXCEPTION 'expected the edited child to keep its stale vector';
@@ -287,7 +287,7 @@ BEGIN
     END IF;
 
     IF EXISTS (
-        SELECT 1 FROM search_reindex_incomplete_notes('voyage-4')
+        SELECT 1 FROM search_reindex_incomplete_notes((SELECT active_embedding_model FROM search_index_state))
          WHERE note_id <> '00000000-0000-0000-0000-00000000b002'
            AND note_id <> '00000000-0000-0000-0000-00000000b003'
     ) THEN

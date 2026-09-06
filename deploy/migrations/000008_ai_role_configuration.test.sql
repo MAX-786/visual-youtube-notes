@@ -36,7 +36,10 @@ DECLARE
     configured integer;
     column_dims integer;
 BEGIN
-    SELECT (request_options ->> 'output_dimension')::integer
+    -- Voyage called the parameter output_dimension; OpenAI calls it dimensions
+    -- (ADR 0017). Either spelling must equal the column's width.
+    SELECT coalesce(request_options ->> 'dimensions',
+                    request_options ->> 'output_dimension')::integer
       INTO configured
       FROM ai_role_defaults
      WHERE role = 'embeddings';

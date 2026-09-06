@@ -80,15 +80,18 @@ permanently.
 
 ### Request wiring
 
-[`build-request.mjs`](./build-request.mjs) assembles it; `fixtures/sample-request.json` is
-the result. `claude-sonnet-5`, `max_tokens: 16000`, adaptive thinking with
-`output_config.effort: "low"` (Sonnet 5 rejects `budget_tokens`), and
-`output_config.format: {type: "json_schema", schema}`.
+[`build-request.mjs`](./build-request.mjs) assembles the Anthropic-shaped request this
+prototype was measured with; `fixtures/sample-request.json` is the result. Since
+[ADR 0017](../../adr/0017-run-every-processing-role-on-openai.md) the worker sends the
+same system prompt, transcript and schema to OpenAI's Responses API instead:
+`gpt-5.6-terra`, `max_output_tokens: 16000`, `reasoning: {effort: "low"}`, and the schema
+under `text.format` as `{type: "json_schema", name, schema, strict: true}`. Strict mode
+rejects `minItems`, so the Go request builder strips it from `note-request.schema.json`
+before sending; the counts were always the validator's job. A `refusal` output item is a
+permanent failure of the Attempt.
 
-The cache breakpoint sits at the end of the system block: system prompt plus schema are
-frozen across every note, the transcript is not. Note that changing the schema invalidates
-the cache, and that the API injects its own extra system prompt for the format, which costs
-a few input tokens.
+Prompt caching is automatic on OpenAI: the system prompt plus schema are the stable prefix,
+the transcript is not. Changing the schema still invalidates the cache.
 
 ## Measured cost
 

@@ -12,28 +12,30 @@ Unit maps are `jsonb`, so the vocabulary is a convention rather than an enum (AD
 why). These are the keys V1 uses. A worker must map the provider's response onto them; anything it
 does not recognise is passed through unchanged and lands in `unpriced_units`.
 
-| Key                     | Role            | Provider field                                             |
-| ----------------------- | --------------- | ---------------------------------------------------------- |
-| `audio_seconds`         | transcription   | Deepgram `metadata.duration`                               |
-| `input_tokens`          | note generation | Anthropic `usage.input_tokens`                             |
-| `output_tokens`         | note generation | Anthropic `usage.output_tokens`                            |
-| `cache_read_tokens`     | note generation | Anthropic `usage.cache_read_input_tokens`                  |
-| `cache_write_5m_tokens` | note generation | Anthropic `usage.cache_creation.ephemeral_5m_input_tokens` |
-| `cache_write_1h_tokens` | note generation | Anthropic `usage.cache_creation.ephemeral_1h_input_tokens` |
-| `embedding_tokens`      | embeddings      | Voyage `usage.total_tokens`                                |
+Every role runs on OpenAI since [ADR 0017](../adr/0017-run-every-processing-role-on-openai.md);
+the earlier Anthropic, Deepgram and Voyage rows are superseded and their price sets remain only as
+history.
+
+| Key                   | Role            | Provider field                                                            |
+| --------------------- | --------------- | ------------------------------------------------------------------------- |
+| `audio_seconds`       | transcription   | measured duration of the chunk sent; response `usage` when present        |
+| `input_tokens`        | note generation | `usage.input_tokens` **minus** `usage.input_tokens_details.cached_tokens` |
+| `cached_input_tokens` | note generation | `usage.input_tokens_details.cached_tokens`                                |
+| `output_tokens`       | note generation | `usage.output_tokens`                                                     |
+| `embedding_tokens`    | embeddings      | `usage.total_tokens`                                                      |
 
 Three traps, each verified against vendor documentation:
 
-- **`output_tokens_details.thinking_tokens` must not be added to `output_tokens`.** It is a
-  decomposition of a number that already includes it; `output_tokens` is the authoritative billing
-  total. Adding it would double-count every generation call.
-- **Cache writes are two prices, not one.** `cache_creation_input_tokens` is the sum of the two TTL
-  buckets, which bill at 1.25× and 2× base input. Read the buckets, never the sum.
-- **Deepgram prices per minute but reports seconds.** The conversion lives in the seeded price
-  (`0.0052 / 60`), not at the call site, so a price correction never needs a code change.
+- **`usage.input_tokens` includes the cached tokens.** Cached input bills at a tenth of the rate,
+  so the worker splits the total into the uncached remainder and the cached count before recording;
+  recording the total under `input_tokens` would overcharge every warm-cache call.
+- **`output_tokens_details.reasoning_tokens` must not be added to `output_tokens`.** It is a
+  decomposition of a number that already includes it. Adding it would double-count every call.
+- **Transcription prices per minute; the unit is seconds.** The conversion lives in the seeded price
+  (`0.0045 / 60`), not at the call site, so a price correction never needs a code change.
 
-Deepgram's `metadata.request_id` and Anthropic's `request-id` header go to `provider_request_id`.
-Voyage returns no identifier of any kind, so for embeddings the row's own `id` is the only handle.
+The Responses API's response `id` goes to `provider_request_id`; transcription and embedding
+responses carry none, so for those the row's own `id` is the only handle.
 
 ## Estimating before the call
 
