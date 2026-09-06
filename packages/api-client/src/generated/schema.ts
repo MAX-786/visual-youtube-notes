@@ -2776,8 +2776,6 @@ export interface operations {
             /** @description Signed in. Cookies are set on this response. */
             200: {
                 headers: {
-                    /** @description `__Host-vyn_access` (15 minutes, Path=/) and `__Secure-vyn_refresh` (Path=/auth/refresh), both Secure, HttpOnly, SameSite=Lax. */
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2799,8 +2797,6 @@ export interface operations {
             /** @description Rotated. Cookies are set on this response. */
             200: {
                 headers: {
-                    /** @description Replacement access and refresh cookies. */
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2953,8 +2949,6 @@ export interface operations {
             /** @description Password changed; this session's credentials were rotated. */
             200: {
                 headers: {
-                    /** @description Replacement access and refresh cookies. */
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {

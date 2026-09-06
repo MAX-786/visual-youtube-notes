@@ -34,10 +34,17 @@ jobs:
       - run: pnpm --filter @visual-notes/web exec playwright install --with-deps chromium
       - run: pnpm e2e
 
-  migrations:
+  database:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.1
+          cache-dependency-path: backend/go.sum
       # Applies every migration and .test.sql in a pgvector/pg17 container,
       # then reverses the whole chain. See scripts/verify-migrations.sh.
       - run: sh scripts/verify-migrations.sh
+      # Then the Go integration tests, against a freshly migrated container.
+      - run: echo "VYN_TEST_DATABASE_URL=$(sh scripts/dev-db.sh)" >> "$GITHUB_ENV"
+      - run: go -C backend test ./...

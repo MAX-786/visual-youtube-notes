@@ -6709,25 +6709,15 @@ type ChangePasswordResponseObject interface {
 	VisitChangePasswordResponse(w http.ResponseWriter) error
 }
 
-type ChangePassword200ResponseHeaders struct {
-	SetCookie *string
-}
-
-type ChangePassword200JSONResponse struct {
-	Body    SessionGrant
-	Headers ChangePassword200ResponseHeaders
-}
+type ChangePassword200JSONResponse SessionGrant
 
 func (response ChangePassword200JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if response.Headers.SetCookie != nil {
-		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
-	}
 	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err
@@ -6762,25 +6752,15 @@ type LoginResponseObject interface {
 	VisitLoginResponse(w http.ResponseWriter) error
 }
 
-type Login200ResponseHeaders struct {
-	SetCookie *string
-}
-
-type Login200JSONResponse struct {
-	Body    SessionGrant
-	Headers Login200ResponseHeaders
-}
+type Login200JSONResponse SessionGrant
 
 func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if response.Headers.SetCookie != nil {
-		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
-	}
 	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err
@@ -6850,25 +6830,15 @@ type RefreshSessionResponseObject interface {
 	VisitRefreshSessionResponse(w http.ResponseWriter) error
 }
 
-type RefreshSession200ResponseHeaders struct {
-	SetCookie *string
-}
-
-type RefreshSession200JSONResponse struct {
-	Body    SessionGrant
-	Headers RefreshSession200ResponseHeaders
-}
+type RefreshSession200JSONResponse SessionGrant
 
 func (response RefreshSession200JSONResponse) VisitRefreshSessionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if response.Headers.SetCookie != nil {
-		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
-	}
 	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err

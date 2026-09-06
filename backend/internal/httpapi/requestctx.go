@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/google/uuid"
@@ -33,11 +34,13 @@ const (
 
 // Session is the authenticated Device session behind a request.
 type Session struct {
-	ID          uuid.UUID
-	UserID      uuid.UUID
-	Kind        string
-	ExtensionID string
-	Transport   Transport
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	Kind            string
+	ExtensionID     string
+	Transport       Transport
+	CSRFHash        []byte
+	AccessExpiresAt time.Time
 	// CSRFOK is set once a cookie-transport mutation has passed the CSRF check.
 	CSRFOK bool
 }

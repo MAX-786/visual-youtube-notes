@@ -5,6 +5,7 @@ package httpapi
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -20,12 +21,15 @@ import (
 
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/apierr"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/audit"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/auth"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/contract"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ratelimit"
+	vsync "github.com/MAX-786/visual-youtube-notes/backend/internal/sync"
 )
 
-// Deps is everything the router needs. Pool and Audit may be nil in tests.
+// Deps is everything the router needs. Pool, Audit and Auth may be nil in
+// tests that stay in front of the handlers.
 type Deps struct {
 	Config   *config.Config
 	Pool     *pgxpool.Pool
@@ -33,6 +37,8 @@ type Deps struct {
 	Limiter  *ratelimit.Limiter
 	Logger   *slog.Logger
 	Audit    *audit.Recorder
+	Auth     *auth.Service
+	Sync     *vsync.Broker
 	// Authenticate identifies the Device session behind a request, or returns
 	// nil when the presented credential is absent or invalid. Every credential
 	// failure looks the same to the client (ADR 0003).
@@ -78,7 +84,13 @@ func NewRouter(deps Deps) http.Handler {
 			apierr.Write(w, apierr.New(apierr.NotFound, "That method is not defined for this path."))
 		})
 
-		strict := NewStrictHandlerWithOptions(&Server{deps: deps}, nil, StrictHTTPServerOptions{
+		server := &Server{deps: deps}
+		// The event stream is in the contract but outside code generation
+		// (ADR 0015); it is mounted by hand behind the same middleware chain.
+		if deps.Sync != nil {
+			api.Get("/events", server.streamEvents)
+		}
+		strict := NewStrictHandlerWithOptions(server, []StrictMiddlewareFunc{exposeHTTP}, StrictHTTPServerOptions{
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 				apierr.Write(w, apierr.New(apierr.InvalidRequest, "The request could not be read. Send valid JSON with the documented fields.").With("reason", err.Error()))
 			},
@@ -375,19 +387,11 @@ func checkCSRF(deps Deps, r *http.Request, session *Session) *apierr.Error {
 		return apierr.New(apierr.CSRFRejected, "Send JSON.")
 	}
 	token := r.Header.Get("X-CSRF-Token")
-	if token == "" || verifyCSRF == nil || !verifyCSRF(r.Context(), session, token) {
+	presented, err := auth.CSRFHashOf(token)
+	if err != nil || len(session.CSRFHash) == 0 || subtle.ConstantTimeCompare(presented, session.CSRFHash) != 1 {
 		return apierr.New(apierr.CSRFRejected, "The request is missing its CSRF token. Reload the app and try again.")
 	}
 	return nil
-}
-
-// verifyCSRF compares the presented token against the session's stored hash.
-// Installed by the auth slice; nil fails closed.
-var verifyCSRF func(ctx context.Context, session *Session, token string) bool
-
-// SetCSRFVerifier installs the CSRF comparison.
-func SetCSRFVerifier(f func(ctx context.Context, session *Session, token string) bool) {
-	verifyCSRF = f
 }
 
 // validateRequest checks parameters and body against the contract before any

@@ -1,0 +1,211 @@
+/* The shell's baseline. Noto Sans is self-hosted so the screen, the server's
+   layout measurement and the PDF renderer agree on one face (ADR 0011). */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --ink: #1b1b1a;
+  --muted: #5d615f;
+  --line: #d9d9d4;
+  --accent: #1f3a5f;
+  --accent-ink: #f7f7f5;
+  --danger: #a3261f;
+  --ok: #1e6b3a;
+  --warn: #8a5a00;
+  --radius: 10px;
+  --touch: 44px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417;
+    --surface: #1c1e22;
+    --ink: #ececea;
+    --muted: #a5a8a6;
+    --line: #34373c;
+    --accent: #8db1e6;
+    --accent-ink: #0f1a2b;
+    --danger: #ff8a80;
+    --ok: #7fd39a;
+    --warn: #f2c66d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    "Noto Sans",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+h2 {
+  font-size: 1.2rem;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button.primary,
+.button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.stack > * + * {
+  margin-top: 0.75rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.warn {
+  color: var(--warn);
+}
+
+.field {
+  display: block;
+}
+.field > span {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.curtain {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+
+.badge.processing {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.badge.ready {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.badge.failed {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

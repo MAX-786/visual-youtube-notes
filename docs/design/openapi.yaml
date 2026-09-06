@@ -202,11 +202,6 @@ paths:
       responses:
         "200":
           description: Signed in. Cookies are set on this response.
-          headers:
-            Set-Cookie:
-              description: "`__Host-vyn_access` (15 minutes, Path=/) and `__Secure-vyn_refresh` (Path=/auth/refresh), both Secure, HttpOnly, SameSite=Lax."
-              schema:
-                type: string
           content:
             application/json:
               schema:
@@ -232,11 +227,6 @@ paths:
       responses:
         "200":
           description: Rotated. Cookies are set on this response.
-          headers:
-            Set-Cookie:
-              description: Replacement access and refresh cookies.
-              schema:
-                type: string
           content:
             application/json:
               schema:
@@ -386,11 +376,6 @@ paths:
       responses:
         "200":
           description: Password changed; this session's credentials were rotated.
-          headers:
-            Set-Cookie:
-              description: Replacement access and refresh cookies.
-              schema:
-                type: string
           content:
             application/json:
               schema:

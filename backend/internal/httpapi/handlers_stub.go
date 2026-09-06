@@ -28,11 +28,6 @@ func (s *Server) ApprovePairingRequest(_ context.Context, _ ApprovePairingReques
 	return nil, notImplemented("ApprovePairingRequest")
 }
 
-// ChangePassword is not implemented yet.
-func (s *Server) ChangePassword(_ context.Context, _ ChangePasswordRequestObject) (ChangePasswordResponseObject, error) {
-	return nil, notImplemented("ChangePassword")
-}
-
 // ClearAiRoleKey is not implemented yet.
 func (s *Server) ClearAiRoleKey(_ context.Context, _ ClearAiRoleKeyRequestObject) (ClearAiRoleKeyResponseObject, error) {
 	return nil, notImplemented("ClearAiRoleKey")
@@ -113,11 +108,6 @@ func (s *Server) ExportNotePdf(_ context.Context, _ ExportNotePdfRequestObject) 
 	return nil, notImplemented("ExportNotePdf")
 }
 
-// GetAccount is not implemented yet.
-func (s *Server) GetAccount(_ context.Context, _ GetAccountRequestObject) (GetAccountResponseObject, error) {
-	return nil, notImplemented("GetAccount")
-}
-
 // GetAiSettings is not implemented yet.
 func (s *Server) GetAiSettings(_ context.Context, _ GetAiSettingsRequestObject) (GetAiSettingsResponseObject, error) {
 	return nil, notImplemented("GetAiSettings")
@@ -153,11 +143,6 @@ func (s *Server) GetSearchIndex(_ context.Context, _ GetSearchIndexRequestObject
 	return nil, notImplemented("GetSearchIndex")
 }
 
-// GetSession is not implemented yet.
-func (s *Server) GetSession(_ context.Context, _ GetSessionRequestObject) (GetSessionResponseObject, error) {
-	return nil, notImplemented("GetSession")
-}
-
 // GetTranscript is not implemented yet.
 func (s *Server) GetTranscript(_ context.Context, _ GetTranscriptRequestObject) (GetTranscriptResponseObject, error) {
 	return nil, notImplemented("GetTranscript")
@@ -171,11 +156,6 @@ func (s *Server) GetUsage(_ context.Context, _ GetUsageRequestObject) (GetUsageR
 // GetVapidPublicKey is not implemented yet.
 func (s *Server) GetVapidPublicKey(_ context.Context, _ GetVapidPublicKeyRequestObject) (GetVapidPublicKeyResponseObject, error) {
 	return nil, notImplemented("GetVapidPublicKey")
-}
-
-// ListEventsSince is not implemented yet.
-func (s *Server) ListEventsSince(_ context.Context, _ ListEventsSinceRequestObject) (ListEventsSinceResponseObject, error) {
-	return nil, notImplemented("ListEventsSince")
 }
 
 // ListNotes is not implemented yet.
@@ -198,16 +178,6 @@ func (s *Server) ListRevisions(_ context.Context, _ ListRevisionsRequestObject) 
 	return nil, notImplemented("ListRevisions")
 }
 
-// ListSecurityEvents is not implemented yet.
-func (s *Server) ListSecurityEvents(_ context.Context, _ ListSecurityEventsRequestObject) (ListSecurityEventsResponseObject, error) {
-	return nil, notImplemented("ListSecurityEvents")
-}
-
-// ListSessions is not implemented yet.
-func (s *Server) ListSessions(_ context.Context, _ ListSessionsRequestObject) (ListSessionsResponseObject, error) {
-	return nil, notImplemented("ListSessions")
-}
-
 // ListTags is not implemented yet.
 func (s *Server) ListTags(_ context.Context, _ ListTagsRequestObject) (ListTagsResponseObject, error) {
 	return nil, notImplemented("ListTags")
@@ -218,24 +188,9 @@ func (s *Server) ListTopics(_ context.Context, _ ListTopicsRequestObject) (ListT
 	return nil, notImplemented("ListTopics")
 }
 
-// Login is not implemented yet.
-func (s *Server) Login(_ context.Context, _ LoginRequestObject) (LoginResponseObject, error) {
-	return nil, notImplemented("Login")
-}
-
-// Logout is not implemented yet.
-func (s *Server) Logout(_ context.Context, _ LogoutRequestObject) (LogoutResponseObject, error) {
-	return nil, notImplemented("Logout")
-}
-
 // LogoutExtension is not implemented yet.
 func (s *Server) LogoutExtension(_ context.Context, _ LogoutExtensionRequestObject) (LogoutExtensionResponseObject, error) {
 	return nil, notImplemented("LogoutExtension")
-}
-
-// LogoutViaRefresh is not implemented yet.
-func (s *Server) LogoutViaRefresh(_ context.Context, _ LogoutViaRefreshRequestObject) (LogoutViaRefreshResponseObject, error) {
-	return nil, notImplemented("LogoutViaRefresh")
 }
 
 // MergeTopic is not implemented yet.
@@ -258,19 +213,9 @@ func (s *Server) RecordRestoreDrill(_ context.Context, _ RecordRestoreDrillReque
 	return nil, notImplemented("RecordRestoreDrill")
 }
 
-// RecoverCsrfToken is not implemented yet.
-func (s *Server) RecoverCsrfToken(_ context.Context, _ RecoverCsrfTokenRequestObject) (RecoverCsrfTokenResponseObject, error) {
-	return nil, notImplemented("RecoverCsrfToken")
-}
-
 // RefreshExtensionTokens is not implemented yet.
 func (s *Server) RefreshExtensionTokens(_ context.Context, _ RefreshExtensionTokensRequestObject) (RefreshExtensionTokensResponseObject, error) {
 	return nil, notImplemented("RefreshExtensionTokens")
-}
-
-// RefreshSession is not implemented yet.
-func (s *Server) RefreshSession(_ context.Context, _ RefreshSessionRequestObject) (RefreshSessionResponseObject, error) {
-	return nil, notImplemented("RefreshSession")
 }
 
 // RegenerateNote is not implemented yet.
@@ -296,16 +241,6 @@ func (s *Server) RetryBlockedNotes(_ context.Context, _ RetryBlockedNotesRequest
 // RetryNote is not implemented yet.
 func (s *Server) RetryNote(_ context.Context, _ RetryNoteRequestObject) (RetryNoteResponseObject, error) {
 	return nil, notImplemented("RetryNote")
-}
-
-// RevokeAllSessions is not implemented yet.
-func (s *Server) RevokeAllSessions(_ context.Context, _ RevokeAllSessionsRequestObject) (RevokeAllSessionsResponseObject, error) {
-	return nil, notImplemented("RevokeAllSessions")
-}
-
-// RevokeSession is not implemented yet.
-func (s *Server) RevokeSession(_ context.Context, _ RevokeSessionRequestObject) (RevokeSessionResponseObject, error) {
-	return nil, notImplemented("RevokeSession")
 }
 
 // Search is not implemented yet.
@@ -341,11 +276,6 @@ func (s *Server) TrashNote(_ context.Context, _ TrashNoteRequestObject) (TrashNo
 // UndoSubmission is not implemented yet.
 func (s *Server) UndoSubmission(_ context.Context, _ UndoSubmissionRequestObject) (UndoSubmissionResponseObject, error) {
 	return nil, notImplemented("UndoSubmission")
-}
-
-// UpdateAccount is not implemented yet.
-func (s *Server) UpdateAccount(_ context.Context, _ UpdateAccountRequestObject) (UpdateAccountResponseObject, error) {
-	return nil, notImplemented("UpdateAccount")
 }
 
 // UpdateAiRole is not implemented yet.
@@ -387,4 +317,3 @@ func (s *Server) UpsertPushSubscription(_ context.Context, _ UpsertPushSubscript
 func (s *Server) VerifyAiRole(_ context.Context, _ VerifyAiRoleRequestObject) (VerifyAiRoleResponseObject, error) {
 	return nil, notImplemented("VerifyAiRole")
 }
-

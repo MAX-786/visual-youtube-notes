@@ -11,8 +11,10 @@
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@visual-notes/api-client": "workspace:*",
+    "@fontsource/noto-sans": "5.2.8",
     "@sveltejs/kit": "2.70.3",
+    "@visual-notes/api-client": "workspace:*",
+    "idb": "8.0.3",
     "svelte": "5.57.0"
   },
   "devDependencies": {
