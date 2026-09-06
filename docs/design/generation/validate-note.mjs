@@ -729,7 +729,7 @@ export function toStoredPayload(note, transcript) {
       // Engine only. Coordinates live outside the Revision (ADR 0004), so the
       // first automatic layout no longer manufactures a manual Revision.
       layout: {
-        engine: d.type === "mind_map" ? "radial" : "dagre",
+        engine: d.type === "mind_map" ? "radial" : "layered",
       },
     };
   }

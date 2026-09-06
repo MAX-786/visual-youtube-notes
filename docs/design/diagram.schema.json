@@ -71,7 +71,7 @@
       "description": "Engine selection only. Coordinates live outside the Revision in note_diagram_layouts (ADR 0004); additionalProperties:false rejects a payload that still carries them.",
       "type": "object",
       "properties": {
-        "engine": { "enum": ["dagre", "radial"] },
+        "engine": { "enum": ["layered", "radial"] },
         "direction": { "enum": ["TB", "BT", "LR", "RL"] }
       },
       "required": ["engine"],
@@ -381,7 +381,7 @@
             { "$ref": "#/$defs/graphLayout" },
             {
               "type": "object",
-              "properties": { "engine": { "const": "dagre" } }
+              "properties": { "engine": { "const": "layered" } }
             }
           ]
         }

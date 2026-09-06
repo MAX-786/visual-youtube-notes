@@ -14,8 +14,9 @@
     "format:check": "prettier --check . && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 fmt --diff",
     "generate": "pnpm --filter @visual-notes/api-client generate && go -C backend generate ./...",
     "lint": "eslint . && go -C backend vet ./... && go -C backend run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run ./... && go -C backend run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...",
-    "test": "pnpm test:diagram-schema && pnpm -r --if-present test && go -C backend test ./...",
+    "test": "pnpm test:diagram-schema && pnpm test:library-archive && pnpm -r --if-present test && go -C backend test ./...",
     "test:diagram-schema": "node docs/design/diagram-schema.test.mjs",
+    "test:library-archive": "node docs/design/library-archive.test.mjs",
     "test:race": "go -C backend test -race ./...",
     "typecheck": "pnpm -r --if-present typecheck"
   },

@@ -55,7 +55,7 @@ Regeneration records the Active Revision as its base and activates its result on
 
 Diagram positions move out of the Revision payload into `note_diagram_layouts`, mutable and last-write-wins, keyed by Note. Left inside the payload, the first automatic layout would manufacture a `manual` Revision on merely opening a Note, and a position nudge on a second device would become a Conflict Revision over pixel coordinates. `layout.engine` stays in the payload, because radial versus Dagre is semantic.
 
-Keying by Note rather than by Revision avoids a copy-forward on every autosave: manual editing preserves element IDs so positions survive, and Regeneration mints fresh IDs so stale coordinates prune themselves when the renderer drops keys that do not resolve to an element in the Diagram being drawn. This supersedes the Layout paragraph in `docs/design/diagram-semantics.md`.
+Keying by Note rather than by Revision avoids a copy-forward on every autosave: manual editing preserves element IDs so positions survive, and Regeneration mints fresh IDs so stale coordinates prune themselves when the renderer drops keys that do not resolve to an element in the Diagram being drawn. This supersedes the Layout paragraph in `docs/design/diagram-semantics.md`. [ADR 0011](0011-export-and-library-archive.md) later revisits what a position holds and who writes it first: the value is `{x, y, w, h}` rather than `{x, y}`, the server seeds it when a Revision becomes Active, and the write merges rather than replaces. Neither change moves coordinates back into the payload or re-keys the table.
 
 ## Edits outside Revisions
 

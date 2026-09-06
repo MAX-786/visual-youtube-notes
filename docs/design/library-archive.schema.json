@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yt-track.mkhismkh.com/schemas/library-archive-v1.json",
+  "title": "Visual YouTube Notes library archive",
+  "description": "The versioned JSON archive produced by GET /api/exports/library (ADR 0011). One streamed document. Keys appear in emission order: archive_version, exported_at, account, topics, tags, notes, integrity — the integrity block digests everything before it, so it can only come last. Contains no floating-point scalar anywhere, because RFC 8785 number formatting is otherwise load-bearing for every checksum.",
+  "type": "object",
+  "properties": {
+    "archive_version": {
+      "description": "Format version. 1 is the V1 shape. Import is out of scope for V1; this exists so a later importer has something to branch on.",
+      "const": 1
+    },
+    "exported_at": { "$ref": "#/$defs/timestamp" },
+    "account": {
+      "type": "object",
+      "description": "Identity of the Owner whose library this is, and nothing that could authenticate as them.",
+      "properties": {
+        "user_id": { "$ref": "#/$defs/uuid" },
+        "timezone": {
+          "type": "string",
+          "description": "IANA account timezone, the one Save times are grouped by."
+        }
+      },
+      "required": ["user_id", "timezone"],
+      "additionalProperties": false
+    },
+    "topics": { "type": "array", "items": { "$ref": "#/$defs/topic" } },
+    "tags": { "type": "array", "items": { "$ref": "#/$defs/tag" } },
+    "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+    "integrity": { "$ref": "#/$defs/integrity" }
+  },
+  "required": [
+    "archive_version",
+    "exported_at",
+    "account",
+    "topics",
+    "tags",
+    "notes",
+    "integrity"
+  ],
+  "additionalProperties": false,
+
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "RFC 3339 UTC, e.g. 2026-09-06T11:04:22Z.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "checksum": {
+      "type": "string",
+      "description": "sha256:<64 lowercase hex>, taken over the RFC 8785 (JCS) canonical form of the record with its own `checksum` member removed. verify-archive.mjs is the executable definition.",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "nonEmptyText": { "type": "string", "minLength": 1 },
+
+    "topic": {
+      "type": "object",
+      "description": "A Primary Topic. Global, normalized, Owner-owned.",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "$ref": "#/$defs/nonEmptyText" },
+        "normalized_name": { "$ref": "#/$defs/nonEmptyText" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "checksum": { "$ref": "#/$defs/checksum" }
+      },
+      "required": ["id", "name", "normalized_name", "created_at", "checksum"],
+      "additionalProperties": false
+    },
+
+    "tag": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "$ref": "#/$defs/nonEmptyText" },
+        "normalized_name": { "$ref": "#/$defs/nonEmptyText" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "checksum": { "$ref": "#/$defs/checksum" }
+      },
+      "required": ["id", "name", "normalized_name", "created_at", "checksum"],
+      "additionalProperties": false
+    },
+
+    "note": {
+      "type": "object",
+      "description": "One Note with everything the spec's contents list names, and nothing derived, operational, or secret. A Note in Trash travels with its trashed_at rather than being skipped: the archive is what the Owner has, and a Note has thirty days of being both deleted and wanted.",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "processing_state": {
+          "enum": [
+            "queued",
+            "metadata",
+            "captions",
+            "transcribing",
+            "generating",
+            "indexing",
+            "ready",
+            "failed"
+          ]
+        },
+        "failure_stage": {
+          "type": ["string", "null"],
+          "description": "Set only when processing_state is failed."
+        },
+        "saved_at": {
+          "$ref": "#/$defs/timestamp",
+          "description": "Save time. Drives the daily timeline; publication date does not."
+        },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "trashed_at": {
+          "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }]
+        },
+        "purge_after": {
+          "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }]
+        },
+        "primary_topic_id": {
+          "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }],
+          "description": "Null only while processing or failed; a ready non-Trash Note always has one."
+        },
+        "tag_ids": { "type": "array", "items": { "$ref": "#/$defs/uuid" } },
+        "active_revision_id": {
+          "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+        },
+        "source": { "$ref": "#/$defs/source" },
+        "transcript": {
+          "oneOf": [{ "$ref": "#/$defs/transcript" }, { "type": "null" }]
+        },
+        "takeaway": {
+          "oneOf": [{ "$ref": "#/$defs/takeaway" }, { "type": "null" }],
+          "description": "The Owner's My takeaway, stored outside every Revision and never touched by AI."
+        },
+        "revisions": {
+          "type": "array",
+          "description": "Every Revision of this Note, of every origin, oldest first. Conflict Revisions included: they are content the Owner authored and the archive is not the place to lose them.",
+          "items": { "$ref": "#/$defs/revision" }
+        },
+        "ai_cost": { "$ref": "#/$defs/aiCost" },
+        "checksum": { "$ref": "#/$defs/checksum" }
+      },
+      "required": [
+        "id",
+        "processing_state",
+        "failure_stage",
+        "saved_at",
+        "created_at",
+        "updated_at",
+        "trashed_at",
+        "purge_after",
+        "primary_topic_id",
+        "tag_ids",
+        "active_revision_id",
+        "source",
+        "transcript",
+        "takeaway",
+        "revisions",
+        "ai_cost",
+        "checksum"
+      ],
+      "additionalProperties": false
+    },
+
+    "source": {
+      "type": "object",
+      "description": "The YouTube video the Note derives from. Thumbnails are not stored, so none travel.",
+      "properties": {
+        "video_id": { "$ref": "#/$defs/nonEmptyText" },
+        "canonical_url": { "$ref": "#/$defs/nonEmptyText" },
+        "title": { "$ref": "#/$defs/nonEmptyText" },
+        "channel": { "$ref": "#/$defs/nonEmptyText" },
+        "duration_seconds": { "type": "integer", "minimum": 0 },
+        "published_at": {
+          "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }],
+          "description": "Informational only."
+        }
+      },
+      "required": [
+        "video_id",
+        "canonical_url",
+        "title",
+        "channel",
+        "duration_seconds",
+        "published_at"
+      ],
+      "additionalProperties": false
+    },
+
+    "transcript": {
+      "type": "object",
+      "description": "Retained normalized text in the original language and script. Chunks do not travel: they are an indexing artifact that re-derives from this text.",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "source_kind": { "enum": ["caption_human", "caption_auto", "stt"] },
+        "language_code": { "$ref": "#/$defs/nonEmptyText" },
+        "normalized_text": { "$ref": "#/$defs/nonEmptyText" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": [
+        "id",
+        "source_kind",
+        "language_code",
+        "normalized_text",
+        "created_at"
+      ],
+      "additionalProperties": false
+    },
+
+    "takeaway": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "updated_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": ["text", "updated_at"],
+      "additionalProperties": false
+    },
+
+    "revision": {
+      "type": "object",
+      "description": "An immutable Revision. `payload` is the stored JSONB verbatim, Source refs and all — a re-shaped payload would be a second schema to keep in step with diagram.schema.json, and fidelity is the archive's entire claim.",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "revision_number": { "type": "integer", "minimum": 1 },
+        "origin": { "enum": ["generated", "manual", "conflict", "restore"] },
+        "parent_revision_id": {
+          "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+        },
+        "generated_from_transcript_id": {
+          "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+        },
+        "generation_instruction": { "type": ["string", "null"] },
+        "payload": {
+          "type": "object",
+          "description": "Verbatim note_revisions.payload. Validated by diagram.schema.json and the generation validator, not by this file."
+        },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "required": [
+        "id",
+        "revision_number",
+        "origin",
+        "parent_revision_id",
+        "generated_from_transcript_id",
+        "generation_instruction",
+        "payload",
+        "created_at"
+      ],
+      "additionalProperties": false
+    },
+
+    "aiCost": {
+      "type": "object",
+      "description": "Per-Note spend summary, which spec 7.4 lists as Note metadata. Money is an integer of micro-USD so the archive stays float-free; the ledger's own rows do not travel.",
+      "properties": {
+        "total_micro_usd": { "type": "integer", "minimum": 0 },
+        "by_role": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "transcription",
+              "note_generation",
+              "embeddings",
+              "visual_analysis"
+            ]
+          },
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "unpriced_events": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Billable calls whose model had no price row. Counted beside the total rather than folded into it, for the reason ADR 0007 gives: a total that under-counts quietly is worse than one that admits a gap."
+        }
+      },
+      "required": ["total_micro_usd", "by_role", "unpriced_events"],
+      "additionalProperties": false
+    },
+
+    "integrity": {
+      "type": "object",
+      "description": "Written last, because it digests everything before it. `digest` is sha256 over the concatenation of every record checksum — topics, then tags, then notes — in emission order, each as its bare 64-hex form with no separator. Counts catch truncation; the digest catches reordering and substitution.",
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "canonicalization": { "const": "RFC8785" },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "topics": { "type": "integer", "minimum": 0 },
+            "tags": { "type": "integer", "minimum": 0 },
+            "notes": { "type": "integer", "minimum": 0 },
+            "revisions": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["topics", "tags", "notes", "revisions"],
+          "additionalProperties": false
+        },
+        "digest": { "$ref": "#/$defs/checksum" }
+      },
+      "required": ["algorithm", "canonicalization", "counts", "digest"],
+      "additionalProperties": false
+    }
+  }
+}

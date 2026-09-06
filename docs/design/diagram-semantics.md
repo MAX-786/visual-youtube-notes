@@ -19,9 +19,11 @@
 
 ## Layout
 
-- Mind maps use radial layout; process flows use Dagre; timelines declare horizontal or vertical orientation. The engine choice is semantic and stays in the Revision payload.
+- Mind maps use `radial` layout; process flows use `layered`; timelines declare horizontal or vertical orientation. The engine choice is semantic and stays in the Revision payload. It names a shape rather than a library: [ADR 0011](../adr/0011-export-and-library-archive.md) moved both algorithms into Go, which is why the value is `layered` and not `dagre`.
 - Coordinates are **not** in the payload. [ADR 0004](../adr/0004-revision-mutation-and-conflict-model.md) hoists them into the mutable `note_diagram_layouts` table, keyed by Note and last-write-wins, so the first automatic layout does not manufacture a manual Revision on merely opening a Note and a position nudge on a second device does not become a Conflict Revision. `additionalProperties: false` on the layout object rejects a payload that still carries them.
-- Positions may be empty or partial. The renderer drops keys that do not resolve to an element in the Diagram it is drawing, which is how coordinates left behind by a Regeneration prune themselves.
+- A position is `{x, y, w, h}`: the box, not just its corner. Box size comes from measuring the label, and storing it leaves exactly one implementation of that measurement (ADR 0011).
+- The server seeds positions. Whenever a Revision becomes Active, every element in its Diagram is given a position and only the missing ones are computed; the write **merges** into the existing map rather than replacing it, which is what lets a Regeneration's stale coordinates survive long enough for a later restore to reuse them.
+- Positions may still be empty or partial for a Diagram the server has not yet laid out. The renderer drops keys that do not resolve to an element in the Diagram it is drawing, which is how coordinates left behind by a Regeneration prune themselves.
 - Layout never changes semantic order and is ignored by the Text alternative.
 
 ## Text alternative derivation

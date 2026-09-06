@@ -184,7 +184,7 @@ The canonical diagram is structured JSON, not a generated bitmap. Every diagram 
 mind_map | process_flow:
   nodes[{id, label, kind, group_id?, provenance, source_refs[]}]
   edges[{id, from, to, label?, order?, provenance?, source_refs[]?}]
-  layout{element_id: {x, y}}
+  layout{engine, direction?}   # coordinates live outside the revision
 
 timeline:
   events[{id, label, order, group_id?, provenance, source_refs[]}]
@@ -414,7 +414,7 @@ For each role, store provider, model identifier, endpoint where applicable, and 
 - Export one note as PDF or Markdown.
 - Include the visual note and source metadata by default.
 - Offer an **Include transcript** toggle.
-- Render diagrams as vector graphics in PDF. Markdown export is a ZIP containing UTF-8 Markdown plus local SVG assets so it has no broken remote references.
+- Render diagrams as vector graphics in PDF. Markdown export is a ZIP containing UTF-8 Markdown with no remote references: a mind map or process flow ships a local SVG asset beside the Markdown, while a timeline becomes a numbered list and a comparison matrix a Markdown table.
 
 ### Library backup
 

@@ -154,6 +154,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      gotenberg:
+        condition: service_healthy
     environment:
       VYN_DATABASE_HOST: postgres
       VYN_DATABASE_NAME: vyn
@@ -166,6 +168,10 @@ services:
       # SSE comment heartbeat, comfortably inside Cloudflare's documented
       # 125 s Proxy Read Timeout (which has no free-plan override).
       VYN_SSE_HEARTBEAT: 30s
+      # Exports are produced synchronously by the API and streamed to the client
+      # (ADR 0011). ADR 0008 keeps Chromium out of the *worker image*, which an
+      # HTTP call from here does not touch.
+      VYN_GOTENBERG_URL: http://gotenberg:3000
     secrets:
       - postgres_password
       - master_key
@@ -207,8 +213,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      gotenberg:
-        condition: service_healthy
     environment:
       VYN_DATABASE_HOST: postgres
       VYN_DATABASE_NAME: vyn
@@ -216,7 +220,6 @@ services:
       VYN_DATABASE_PASSWORD_FILE: /run/secrets/postgres_password
       VYN_MASTER_KEY_FILE: /run/secrets/master_key
       VYN_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
-      VYN_GOTENBERG_URL: http://gotenberg:3000
       # /status, not /healthz: liveness and staleness are different questions,
       # and the health check owns the other one. See ADR 0009.
       VYN_BACKUP_STATUS_URL: http://backup:8080/status
@@ -278,6 +281,17 @@ services:
     # fonts-noto-core. Verified present in this digest:
     #   NotoSansDevanagari-{Regular,Bold}.ttf, NotoSerifDevanagari-{Regular,Bold}.ttf
     image: gotenberg/gotenberg:8.36.0-chromium@sha256:a40f92d7419adbf98fd2ab2e4211f6186c9fd44f196a5aadbd2769bf237faae6
+    # The print document is static HTML with an inline SVG and has no script to
+    # run, so JavaScript is pure attack surface over AI-generated text (ADR 0011).
+    #
+    # The network is already closed and must be left alone: --chromium-deny-list
+    # defaults to `^file:(?!//\/tmp/).*`, which denies every URL except Gotenberg's
+    # own temp directory. Verified by reading --help from this digest. Overriding
+    # it with a broader pattern would deny the posted index.html too, and the
+    # render would fail for the assets it was meant to protect.
+    command:
+      - gotenberg
+      - --chromium-disable-javascript
     restart: unless-stopped
     logging: *logging
     healthcheck:

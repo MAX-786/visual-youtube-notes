@@ -109,5 +109,5 @@
   ],
   "edges": [],
   "collapsed_groups": [],
-  "layout": { "engine": "dagre", "direction": "LR" }
+  "layout": { "engine": "layered", "direction": "LR" }
 }
