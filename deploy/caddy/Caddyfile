@@ -56,7 +56,12 @@ yt-track.mkhismkh.com {
 	handle {
 		encode zstd gzip
 		root * /srv
-		try_files {path} /index.html
+		# /200.html, not /index.html: adapter-static designates 200.html as the
+		# fallback and gives it absolute asset URLs. A prerendered index.html
+		# carries relative ones, which resolve into a missing directory at any
+		# two-segment route (/notes/<id>, /pair/<id>) -- and try_files answers
+		# those with this same HTML under a 200. See ADR 0012.
+		try_files {path} /200.html
 		file_server
 	}
 }

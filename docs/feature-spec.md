@@ -500,6 +500,7 @@ V1.1 permits local switching only between mind map and process flow when all ele
 - Automatic retries distinguish three kinds of failure: transient provider/network failures, which retry; permanent input failures, which wait for the user; and extractor breakage, which is permanent under the current pinned tool version, clears when that pin moves, and alerts the owner rather than blaming the video.
 - Temporary-file cleanup runs both per job and during worker startup.
 - API create/update/delete events carry monotonically increasing sync cursors. SSE publishes them; clients resync from the last cursor after reconnect, and polling uses the same cursor endpoint.
+- Pipeline progress is published on the same stream as uncursored, best-effort frames a client may miss. Only terminal processing states are recorded as cursored events, so a dropped progress frame heals on the next one and a dropped terminal state cannot happen.
 
 ### Performance
 
