@@ -32,8 +32,15 @@ Read this once, now, rather than inferring it during an incident.
 | `secrets/restic_password`                  | Host **and password manager**                       | **No.** Needed to open the backups    |
 | `secrets/restic_sftp_password`             | Host **and password manager**                       | **No.** Same, for the off-server copy |
 | age recovery identity (`vyn-recovery.txt`) | **Password manager only**                           | **No.** Never on this host            |
+| `extension_signing_key.pem`                | **Developer machine and password manager**          | Regenerable, but see below            |
 
-The bottom three are not in any backup on purpose: they are what you need to _open_ a backup, so
+`extension_signing_key.pem` is the odd one out: it is **not** a Compose secret and never reaches
+this host. It pins the Chromium extension's ID (`fjodmlmkfifedoamachdbgigfpaldicm`) via the `key`
+committed to the manifest. Regenerating it is technically easy and operationally expensive — a new
+ID invalidates the server's allowlisted `chrome-extension://` origin and every paired Device
+session at once. See [ADR 0013](../adr/0013-chromium-extension-structure-and-pairing.md).
+
+The three password-manager entries above are not in any backup on purpose: they are what you need to _open_ a backup, so
 storing them inside one is circular. Losing the restic password loses the backups outright — restic
 is explicit that there is no recovery path.
 
