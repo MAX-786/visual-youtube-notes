@@ -1,0 +1,7 @@
+# Normalize line endings so prettier, gofmt and every platform agree.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.ttf binary
+*.pem binary
