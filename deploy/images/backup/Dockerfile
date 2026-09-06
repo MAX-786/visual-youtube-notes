@@ -17,8 +17,12 @@ ARG AGE_SHA256
 ARG SUPERCRONIC_VERSION
 ARG SUPERCRONIC_SHA256
 
+# jq shapes the /status payload out of `restic snapshots --json`; socat is the
+# status server; flock serialises the daily job, the weekly copy and any manual
+# run against each other; curl is the health check's own client.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl bzip2 openssh-client \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl bzip2 openssh-client jq socat util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 RUN test -n "$RESTIC_VERSION" && test -n "$RESTIC_SHA256" \
@@ -48,11 +52,25 @@ RUN test -n "$SUPERCRONIC_VERSION" && test -n "$SUPERCRONIC_SHA256" \
  && echo "${SUPERCRONIC_SHA256}  /usr/local/bin/supercronic" | sha256sum -c - \
  && chmod 0755 /usr/local/bin/supercronic
 
-# The backup, copy and status scripts, the crontab, and the restore drill are
-# the deliverable of ticket #21 (operational runbook). This image provides the
-# tools they need and nothing more; without them the service will not start,
-# which is the honest state until #21 lands.
+# The scripts (ticket #21). lib.sh is sourced by all of them and is not on PATH,
+# because it is not runnable on its own.
+COPY deploy/images/backup/lib.sh /usr/local/lib/vyn/lib.sh
 COPY deploy/images/backup/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY deploy/images/backup/backup-daily.sh /usr/local/bin/backup-daily.sh
+COPY deploy/images/backup/copy-weekly.sh /usr/local/bin/copy-weekly.sh
+COPY deploy/images/backup/status-refresh.sh /usr/local/bin/status-refresh.sh
+COPY deploy/images/backup/status-handler.sh /usr/local/bin/status-handler.sh
+COPY deploy/images/backup/crontab /etc/vyn/crontab
+
+# `docker compose exec backup backup-now` is how the forward-migration
+# procedure takes its pre-migration backup.
+RUN ln -s /usr/local/bin/backup-daily.sh /usr/local/bin/backup-now \
+ && chmod 0755 /usr/local/bin/entrypoint.sh \
+      /usr/local/bin/backup-daily.sh \
+      /usr/local/bin/copy-weekly.sh \
+      /usr/local/bin/status-refresh.sh \
+      /usr/local/bin/status-handler.sh \
+ && chmod 0644 /usr/local/lib/vyn/lib.sh /etc/vyn/crontab
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

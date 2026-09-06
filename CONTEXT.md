@@ -157,12 +157,16 @@ One try at a Stage, persisted before every external call. One initial Attempt pl
 _Avoid_: Retry (that is the act of creating another Attempt)
 
 **Transient failure**:
-A network, timeout, provider 429/5xx, or extractor failure that earns an automatic retry.
+A network, timeout, or provider 429/5xx failure that earns an automatic retry.
 _Avoid_: Soft error
 
 **Permanent failure**:
-A validation or provider 4xx (other than 408/409/429) failure that waits for the user to Retry or Delete.
+A validation or provider 4xx (other than 408/409/429) failure, or a video the source genuinely will not yield, that waits for the user to Retry or Delete.
 _Avoid_: Hard error, fatal
+
+**Extractor breakage**:
+A failure caused by the pinned extraction tool being broken by an upstream change rather than by the video or the network. Permanent under the current pin and cleared by updating it, so it is the Owner's to fix, not the user's to retry.
+_Avoid_: Extractor failure (it read as Transient and hid this case)
 
 **Processing role**:
 One of the four independently configured AI slots: transcription, note generation, embeddings, visual analysis.

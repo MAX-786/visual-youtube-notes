@@ -452,7 +452,7 @@ Docker Compose services:
 - Go API
 - Go worker
 - PostgreSQL with `pgvector`
-- One-shot migration job that gates the API and worker
+- One-shot migration jobs that gate the API and worker: one for the job-queue schema, which the queue library owns, and one for the application schema
 - Headless Chromium (Gotenberg) for PDF rendering, kept out of the worker image
 - Backup job/container
 
@@ -497,7 +497,7 @@ V1.1 permits local switching only between mind map and process flow when all ele
 - Submission and job creation are atomic.
 - All jobs are idempotent by note/video and processing version.
 - A worker restart cannot lose a committed job.
-- Automatic retries distinguish transient provider/network failures from permanent input failures.
+- Automatic retries distinguish three kinds of failure: transient provider/network failures, which retry; permanent input failures, which wait for the user; and extractor breakage, which is permanent under the current pinned tool version, clears when that pin moves, and alerts the owner rather than blaming the video.
 - Temporary-file cleanup runs both per job and during worker startup.
 - API create/update/delete events carry monotonically increasing sync cursors. SSE publishes them; clients resync from the last cursor after reconnect, and polling uses the same cursor endpoint.
 

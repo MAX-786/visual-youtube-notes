@@ -68,10 +68,24 @@ services:
           memory: 8G
 
   # ---------------------------------------------------------------------------
-  # Schema migrations -- one shot, gates everything that touches the database
+  # Schema migrations -- two one-shots from one image, gating everything that
+  # touches the database. River owns River's schema; we own ours. See ADR 0009.
+  #
+  # The migration files live INSIDE the image rather than on a bind mount, so
+  # the schema version travels with the tag exactly as the PWA does. The cost is
+  # that a rolled-back image carries fewer migrations than the database has
+  # applied -- which the entrypoint recognises as the defined outcome of a
+  # rollback and exits 0 for, instead of failing and stranding the stack.
   # ---------------------------------------------------------------------------
-  migrate:
-    image: migrate/migrate:v4.19.0
+  river-migrate:
+    image: ghcr.io/max-786/visual-youtube-notes/migrate:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/migrate/Dockerfile
+      args:
+        # Must match the `river` dependency in backend/go.mod; CI derives it
+        # from there rather than pinning the schema and the library twice.
+        RIVER_VERSION: ${RIVER_VERSION:?set RIVER_VERSION from backend/go.mod}
     # Must stay `no`: service_completed_successfully waits for an exited
     # container and reads its code, so a restarting container never settles.
     restart: "no"
@@ -79,20 +93,46 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./migrations:/migrations:ro
+    environment:
+      PGHOST: postgres
+      PGDATABASE: vyn
+      PGUSER: vyn
+      PGPASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    command: ["river"]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  migrate:
+    image: ghcr.io/max-786/visual-youtube-notes/migrate:${APP_VERSION:-dev}
+    build:
+      context: ..
+      dockerfile: deploy/images/migrate/Dockerfile
+      args:
+        RIVER_VERSION: ${RIVER_VERSION:?set RIVER_VERSION from backend/go.mod}
+    restart: "no"
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      river-migrate:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: postgres
+      PGDATABASE: vyn
+      PGUSER: vyn
+      PGPASSWORD_FILE: /run/secrets/postgres_password
     secrets:
       - postgres_password
     # golang-migrate skips any file failing its {version}_{title}.{up|down}.{ext}
     # regex, so the repo's *.test.sql siblings are ignored rather than misread.
     # Never name one *.up.test.sql -- that DOES match, as a duplicate `up`, and
     # fails the whole run. See the CI guard in ADR 0008.
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >
-        migrate -path=/migrations
-        -database "postgres://vyn:$$(cat /run/secrets/postgres_password)@postgres:5432/vyn?sslmode=disable"
-        up
+    command: ["app"]
     deploy:
       resources:
         limits:
@@ -177,7 +217,18 @@ services:
       VYN_MASTER_KEY_FILE: /run/secrets/master_key
       VYN_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
       VYN_GOTENBERG_URL: http://gotenberg:3000
-      VYN_BACKUP_STATUS_URL: http://backup:8080/healthz
+      # /status, not /healthz: liveness and staleness are different questions,
+      # and the health check owns the other one. See ADR 0009.
+      VYN_BACKUP_STATUS_URL: http://backup:8080/status
+      # Staleness thresholds. The off-server copy is weekly to a laptop that is
+      # off some nights, so 48 hours would cry wolf every week.
+      VYN_BACKUP_STALE_LOCAL: 48h
+      VYN_BACKUP_STALE_OFFSITE: 240h
+      VYN_HEALTH_CHECK_INTERVAL: 15m
+      # Alarm before the transcribing Stage's own preflight floor below, so the
+      # warning precedes the failure it predicts rather than explaining it.
+      VYN_DISK_MIN_FREE_BYTES: "5368709120"
+      VYN_DISK_MIN_FREE_PERCENT: "10"
       VYN_HEALTH_LISTEN: ":8081"
       VYN_TEMP_DIR: /var/lib/vyn/tmp
       # Queue shape is fixed by ADR 0006: FFmpeg and STT are serialised by
@@ -299,22 +350,38 @@ services:
       PGHOST: postgres
       PGDATABASE: vyn
       PGUSER: vyn
-      PGPASSFILE: /run/secrets/postgres_password
+      # Not PGPASSFILE: that wants a pgpass-format line (host:port:db:user:pw),
+      # and the secret is a bare password. lib.sh reads the file and exports
+      # PGPASSWORD inside the script, so it never enters `docker inspect`.
+      PGPASSWORD_FILE: /run/secrets/postgres_password
       RESTIC_PASSWORD_FILE: /run/secrets/restic_password
       RESTIC_LOCAL_REPO: /var/lib/restic
-      # Off-server copy target; the identity is a mounted secret.
+      # Off-server copy target; the identity is a mounted secret. Its repository
+      # carries its OWN password, so a compromise of this host does not hand
+      # over the laptop copy once that one is rotated.
       RESTIC_SFTP_REPO: ${RESTIC_SFTP_REPO:-}
-      BACKUP_SCHEDULE: "0 3 * * *"
-      COPY_SCHEDULE: "0 4 * * 0"
+      RESTIC_SFTP_PASSWORD_FILE: /run/secrets/restic_sftp_password
+      # A PUBLIC age recipient, so environment is the honest place for it: ADR
+      # 0008 keeps secrets in files because environment leaks, and a leaked
+      # public key is a non-event. The matching private identity lives only in
+      # the Owner's password manager and has never been on this host.
+      BACKUP_RECOVERY_RECIPIENT: ${BACKUP_RECOVERY_RECIPIENT:?set the age recovery recipient}
       KEEP_DAILY: "7"
       KEEP_WEEKLY: "4"
-      STATUS_LISTEN: ":8080"
+      STATUS_LISTEN_PORT: "8080"
+    # The schedule is baked into the image at /etc/vyn/crontab rather than
+    # passed in, so `docker compose up` cannot bring up a backup service whose
+    # timings disagree with the scripts it is running.
     secrets:
       - postgres_password
       - restic_password
       - restic_sftp_key
+      - restic_sftp_password
+      - master_key
+      - vapid_private_key
     volumes:
       - restic_local:/var/lib/restic
+      - backup_state:/var/lib/vyn-backup
     healthcheck:
       test:
         [
@@ -335,6 +402,50 @@ services:
           cpus: "0.5"
           memory: 512M
 
+  # ---------------------------------------------------------------------------
+  # Restore drill -- a scratch database beside production, never in the default
+  # `up`. Shipped rather than improvised at drill time so the scratch instance
+  # is guaranteed the same major and the same pgvector build as production,
+  # which is exactly what a tired person typing `docker run` gets wrong.
+  #
+  #   docker compose --profile restore up -d db-restore
+  # ---------------------------------------------------------------------------
+  db-restore:
+    profiles: ["restore"]
+    image: pgvector/pgvector:pg17
+    restart: "no"
+    logging: *logging
+    environment:
+      POSTGRES_DB: vyn
+      POSTGRES_USER: vyn
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata_restore:/var/lib/postgresql/data
+    # No ports. The drill reaches it over the Compose network, and a scratch
+    # database holding a full copy of the library should not be one firewall
+    # rule away from the internet.
+    command:
+      - postgres
+      - -c
+      # A parallel pg_restore rebuilds every index, HNSW included. This is the
+      # scratch instance, so it can take memory production would not give it.
+      - maintenance_work_mem=2GB
+      - -c
+      - max_parallel_maintenance_workers=2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vyn -d vyn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 6G
+
 volumes:
   pgdata:
   caddy_data:
@@ -342,6 +453,9 @@ volumes:
   ytdlp_cache:
   worker_tmp:
   restic_local:
+  backup_state:
+  # Only ever populated under the `restore` profile; dropped after each drill.
+  pgdata_restore:
 
 secrets:
   # Files, never environment: env leaks into `docker inspect` and into every
@@ -354,5 +468,9 @@ secrets:
     file: ./secrets/restic_password
   restic_sftp_key:
     file: ./secrets/restic_sftp_key
+  # Deliberately a different value from restic_password: the off-server copy
+  # should survive a compromise of this host's secrets once rotated.
+  restic_sftp_password:
+    file: ./secrets/restic_sftp_password
   vapid_private_key:
     file: ./secrets/vapid_private_key

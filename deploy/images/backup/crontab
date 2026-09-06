@@ -1,0 +1,24 @@
+# supercronic crontab for the backup sidecar.
+#
+# Compose has no cron primitive, so the schedule lives inside the container:
+# `docker compose up` then brings the backup schedule with it rather than
+# leaving it in a host crontab that a host rebuild quietly loses (ADR 0008).
+#
+# Times are UTC -- the container carries no timezone data and none is wanted,
+# because a schedule that shifts twice a year is a schedule that surprises
+# somebody at 3am exactly once.
+
+# Daily dump into the local repository.
+0 3 * * *   /usr/local/bin/backup-daily.sh
+
+# Weekly copy to the off-server repository, then retried every following night
+# until it lands. The target is a laptop that is not always on, and `restic
+# copy` skips snapshots the destination already holds, so a retry after a
+# success costs a connection and nothing more.
+0 4 * * *   /usr/local/bin/copy-weekly.sh
+
+# Cached readings for /status. Local is cheap and local; off-server crosses SSH
+# to a machine that is usually asleep, and its staleness threshold is ten days,
+# so hourly resolution is ample.
+*/5 * * * * /usr/local/bin/status-refresh.sh local
+17 * * * *  /usr/local/bin/status-refresh.sh offsite

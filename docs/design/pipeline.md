@@ -58,7 +58,8 @@ concurrent Delete, so a late result is discarded by the transaction rolling back
 
 ## Error classification
 
-One function, `classify(stage, err) → transient | permanent`, is the only place this is decided.
+One function, `classify(stage, err) → transient | permanent | extractor_breakage`, is the only
+place this is decided.
 
 | Signal                                                          | Verdict                          |
 | --------------------------------------------------------------- | -------------------------------- |
@@ -67,12 +68,21 @@ One function, `classify(stage, err) → transient | permanent`, is the only plac
 | Provider 408, 409                                               | transient                        |
 | Any other provider 4xx                                          | permanent                        |
 | Schema, grounding, or diagram validation failure                | permanent                        |
-| `yt-dlp` stderr with the "please report this issue" suffix      | transient (extractor breakage)   |
+| `yt-dlp` stderr with the "please report this issue" suffix      | **extractor breakage**           |
 | `yt-dlp` stderr matching "Unable to download webpage\|API page" | transient (network)              |
 | Any other `yt-dlp` `ERROR:`                                     | permanent (legitimate rejection) |
 
 `yt-dlp` exits 1 for all three cases, so stderr is the only discriminator — established in
 [#4](https://github.com/MAX-786/visual-youtube-notes/issues/4).
+
+**Extractor breakage is a third verdict, not a flavour of transient** ([ADR
+0009](../adr/0009-forward-only-migrations-and-operational-alerting.md)). Retrying cannot help: the
+pinned binary is what is broken, and it will not change mid-ladder. So it writes
+`error_code = 'extractor_breakage'` with `is_permanent = true` — permanent-but-operator-fixable
+rather than permanent-and-final. The UI says the run is blocked pending a tool update instead of
+falsely accusing the video; the failure raises the ops notification; and the
+`notes_blocked_by_tooling` view is what the yt-dlp procedure retries in bulk once the pin moves. It
+is the one failure class the Owner clears and the user cannot.
 
 Both failure routes converge on one `failStage()` helper:
 
