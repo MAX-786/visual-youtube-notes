@@ -423,6 +423,48 @@ func (e InsertBlockOpOp) Valid() bool {
 	}
 }
 
+// Defines values for InsertElementOpCollection.
+const (
+	InsertElementOpCollectionColumns InsertElementOpCollection = "columns"
+	InsertElementOpCollectionEdges   InsertElementOpCollection = "edges"
+	InsertElementOpCollectionEvents  InsertElementOpCollection = "events"
+	InsertElementOpCollectionNodes   InsertElementOpCollection = "nodes"
+	InsertElementOpCollectionRows    InsertElementOpCollection = "rows"
+)
+
+// Valid indicates whether the value is a known member of the InsertElementOpCollection enum.
+func (e InsertElementOpCollection) Valid() bool {
+	switch e {
+	case InsertElementOpCollectionColumns:
+		return true
+	case InsertElementOpCollectionEdges:
+		return true
+	case InsertElementOpCollectionEvents:
+		return true
+	case InsertElementOpCollectionNodes:
+		return true
+	case InsertElementOpCollectionRows:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InsertElementOpOp.
+const (
+	InsertElement InsertElementOpOp = "insert_element"
+)
+
+// Valid indicates whether the value is a known member of the InsertElementOpOp enum.
+func (e InsertElementOpOp) Valid() bool {
+	switch e {
+	case InsertElement:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Language.
 const (
 	En       Language = "en"
@@ -665,19 +707,19 @@ func (e ReorderBlocksOpOp) Valid() bool {
 
 // Defines values for ReorderElementsOpCollection.
 const (
-	Columns ReorderElementsOpCollection = "columns"
-	Events  ReorderElementsOpCollection = "events"
-	Rows    ReorderElementsOpCollection = "rows"
+	ReorderElementsOpCollectionColumns ReorderElementsOpCollection = "columns"
+	ReorderElementsOpCollectionEvents  ReorderElementsOpCollection = "events"
+	ReorderElementsOpCollectionRows    ReorderElementsOpCollection = "rows"
 )
 
 // Valid indicates whether the value is a known member of the ReorderElementsOpCollection enum.
 func (e ReorderElementsOpCollection) Valid() bool {
 	switch e {
-	case Columns:
+	case ReorderElementsOpCollectionColumns:
 		return true
-	case Events:
+	case ReorderElementsOpCollectionEvents:
 		return true
-	case Rows:
+	case ReorderElementsOpCollectionRows:
 		return true
 	default:
 		return false
@@ -1414,7 +1456,7 @@ type DeleteBlockOp struct {
 // DeleteBlockOpOp defines model for DeleteBlockOp.Op.
 type DeleteBlockOpOp string
 
-// DeleteElementOp A node, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades.
+// DeleteElementOp A node, process-flow edge, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades.
 type DeleteElementOp struct {
 	// ElementId A stable Content block or Diagram element id.
 	ElementId ElementId         `json:"element_id"`
@@ -1682,6 +1724,32 @@ type InsertBlockOp struct {
 
 // InsertBlockOpOp defines model for InsertBlockOp.Op.
 type InsertBlockOpOp string
+
+// InsertElementOp Adds a user-owned Diagram element. Graph nodes may name a parent; graph edges name both endpoints. Comparison rows and columns receive editable placeholder cells.
+type InsertElementOp struct {
+	AfterId    *ElementId                `json:"after_id,omitempty"`
+	Collection InsertElementOpCollection `json:"collection"`
+
+	// From A stable Content block or Diagram element id.
+	From *ElementId `json:"from,omitempty"`
+
+	// Id A stable Content block or Diagram element id.
+	Id    ElementId         `json:"id"`
+	Label *string           `json:"label,omitempty"`
+	Op    InsertElementOpOp `json:"op"`
+
+	// ParentId A stable Content block or Diagram element id.
+	ParentId *ElementId `json:"parent_id,omitempty"`
+
+	// To A stable Content block or Diagram element id.
+	To *ElementId `json:"to,omitempty"`
+}
+
+// InsertElementOpCollection defines model for InsertElementOp.Collection.
+type InsertElementOpCollection string
+
+// InsertElementOpOp defines model for InsertElementOp.Op.
+type InsertElementOpOp string
 
 // Language defines model for Language.
 type Language string
@@ -2930,11 +2998,14 @@ type ListNotesParams struct {
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
-	Q         string              `form:"q" json:"q"`
-	From      *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
-	To        *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
-	TopicId   *Uuid               `form:"topic_id,omitempty" json:"topic_id,omitempty"`
-	ChannelId *string             `form:"channel_id,omitempty" json:"channel_id,omitempty"`
+	Q string `form:"q" json:"q"`
+
+	// CaseSensitive When true, results must contain the query with the same letter case and semantic ranking is skipped.
+	CaseSensitive *bool               `form:"case_sensitive,omitempty" json:"case_sensitive,omitempty"`
+	From          *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To            *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+	TopicId       *Uuid               `form:"topic_id,omitempty" json:"topic_id,omitempty"`
+	ChannelId     *string             `form:"channel_id,omitempty" json:"channel_id,omitempty"`
 
 	// MinDuration Seconds, inclusive.
 	MinDuration *int `form:"min_duration,omitempty" json:"min_duration,omitempty"`
@@ -3404,6 +3475,40 @@ func (t *MutationOp) MergeSetCellTextOp(v SetCellTextOp) error {
 	return err
 }
 
+// AsInsertElementOp returns the union data inside the MutationOp as a InsertElementOp
+func (t MutationOp) AsInsertElementOp() (InsertElementOp, error) {
+	var body InsertElementOp
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInsertElementOp overwrites any union data inside the MutationOp as the provided InsertElementOp
+func (t *MutationOp) FromInsertElementOp(v InsertElementOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"insert_element"}`))
+	t.union = b
+	return err
+}
+
+// MergeInsertElementOp performs a merge with any union data inside the MutationOp, using the provided InsertElementOp
+func (t *MutationOp) MergeInsertElementOp(v InsertElementOp) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"op":"insert_element"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsDeleteElementOp returns the union data inside the MutationOp as a DeleteElementOp
 func (t MutationOp) AsDeleteElementOp() (DeleteElementOp, error) {
 	var body DeleteElementOp
@@ -3492,6 +3597,8 @@ func (t MutationOp) ValueByDiscriminator() (interface{}, error) {
 		return t.AsDeleteElementOp()
 	case "insert_block":
 		return t.AsInsertBlockOp()
+	case "insert_element":
+		return t.AsInsertElementOp()
 	case "reorder_blocks":
 		return t.AsReorderBlocksOp()
 	case "reorder_elements":
@@ -5651,6 +5758,19 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "case_sensitive" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "case_sensitive", r.URL.Query(), &params.CaseSensitive, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "case_sensitive"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "case_sensitive", Err: err})
 		}
 		return
 	}

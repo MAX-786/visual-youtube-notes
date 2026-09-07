@@ -2205,7 +2205,7 @@ export interface components {
             ops: components["schemas"]["MutationOp"][];
         };
         /** @description The closed operation catalogue. Anything absent is not representable. */
-        MutationOp: components["schemas"]["SetBlockTextOp"] | components["schemas"]["InsertBlockOp"] | components["schemas"]["DeleteBlockOp"] | components["schemas"]["ReorderBlocksOp"] | components["schemas"]["SetElementLabelOp"] | components["schemas"]["SetCellTextOp"] | components["schemas"]["DeleteElementOp"] | components["schemas"]["ReorderElementsOp"];
+        MutationOp: components["schemas"]["SetBlockTextOp"] | components["schemas"]["InsertBlockOp"] | components["schemas"]["DeleteBlockOp"] | components["schemas"]["ReorderBlocksOp"] | components["schemas"]["SetElementLabelOp"] | components["schemas"]["SetCellTextOp"] | components["schemas"]["InsertElementOp"] | components["schemas"]["DeleteElementOp"] | components["schemas"]["ReorderElementsOp"];
         SetBlockTextOp: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -2269,7 +2269,23 @@ export interface components {
             column_id: components["schemas"]["ElementId"];
             text: string;
         };
-        /** @description A node, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades. */
+        /** @description Adds a user-owned Diagram element. Graph nodes may name a parent; graph edges name both endpoints. Comparison rows and columns receive editable placeholder cells. */
+        InsertElementOp: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "insert_element";
+            /** @enum {string} */
+            collection: "nodes" | "edges" | "events" | "columns" | "rows";
+            id: components["schemas"]["ElementId"];
+            label?: string;
+            after_id?: components["schemas"]["ElementId"] | null;
+            parent_id?: components["schemas"]["ElementId"];
+            from?: components["schemas"]["ElementId"];
+            to?: components["schemas"]["ElementId"];
+        };
+        /** @description A node, process-flow edge, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades. */
         DeleteElementOp: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -3744,6 +3760,8 @@ export interface operations {
         parameters: {
             query: {
                 q: string;
+                /** @description When true, results must contain the query with the same letter case and semantic ranking is skipped. */
+                case_sensitive?: boolean;
                 from?: string;
                 to?: string;
                 topic_id?: components["schemas"]["Uuid"];

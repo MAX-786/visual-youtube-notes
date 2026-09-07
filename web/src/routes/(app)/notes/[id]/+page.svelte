@@ -6,12 +6,12 @@
   // silently resolved (ADR 0004).
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import type { components } from "@visual-notes/api-client";
   import { api, errorMessage } from "$lib/api";
   import { getNote, putNoteDetail, type Note } from "$lib/db";
   import { onSync } from "$lib/live.svelte";
-  import { deriveTextAlternative, type PositionMap } from "$lib/diagram";
+  import { type PositionMap } from "$lib/diagram";
   import {
     enqueueLayout,
     enqueueMutation,
@@ -25,8 +25,9 @@
   import ComparisonTable from "$lib/components/ComparisonTable.svelte";
   import ConflictBanner from "$lib/components/ConflictBanner.svelte";
   import DiagramCanvas from "$lib/components/DiagramCanvas.svelte";
-  import DiagramEditor from "$lib/components/DiagramEditor.svelte";
+  import Highlight from "$lib/components/Highlight.svelte";
   import TimelineList from "$lib/components/TimelineList.svelte";
+  import TranscriptPanel from "$lib/components/TranscriptPanel.svelte";
   import VersionHistory from "$lib/components/VersionHistory.svelte";
 
   type MutationOp = components["schemas"]["MutationOp"];
@@ -52,9 +53,12 @@
   const noteId = $derived(page.params.id ?? "");
   const revision = $derived(note?.active_revision ?? null);
   const payload = $derived(revision?.payload ?? null);
-  const textAlternative = $derived(
-    payload ? deriveTextAlternative(payload.diagram) : "",
+  const findQuery = $derived(page.url.searchParams.get("find") ?? "");
+  const findCaseSensitive = $derived(
+    page.url.searchParams.get("case_sensitive") === "1",
   );
+  const matchKind = $derived(page.url.searchParams.get("match") ?? "");
+  const targetChunk = $derived(page.url.searchParams.get("chunk"));
   const diagramName = $derived(
     payload
       ? {
@@ -68,6 +72,33 @@
   const stale = $derived(queue.staleTakeaways.get(noteId) ?? null);
   const dropped = $derived(queue.dropped.get(noteId) ?? null);
   const conflict = $derived(queue.conflicts.get(noteId) ?? null);
+
+  const sectionForKind: Record<string, string> = {
+    metadata: "metadata",
+    summary: "summary",
+    key_point: "key_points",
+    diagram: "diagram",
+    takeaway: "takeaway",
+    important_detail: "important_details",
+    practical_action: "practical_actions",
+  };
+
+  async function focusMatch(): Promise<void> {
+    if (
+      !findQuery ||
+      matchKind === "transcript_chunk" ||
+      typeof document === "undefined"
+    )
+      return;
+    await tick();
+    const section = sectionForKind[matchKind] ?? "metadata";
+    const container = document.querySelector<HTMLElement>(
+      `[data-search-section="${section}"]`,
+    );
+    const target = container?.querySelector<HTMLElement>("mark") ?? container;
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    container?.classList.add("search-arrival");
+  }
 
   const dropReasons: Record<string, string> = {
     validation_failed:
@@ -137,6 +168,11 @@
       offSync();
       offQueue();
     };
+  });
+
+  $effect(() => {
+    if (payload && findQuery && matchKind !== "transcript_chunk")
+      void focusMatch();
   });
 
   async function toggleEditing() {
@@ -340,9 +376,16 @@
   <p class="muted">Loading…</p>
 {:else}
   <article class="note stack">
-    <header>
+    <header class="note-header" data-search-section="metadata">
+      <a class="back-link" href="/library">← Library</a>
       <div class="row between top">
-        <h1>{note.source.title ?? `Video ${note.source.video_id}`}</h1>
+        <h1 class="note-title">
+          <Highlight
+            text={note.source.title ?? `Video ${note.source.video_id}`}
+            query={findQuery}
+            caseSensitive={findCaseSensitive}
+          />
+        </h1>
         <div class="row wrap actions">
           {#if payload}
             <button
@@ -414,23 +457,33 @@
         </p>
       {/if}
       <p class="muted meta">
-        {#if note.source.channel_name}{note.source.channel_name} ·
+        {#if note.source.channel_name}<Highlight
+            text={note.source.channel_name}
+            query={findQuery}
+            caseSensitive={findCaseSensitive}
+          />
+          <span aria-hidden="true">•</span>
         {/if}
         {#if note.source.duration_seconds != null}{duration(
             note.source.duration_seconds,
-          )} ·
+          )}
+          <span aria-hidden="true">•</span>
         {/if}
         saved {when(note.saved_at)}
         {#if note.source.published_at}
-          · published {day(note.source.published_at)}{/if}
-        ·
+          <span aria-hidden="true">•</span> published {day(
+            note.source.published_at,
+          )}{/if}
+        <span aria-hidden="true">•</span>
         <a href={note.source.canonical_url} rel="noreferrer noopener"
           >watch on YouTube</a
         >
       </p>
       <p class="row tags">
         {#if note.primary_topic}
-          <a class="badge topic" href={`/topics/${note.primary_topic.id}`}
+          <a
+            class="badge topic"
+            href={`/library?topic_id=${note.primary_topic.id}`}
             >{note.primary_topic.name}</a
           >
         {/if}
@@ -453,7 +506,10 @@
     </header>
 
     {#if editing}
-      <section class="card stack" aria-label="Topic and tags">
+      <section
+        class="surface stack metadata-editor"
+        aria-label="Topic and tags"
+      >
         <label class="field">
           <span>Topic</span>
           <input
@@ -514,21 +570,29 @@
           {emit}
         />
       {:else}
-        <section class="card">
+        <section class="lead-summary" data-search-section="summary">
+          <span class="section-index">Summary</span>
           <p class="summary" class:claim={payload.summary.speaker_claim}>
-            {payload.summary.text}
+            <Highlight
+              text={payload.summary.text}
+              query={findQuery}
+              caseSensitive={findCaseSensitive}
+            />
           </p>
         </section>
       {/if}
 
-      <section class="stack">
-        <div class="row between">
-          <h2>{diagramName}</h2>
-          <span class="muted small">
+      <section class="stack diagram-workspace" data-search-section="diagram">
+        <div class="diagram-heading">
+          <div>
+            <span class="section-index">Visual map</span>
+            <h2>{diagramName}</h2>
+          </div>
+          <span class="muted diagram-help">
             {#if payload.diagram.type === "mind_map" || payload.diagram.type === "process_flow"}
               {editing
-                ? "drag a box to move it, tap a “+” to expand"
-                : "drag to pan, pinch or scroll to zoom, tap a “+” to expand"}
+                ? "Select to edit or add. Drag to arrange."
+                : "Drag to explore. Use the controls to zoom."}
             {/if}
           </span>
         </div>
@@ -537,20 +601,28 @@
             diagram={payload.diagram}
             positions={note.layout.positions}
             editable={editing}
+            query={findQuery}
+            caseSensitive={findCaseSensitive}
             onmove={moved}
+            {emit}
           />
         {:else if payload.diagram.type === "timeline"}
-          <TimelineList diagram={payload.diagram} />
+          <TimelineList
+            diagram={payload.diagram}
+            editable={editing}
+            query={findQuery}
+            caseSensitive={findCaseSensitive}
+            {emit}
+          />
         {:else}
-          <ComparisonTable diagram={payload.diagram} />
+          <ComparisonTable
+            diagram={payload.diagram}
+            editable={editing}
+            query={findQuery}
+            caseSensitive={findCaseSensitive}
+            {emit}
+          />
         {/if}
-        {#if editing}
-          <DiagramEditor diagram={payload.diagram} {emit} />
-        {/if}
-        <details class="card">
-          <summary>Text version of the diagram</summary>
-          <pre class="alternative">{textAlternative}</pre>
-        </details>
       </section>
 
       {#if editing}
@@ -574,12 +646,19 @@
           {emit}
         />
       {:else}
-        <section class="card stack">
-          <h2>Key points</h2>
+        <section class="content-section stack" data-search-section="key_points">
+          <div class="section-heading">
+            <span class="section-index">01</span>
+            <h2>Key points</h2>
+          </div>
           <ul class="blocks">
             {#each payload.key_points as block (block.id)}
               <li class:claim={block.speaker_claim} data-element-id={block.id}>
-                {block.text}
+                <Highlight
+                  text={block.text}
+                  query={findQuery}
+                  caseSensitive={findCaseSensitive}
+                />
                 {#if block.speaker_claim}<span class="badge">speaker claim</span
                   >{/if}
                 {#if block.provenance === "user_edited"}<span class="badge"
@@ -591,15 +670,25 @@
         </section>
 
         {#if payload.important_details.length > 0}
-          <section class="card stack">
-            <h2>Important details</h2>
+          <section
+            class="content-section stack"
+            data-search-section="important_details"
+          >
+            <div class="section-heading">
+              <span class="section-index">02</span>
+              <h2>Important details</h2>
+            </div>
             <ul class="blocks">
               {#each payload.important_details as block (block.id)}
                 <li
                   class:claim={block.speaker_claim}
                   data-element-id={block.id}
                 >
-                  {block.text}
+                  <Highlight
+                    text={block.text}
+                    query={findQuery}
+                    caseSensitive={findCaseSensitive}
+                  />
                   {#if block.speaker_claim}<span class="badge"
                       >speaker claim</span
                     >{/if}
@@ -610,15 +699,25 @@
         {/if}
 
         {#if payload.practical_actions.length > 0}
-          <section class="card stack">
-            <h2>What I can use</h2>
+          <section
+            class="content-section stack"
+            data-search-section="practical_actions"
+          >
+            <div class="section-heading">
+              <span class="section-index">03</span>
+              <h2>What I can use</h2>
+            </div>
             <ul class="blocks">
               {#each payload.practical_actions as block (block.id)}
                 <li
                   class:claim={block.speaker_claim}
                   data-element-id={block.id}
                 >
-                  {block.text}
+                  <Highlight
+                    text={block.text}
+                    query={findQuery}
+                    caseSensitive={findCaseSensitive}
+                  />
                 </li>
               {/each}
             </ul>
@@ -626,8 +725,11 @@
         {/if}
       {/if}
 
-      <section class="card stack">
-        <h2>My takeaway</h2>
+      <section class="takeaway-panel stack" data-search-section="takeaway">
+        <div class="section-heading">
+          <span class="section-index">Personal</span>
+          <h2>My takeaway</h2>
+        </div>
         <textarea
           rows="3"
           aria-label="My takeaway"
@@ -653,6 +755,14 @@
           </div>
         {/if}
       </section>
+
+      <TranscriptPanel
+        {noteId}
+        query={findQuery}
+        caseSensitive={findCaseSensitive}
+        targetChunkId={targetChunk}
+        openInitially={matchKind === "transcript_chunk"}
+      />
 
       <VersionHistory bind:this={history} {noteId} onchange={load} />
 
@@ -712,70 +822,237 @@
 {/if}
 
 <style>
+  .note {
+    gap: clamp(1.5rem, 4vw, 3.2rem);
+  }
+  .note-header {
+    position: relative;
+    padding-top: 0.35rem;
+  }
+  .back-link {
+    display: inline-flex;
+    margin-bottom: 1.1rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .back-link:hover {
+    color: var(--accent);
+  }
   .top {
     align-items: flex-start;
-    gap: 1rem;
+    gap: 1.5rem;
   }
-  .top h1 {
-    margin: 0;
+  .note-title {
+    max-width: 28ch;
   }
   .meta {
-    margin: 0.25rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    margin: 0.8rem 0 0;
+    font-size: 0.82rem;
+  }
+  .meta span {
+    color: var(--line-strong);
   }
   .tags {
-    margin: 0.5rem 0 0;
+    flex-wrap: wrap;
+    margin: 0.65rem 0 0;
     gap: 0.4rem;
   }
   .topic {
-    text-decoration: none;
+    border-color: color-mix(in oklch, var(--accent) 50%, var(--line));
     color: var(--accent);
-    border-color: var(--accent);
+    text-decoration: none;
   }
-  .summary {
-    font-size: 1.1rem;
+  .actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
+  .export {
+    position: relative;
+    width: max-content;
+    margin-top: 0.7rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+  .export > summary {
+    font-weight: 650;
+  }
+  .export-options {
+    position: absolute;
+    z-index: var(--z-popover);
+    top: calc(100% + 0.45rem);
+    min-width: 20rem;
+    padding: 0.65rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow);
+  }
+  .metadata-editor {
+    padding: 1rem;
+    grid-template-columns: 1fr 2fr;
+  }
+  .section-index {
+    display: block;
+    margin-bottom: 0.32rem;
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .lead-summary {
+    display: grid;
+    grid-template-columns: minmax(5rem, 2fr) minmax(0, 8fr);
+    gap: 1rem;
+    padding: 1.2rem 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .lead-summary .summary {
+    grid-column: 2;
     margin: 0;
+    color: var(--ink);
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    line-height: 1.55;
   }
-  .between {
+  .lead-summary > .section-index {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .diagram-workspace {
+    gap: 0.8rem;
+  }
+  .diagram-heading {
+    display: flex;
+    align-items: end;
     justify-content: space-between;
+    gap: 1rem;
   }
-  .small {
-    font-size: 0.85rem;
+  .diagram-heading h2 {
+    font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+  }
+  .diagram-help {
+    max-width: 28rem;
+    font-size: 0.78rem;
+    text-align: right;
+  }
+  .content-section {
+    display: grid;
+    grid-template-columns: minmax(5rem, 2fr) minmax(0, 8fr);
+    gap: 1rem;
+    padding: 1.35rem 0;
+    border-top: 1px solid var(--line);
+  }
+  .content-section .section-heading {
+    grid-column: 1;
+  }
+  .content-section .blocks {
+    grid-column: 2;
+  }
+  .section-heading {
+    align-self: start;
   }
   .blocks {
     margin: 0;
-    padding-left: 1.25rem;
+    padding: 0;
+    list-style: none;
+    counter-reset: note-item;
+  }
+  .blocks > li {
+    position: relative;
+    padding-left: 1.3rem;
+  }
+  .blocks > li::before {
+    position: absolute;
+    top: 0.62em;
+    left: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    content: "";
   }
   .blocks li + li {
-    margin-top: 0.4rem;
+    margin-top: 0.7rem;
   }
   .claim {
     font-style: italic;
   }
-  .alternative {
-    white-space: pre-wrap;
-    font-family: inherit;
-    margin: 0.5rem 0 0;
+  .takeaway-panel {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--line));
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 5px;
+    background: color-mix(in oklch, var(--accent-soft) 46%, var(--surface));
+  }
+  .takeaway-panel textarea {
+    min-height: 7rem;
+    border-color: transparent;
+    background: color-mix(in oklch, var(--surface) 85%, transparent);
+    resize: vertical;
   }
   details > summary {
     cursor: pointer;
     font-weight: 600;
   }
-  h2 {
-    margin: 0;
-  }
   textarea {
     width: 100%;
-    box-sizing: border-box;
     resize: vertical;
   }
   q {
     font-style: italic;
   }
-  .actions {
-    gap: 0.4rem;
-    justify-content: flex-end;
-  }
   .ok {
-    color: var(--accent);
+    color: var(--ok);
+  }
+  :global(.search-arrival) {
+    animation: arrival 1.8s ease-out;
+  }
+  @keyframes arrival {
+    0%,
+    45% {
+      outline: 3px solid var(--accent);
+      outline-offset: 5px;
+    }
+    100% {
+      outline-color: transparent;
+    }
+  }
+  @media (max-width: 700px) {
+    .top {
+      display: grid;
+    }
+    .actions {
+      justify-content: start;
+    }
+    .lead-summary,
+    .content-section {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    .lead-summary .summary,
+    .lead-summary > .section-index,
+    .content-section .section-heading,
+    .content-section .blocks {
+      grid-column: 1;
+    }
+    .lead-summary > .section-index {
+      grid-row: auto;
+    }
+    .diagram-heading {
+      align-items: start;
+    }
+    .diagram-help {
+      max-width: 14rem;
+    }
+    .metadata-editor {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

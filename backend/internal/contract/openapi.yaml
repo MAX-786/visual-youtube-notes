@@ -1339,6 +1339,12 @@ paths:
             type: string
             minLength: 1
             maxLength: 500
+        - name: case_sensitive
+          in: query
+          description: When true, results must contain the query with the same letter case and semantic ranking is skipped.
+          schema:
+            type: boolean
+            default: false
         - name: from
           in: query
           schema:
@@ -3706,6 +3712,7 @@ components:
         - $ref: "#/components/schemas/ReorderBlocksOp"
         - $ref: "#/components/schemas/SetElementLabelOp"
         - $ref: "#/components/schemas/SetCellTextOp"
+        - $ref: "#/components/schemas/InsertElementOp"
         - $ref: "#/components/schemas/DeleteElementOp"
         - $ref: "#/components/schemas/ReorderElementsOp"
       discriminator:
@@ -3717,6 +3724,7 @@ components:
           reorder_blocks: "#/components/schemas/ReorderBlocksOp"
           set_element_label: "#/components/schemas/SetElementLabelOp"
           set_cell_text: "#/components/schemas/SetCellTextOp"
+          insert_element: "#/components/schemas/InsertElementOp"
           delete_element: "#/components/schemas/DeleteElementOp"
           reorder_elements: "#/components/schemas/ReorderElementsOp"
     SetBlockTextOp:
@@ -3817,9 +3825,36 @@ components:
           maxLength: 1000
       required: [op, row_id, column_id, text]
       additionalProperties: false
+    InsertElementOp:
+      type: object
+      description: Adds a user-owned Diagram element. Graph nodes may name a parent; graph edges name both endpoints. Comparison rows and columns receive editable placeholder cells.
+      properties:
+        op:
+          type: string
+          enum: [insert_element]
+        collection:
+          type: string
+          enum: [nodes, edges, events, columns, rows]
+        id:
+          $ref: "#/components/schemas/ElementId"
+        label:
+          type: string
+          maxLength: 500
+        after_id:
+          oneOf:
+            - $ref: "#/components/schemas/ElementId"
+            - type: "null"
+        parent_id:
+          $ref: "#/components/schemas/ElementId"
+        from:
+          $ref: "#/components/schemas/ElementId"
+        to:
+          $ref: "#/components/schemas/ElementId"
+      required: [op, collection, id]
+      additionalProperties: false
     DeleteElementOp:
       type: object
-      description: A node, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades.
+      description: A node, process-flow edge, timeline event, comparison column or row. Deleting a node takes its incident edges; a column takes its cells. The server cascades.
       properties:
         op:
           type: string

@@ -196,7 +196,7 @@ comparison:
 
 `source_refs` point to transcript chunk IDs and character spans; they are internal grounding data and are not timestamp links. Every content-bearing element has `provenance: ai | user_edited`. AI-authored text requires source references. Structural edges without labels may omit them; AI-authored edge labels and comparison headers require them. Editing AI text changes provenance to `user_edited` and clears its source references rather than retaining misleading grounding. A separate JSON Schema file in the implementation repository is the normative validation artifact and is versioned with database migrations.
 
-All diagram text is selectable and searchable. Mind maps and process flows support touch pan/zoom, automatic layout, and persisted positions. Timelines support ordered event editing; comparisons support row order and cell editing. Deleting a graph node deletes incident edges after confirmation. V1 does not support adding graph nodes/edges or changing diagram type.
+All diagram text is selectable and searchable. Mind maps and process flows support touch pan/zoom, automatic layout, persisted positions, and direct node/edge editing. Timelines support ordered event editing; comparisons support row order and cell editing. Deleting a graph node deletes incident edges after confirmation. Users may add Diagram elements while preserving type-specific invariants; changing diagram type remains outside V1.
 
 Hard limits are 12 initially visible content elements, 24 total elements including collapsed groups, and a comparison matrix of at most four columns by six rows. Comparison headers do not count toward the 12-element graph/timeline limit. Overflow is grouped into collapsed branches. The structured text alternative exposes the same hierarchy/relationships without relying on canvas position.
 
@@ -359,6 +359,7 @@ These are median targets for a typical 30-minute video, measured from job start 
 - Parent every transcript match to its note.
 - Apply date/topic/channel/duration filters before ranking. Date boundaries use the account timezone.
 - A transcript-only excerpt is at most 240 characters. Lexical results center on the match; semantic-only results use the best matching sentence. Show at most two transcript excerpts per note.
+- Search is case-insensitive by default. An explicit case-sensitive mode requires an exact-case text match and skips semantic ranking for that query.
 - Update embeddings after regeneration and relevant manual edits.
 - If the embedding model changes, expose an admin reindex operation and never mix incompatible vector dimensions/indexes.
 - Search returns notes and excerpts only. It never synthesizes an answer.

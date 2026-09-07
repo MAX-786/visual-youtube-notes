@@ -110,6 +110,7 @@ test("a search with filters lands in the URL and shows the transcript excerpt", 
   await expect(results).toContainText("Spaced recall, explained");
   await expect(results.getByText("transcript")).toBeVisible();
   await expect(results.locator("blockquote")).toContainText("Ebbinghaus");
+  await expect(results.locator("blockquote mark")).toHaveText("Ebbinghaus");
   await expect(page).toHaveURL(/q=Ebbinghaus/);
   await expect(page).toHaveURL(/from=2026-09-01/);
   await expect(page).toHaveURL(/max_duration=1800/);
@@ -150,4 +151,23 @@ test("the note page still opens from a result", async ({ page }) => {
     .first()
     .click();
   await expect(page).toHaveURL(new RegExp(`/notes/${noteId}`));
+});
+
+test("case sensitivity is explicit and the default remains insensitive", async ({
+  page,
+}) => {
+  const searches = await mockSearch(page, null);
+  await page.goto("/library?q=recall");
+  const results = page.getByRole("list", { name: "Search results" });
+  await expect(results.locator("h2 mark")).toHaveText("recall");
+  await expect(
+    page.getByRole("checkbox", { name: "Case sensitive" }),
+  ).not.toBeChecked();
+  expect(searches.at(-1)?.searchParams.get("case_sensitive")).toBeNull();
+
+  await page.getByRole("searchbox", { name: "Search" }).fill("Recall");
+  await page.getByRole("checkbox", { name: "Case sensitive" }).check();
+  await expect(page).toHaveURL(/case_sensitive=1/);
+  await expect(results.locator("h2 mark")).toHaveCount(0);
+  expect(searches.at(-1)?.searchParams.get("case_sensitive")).toBe("true");
 });

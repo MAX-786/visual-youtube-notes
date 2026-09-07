@@ -79,6 +79,24 @@ func toOps(ops []MutationOp) ([]generation.Op, error) {
 			op = generation.Op{Kind: generation.OpSetElementLabel, ElementID: string(v.ElementId), Label: v.Label}
 		case SetCellTextOp:
 			op = generation.Op{Kind: generation.OpSetCellText, RowID: string(v.RowId), ColumnID: string(v.ColumnId), Text: v.Text}
+		case InsertElementOp:
+			op = generation.Op{Kind: generation.OpInsertElement, Collection: string(v.Collection), ID: string(v.Id)}
+			if v.Label != nil {
+				op.Label = *v.Label
+			}
+			if v.AfterId != nil {
+				after := string(*v.AfterId)
+				op.AfterID = &after
+			}
+			if v.ParentId != nil {
+				op.ParentID = string(*v.ParentId)
+			}
+			if v.From != nil {
+				op.From = string(*v.From)
+			}
+			if v.To != nil {
+				op.To = string(*v.To)
+			}
 		case DeleteElementOp:
 			op = generation.Op{Kind: generation.OpDeleteElement, ElementID: string(v.ElementId)}
 		case ReorderElementsOp:

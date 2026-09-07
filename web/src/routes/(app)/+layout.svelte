@@ -32,8 +32,9 @@
 {#if session.status === "unknown"}
   <div class="curtain" aria-live="polite">Checking your session…</div>
 {:else if session.status === "signed-in" || session.status === "offline"}
+  <a class="button skip-link" href="#main-content">Skip to content</a>
   <Nav />
-  <main class="page">
+  <main class="page" id="main-content" tabindex="-1">
     {@render children()}
   </main>
 {/if}

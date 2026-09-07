@@ -54,9 +54,12 @@ type Request struct {
 	Query  string
 	// Vector is the query embedding as pgvector text, or "" when semantic
 	// ranking is unavailable; then only the lexical list ranks.
-	Vector  string
-	Filters Filters
-	Cursor  string
+	Vector string
+	// CaseSensitive requires the indexed source text to contain the query with
+	// the same case. Semantic ranking is disabled by the HTTP layer in this mode.
+	CaseSensitive bool
+	Filters       Filters
+	Cursor        string
 }
 
 // Hit is one Note of the page.
@@ -117,6 +120,7 @@ WITH params AS (
            websearch_to_tsquery('simple', $2::text) AS q,
            $3::vector AS qvec,
            $4::int AS depth,
+           $15::boolean AS case_sensitive,
            (SELECT active_embedding_model FROM search_index_state) AS model
 ),
 eligible AS (
@@ -134,6 +138,7 @@ eligible AS (
        AND ($8::text IS NULL OR s.channel_id = $8::text)
        AND ($9::int IS NULL OR s.duration_seconds >= $9::int)
        AND ($10::int IS NULL OR s.duration_seconds <= $10::int)
+       AND (NOT p.case_sensitive OR strpos(c.content, $2::text) > 0)
 ),
 lexical AS (
     SELECT e.id, e.note_id,
@@ -228,7 +233,7 @@ func Query(ctx context.Context, q querier, req Request) (*Page, error) {
 	rows, err := q.Query(ctx, rankingSQL,
 		req.UserID, req.Query, vec, Depth,
 		from, to, req.Filters.TopicID, req.Filters.ChannelID, req.Filters.MinDuration, req.Filters.MaxDuration,
-		afterScore, afterSaved, afterID, PageSize+1)
+		afterScore, afterSaved, afterID, PageSize+1, req.CaseSensitive)
 	if err != nil {
 		return nil, err
 	}

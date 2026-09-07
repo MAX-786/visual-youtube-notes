@@ -20,6 +20,9 @@ type Op struct {
 	RowID      string
 	ColumnID   string
 	Collection string
+	ParentID   string
+	From       string
+	To         string
 }
 
 // The operation kinds.
@@ -30,6 +33,7 @@ const (
 	OpReorderBlocks   = "reorder_blocks"
 	OpSetElementLabel = "set_element_label"
 	OpSetCellText     = "set_cell_text"
+	OpInsertElement   = "insert_element"
 	OpDeleteElement   = "delete_element"
 	OpReorderElements = "reorder_elements"
 )
@@ -212,12 +216,113 @@ func applyOne(p *StoredPayload, op *Op) error {
 			return nil
 		}
 		return rule("unknown_element", op.RowID, "no row %s", op.RowID)
+	case OpInsertElement:
+		return insertElement(p, op)
 	case OpDeleteElement:
 		return deleteElement(&p.Diagram, op.ElementID)
 	case OpReorderElements:
 		return reorderElements(&p.Diagram, op.Collection, op.IDs)
 	default:
 		return rule("unknown_operation", "", "operation %q is not in the catalogue", op.Kind)
+	}
+}
+
+func insertElement(p *StoredPayload, op *Op) error {
+	if !idShape.MatchString(op.ID) {
+		return rule("bad_element_id", op.ID, "id %q is not a valid id", op.ID)
+	}
+	if p.hasID(op.ID) {
+		return rule("duplicate_element_id", op.ID, "id %s already exists", op.ID)
+	}
+	d := &p.Diagram
+	label := strings.TrimSpace(op.Label)
+	userElement := func() StoredElement {
+		return StoredElement{
+			ID: op.ID, Label: label, InitiallyVisible: true,
+			Provenance: "user_edited", SourceRefs: []SourceRef{},
+		}
+	}
+	switch op.Collection {
+	case "nodes":
+		if d.Type != MindMap && d.Type != ProcessFlow {
+			return rule("unknown_section", "", "no nodes on a %s", d.Type)
+		}
+		if label == "" {
+			return rule("empty_text", op.ID, "an inserted node needs a label")
+		}
+		node := userElement()
+		if d.Type == MindMap {
+			if indexOfElement(d.Nodes, op.ParentID) < 0 {
+				return rule("unknown_element", op.ParentID, "no parent node %s", op.ParentID)
+			}
+			node.Kind = "branch"
+		} else {
+			order := len(d.Nodes)
+			node.Order = &order
+		}
+		d.Nodes = append(d.Nodes, node)
+		if op.ParentID != "" {
+			edgeID := "edge_" + op.ID
+			if p.hasID(edgeID) || !idShape.MatchString(edgeID) {
+				return rule("duplicate_element_id", edgeID, "edge id %s is not available", edgeID)
+			}
+			d.Edges = append(d.Edges, StoredEdge{ID: edgeID, From: op.ParentID, To: op.ID})
+		}
+		return nil
+	case "edges":
+		if d.Type != MindMap && d.Type != ProcessFlow {
+			return rule("unknown_section", "", "no edges on a %s", d.Type)
+		}
+		if indexOfElement(d.Nodes, op.From) < 0 || indexOfElement(d.Nodes, op.To) < 0 {
+			return rule("edge_endpoint_missing", op.ID, "both edge endpoints must exist")
+		}
+		edge := StoredEdge{ID: op.ID, From: op.From, To: op.To}
+		if label != "" {
+			claim := false
+			edge.Label, edge.Provenance, edge.SpeakerClaim = label, "user_edited", &claim
+			edge.SourceRefs = []SourceRef{}
+		}
+		d.Edges = append(d.Edges, edge)
+		return nil
+	case "events":
+		if d.Type != Timeline {
+			return rule("unknown_section", "", "no events on a %s", d.Type)
+		}
+		if label == "" {
+			return rule("empty_text", op.ID, "an inserted event needs a label")
+		}
+		event := userElement()
+		order := len(d.Events)
+		event.Order = &order
+		d.Events = append(d.Events, event)
+		return nil
+	case "columns":
+		if d.Type != Comparison {
+			return rule("unknown_section", "", "no columns on a %s", d.Type)
+		}
+		if label == "" {
+			return rule("empty_text", op.ID, "an inserted column needs a label")
+		}
+		d.Columns = append(d.Columns, StoredColumn{ID: op.ID, Label: label, Order: len(d.Columns), Provenance: "user_edited", SourceRefs: []SourceRef{}})
+		for i := range d.Rows {
+			d.Rows[i].Cells[op.ID] = StoredCell{Text: "New value", Provenance: "user_edited", SourceRefs: []SourceRef{}}
+		}
+		return nil
+	case "rows":
+		if d.Type != Comparison {
+			return rule("unknown_section", "", "no rows on a %s", d.Type)
+		}
+		if label == "" {
+			return rule("empty_text", op.ID, "an inserted row needs a label")
+		}
+		cells := make(map[string]StoredCell, len(d.Columns))
+		for _, column := range d.Columns {
+			cells[column.ID] = StoredCell{Text: "New value", Provenance: "user_edited", SourceRefs: []SourceRef{}}
+		}
+		d.Rows = append(d.Rows, StoredRow{ID: op.ID, Label: label, Order: len(d.Rows), Provenance: "user_edited", SourceRefs: []SourceRef{}, Cells: cells})
+		return nil
+	default:
+		return rule("unknown_section", "", "%q is not an insertable collection", op.Collection)
 	}
 }
 
@@ -281,6 +386,16 @@ func (d *StoredDiagram) ids() []string {
 func deleteElement(d *StoredDiagram, id string) error {
 	switch d.Type {
 	case MindMap, ProcessFlow:
+		for i, edge := range d.Edges {
+			if edge.ID != id {
+				continue
+			}
+			if d.Type == MindMap {
+				return rule("mind_map_edge_immutable", id, "delete a mind-map node instead of its structural edge")
+			}
+			d.Edges = append(d.Edges[:i], d.Edges[i+1:]...)
+			return nil
+		}
 		idx := indexOfElement(d.Nodes, id)
 		if idx < 0 {
 			return rule("unknown_element", id, "no node %s", id)
@@ -638,6 +753,9 @@ func validateStoredDiagram(d *StoredDiagram) *RuleError {
 			return rule("labelled_edge_ungrounded", e.ID, "edge %s has a label without provenance", e.ID)
 		}
 	}
+	if d.Type == ProcessFlow && hasDirectedCycle(d.Nodes, d.Edges) {
+		return rule("process_flow_cycle", "", "a process flow must remain acyclic")
+	}
 	if d.Type == MindMap {
 		var root string
 		roots := 0
@@ -680,6 +798,37 @@ func validateStoredDiagram(d *StoredDiagram) *RuleError {
 		}
 	}
 	return nil
+}
+
+func hasDirectedCycle(nodes []StoredElement, edges []StoredEdge) bool {
+	outgoing := make(map[string][]string, len(nodes))
+	for _, edge := range edges {
+		outgoing[edge.From] = append(outgoing[edge.From], edge.To)
+	}
+	state := make(map[string]uint8, len(nodes))
+	var visit func(string) bool
+	visit = func(id string) bool {
+		switch state[id] {
+		case 1:
+			return true
+		case 2:
+			return false
+		}
+		state[id] = 1
+		for _, next := range outgoing[id] {
+			if visit(next) {
+				return true
+			}
+		}
+		state[id] = 2
+		return false
+	}
+	for _, node := range nodes {
+		if visit(node.ID) {
+			return true
+		}
+	}
+	return false
 }
 
 func contiguous(orders []int) bool {

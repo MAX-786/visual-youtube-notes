@@ -224,3 +224,106 @@ func TestComparisonAndTimelineOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInsertDiagramElements(t *testing.T) {
+	root := "root"
+	p := &StoredPayload{
+		SchemaVersion:    1,
+		DetectedLanguage: "en",
+		Summary:          StoredBlock{ID: "s", Text: "sum", Provenance: "ai"},
+		KeyPoints:        []StoredBlock{{ID: "k", Text: "point", Provenance: "ai"}},
+		Diagram: StoredDiagram{
+			SchemaVersion: 1,
+			Type:          MindMap,
+			Layout:        GraphLayout{Engine: "radial"},
+			Nodes: []StoredElement{
+				{ID: root, Label: "Root", Kind: "root", InitiallyVisible: true, Provenance: "ai"},
+				{ID: "existing", Label: "Existing", Kind: "branch", InitiallyVisible: true, Provenance: "ai"},
+			},
+			Edges: []StoredEdge{{ID: "edge_existing", From: root, To: "existing"}},
+		},
+	}
+	if err := Apply(p, []Op{{Kind: OpInsertElement, Collection: "nodes", ID: "node_personal", Label: "Personal branch", ParentID: root}}); err != nil {
+		t.Fatal(err)
+	}
+	inserted := p.Diagram.Nodes[len(p.Diagram.Nodes)-1]
+	if inserted.ID != "node_personal" || inserted.Kind != "branch" || inserted.Provenance != "user_edited" {
+		t.Fatalf("inserted mind-map node: %+v", inserted)
+	}
+	edge := p.Diagram.Edges[len(p.Diagram.Edges)-1]
+	if edge.From != root || edge.To != inserted.ID {
+		t.Fatalf("inserted structural edge: %+v", edge)
+	}
+	if err := ValidateEdited(p); err != nil {
+		t.Fatal(err)
+	}
+
+	comparison := &StoredPayload{
+		SchemaVersion:    1,
+		DetectedLanguage: "en",
+		Summary:          StoredBlock{ID: "s", Text: "sum", Provenance: "ai"},
+		KeyPoints:        []StoredBlock{{ID: "k", Text: "point", Provenance: "ai"}},
+		Diagram: StoredDiagram{
+			SchemaVersion: 1,
+			Type:          Comparison,
+			Columns: []StoredColumn{
+				{ID: "a", Label: "A", Order: 0, Provenance: "ai"},
+				{ID: "b", Label: "B", Order: 1, Provenance: "ai"},
+			},
+			Rows: []StoredRow{{ID: "r", Label: "R", Order: 0, Provenance: "ai", Cells: map[string]StoredCell{
+				"a": {Text: "1", Provenance: "ai"},
+				"b": {Text: "2", Provenance: "ai"},
+			}}},
+		},
+	}
+	if err := Apply(comparison, []Op{
+		{Kind: OpInsertElement, Collection: "columns", ID: "col_new", Label: "C"},
+		{Kind: OpInsertElement, Collection: "rows", ID: "row_new", Label: "Second"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if comparison.Diagram.Rows[0].Cells["col_new"].Text != "New value" || len(comparison.Diagram.Rows[1].Cells) != 3 {
+		t.Fatalf("comparison placeholders missing: %+v", comparison.Diagram.Rows)
+	}
+	if err := ValidateEdited(comparison); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessFlowConnectionsRemainAcyclic(t *testing.T) {
+	zero, one := 0, 1
+	p := &StoredPayload{
+		SchemaVersion:    1,
+		DetectedLanguage: "en",
+		Summary:          StoredBlock{ID: "s", Text: "sum", Provenance: "ai"},
+		KeyPoints:        []StoredBlock{{ID: "k", Text: "point", Provenance: "ai"}},
+		Diagram: StoredDiagram{
+			SchemaVersion: 1,
+			Type:          ProcessFlow,
+			Layout:        GraphLayout{Engine: "layered", Direction: "TB"},
+			Nodes: []StoredElement{
+				{ID: "first", Label: "First", Order: &zero, InitiallyVisible: true, Provenance: "ai"},
+				{ID: "second", Label: "Second", Order: &one, InitiallyVisible: true, Provenance: "ai"},
+			},
+			Edges: []StoredEdge{{ID: "forward", From: "first", To: "second"}},
+		},
+	}
+	if err := Apply(p, []Op{{Kind: OpInsertElement, Collection: "edges", ID: "back", From: "second", To: "first"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateEdited(p); err == nil || err.Rule != "process_flow_cycle" {
+		t.Fatalf("cycle accepted: %v", err)
+	}
+	if err := Apply(p, []Op{{Kind: OpDeleteElement, ElementID: "back"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateEdited(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(p, []Op{{Kind: OpInsertElement, Collection: "nodes", ID: "third", Label: "Third", ParentID: "second"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateEdited(p); err != nil {
+		t.Fatal(err)
+	}
+}

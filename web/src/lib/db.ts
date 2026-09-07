@@ -7,6 +7,7 @@ import type { components } from "@visual-notes/api-client";
 export type NoteCard = components["schemas"]["NoteCard"];
 export type Note = components["schemas"]["Note"];
 export type Topic = components["schemas"]["Topic"];
+export type Transcript = components["schemas"]["Transcript"];
 
 export interface CachedNote {
   note_id: string;
@@ -37,7 +38,7 @@ interface VynDB extends DBSchema {
   notes: { key: string; value: CachedNote; indexes: { saved_at: string } };
   transcripts: {
     key: string;
-    value: { note_id: string; transcript: unknown; opened_at: string };
+    value: { note_id: string; transcript: Transcript; opened_at: string };
   };
   topics: { key: string; value: Topic };
   mutation_queue: {
@@ -124,6 +125,22 @@ export async function putNoteDetail(note: Note): Promise<void> {
 
 export async function getNote(noteId: string): Promise<CachedNote | undefined> {
   return (await db()).get("notes", noteId);
+}
+
+export async function getTranscript(
+  noteId: string,
+): Promise<Transcript | undefined> {
+  return (await (await db()).get("transcripts", noteId))?.transcript;
+}
+
+export async function putTranscript(transcript: Transcript): Promise<void> {
+  await (
+    await db()
+  ).put("transcripts", {
+    note_id: transcript.note_id,
+    transcript,
+    opened_at: new Date().toISOString(),
+  });
 }
 
 export async function deleteNote(noteId: string): Promise<void> {

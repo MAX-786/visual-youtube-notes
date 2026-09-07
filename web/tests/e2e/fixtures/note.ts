@@ -178,7 +178,11 @@ export function noteFor(
   };
 }
 
-export async function mockApi(page: Page, note: unknown) {
+export async function mockApi(
+  page: Page,
+  note: unknown,
+  options: { transcript?: unknown; onTranscript?: () => void } = {},
+) {
   const json = (body: unknown, status = 200) => ({
     status,
     contentType: "application/json",
@@ -197,6 +201,10 @@ export async function mockApi(page: Page, note: unknown) {
       );
     }
     if (p === `/api/notes/${noteId}`) return route.fulfill(json(note));
+    if (p === `/api/notes/${noteId}/transcript` && options.transcript) {
+      options.onTranscript?.();
+      return route.fulfill(json(options.transcript));
+    }
     if (p === "/api/events/since")
       return route.fulfill(
         json({ events: [], next_cursor: 0, resync_required: false }),

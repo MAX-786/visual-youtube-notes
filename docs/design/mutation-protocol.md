@@ -33,14 +33,15 @@ representable, which is how spec section 7.2's prohibitions are enforced.
 | `reorder_blocks`    | the same three lists                                       | `{ section, ids[] }` — a full permutation |
 | `set_element_label` | node, edge label, timeline event, comparison column or row | `{ element_id, label }`                   |
 | `set_cell_text`     | comparison cell                                            | `{ row_id, column_id, text }`             |
+| `insert_element`    | node, edge, timeline event, comparison column or row       | `{ collection, id, label?, ...links }`    |
 | `delete_element`    | node, timeline event, comparison column or row             | `{ element_id }`                          |
 | `reorder_elements`  | timeline events, comparison rows, comparison columns       | `{ collection, ids[] }`                   |
 
 Notes on the edges of the catalogue:
 
-- **No additions to a Diagram.** Content block lists get `insert_block` because spec 5.4 grants
-  it explicitly; a Diagram gets nothing equivalent, because an added element would be born
-  `user_edited` with no Source refs and no way to acquire any.
+- **Diagram additions are structured.** `insert_element` creates user-owned nodes, process-flow
+  edges, timeline events, comparison columns, or comparison rows. A mind-map node names its
+  parent so the tree stays valid; process flows remain acyclic.
 - **Cascades.** `delete_element` on a graph node removes its incident edges; on a comparison
   column it removes that column's cell from every row. The client confirms with the user first
   (spec 7.2) but the server performs the cascade — it is not expressed as extra operations.

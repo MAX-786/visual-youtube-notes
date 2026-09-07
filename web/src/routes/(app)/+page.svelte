@@ -18,6 +18,7 @@
   let url = $state("");
   let message = $state<string | null>(null);
   let busy = $state(false);
+  let loading = $state(true);
 
   const groups = $derived(groupByDay(notes));
 
@@ -38,6 +39,7 @@
 
   async function loadFromCache() {
     notes = (await listCachedNotes()).map((row) => row.card);
+    loading = false;
   }
 
   async function loadFromServer() {
@@ -115,38 +117,68 @@
   <title>Today · Visual Notes</title>
 </svelte:head>
 
-<h1>Today</h1>
-
-<form class="card row" onsubmit={submit}>
-  <label class="field grow">
-    <span>Add YouTube link</span>
-    <input
-      type="url"
-      bind:value={url}
-      placeholder="https://www.youtube.com/watch?v=…"
-      required
-    />
-  </label>
-  <button
-    class="primary"
-    type="submit"
-    disabled={busy || session.status !== "signed-in"}>Add</button
-  >
-  {#if message}
-    <p class="muted" role="status">{message}</p>
-  {/if}
-</form>
-
-{#if groups.length === 0}
-  <p class="muted">
-    Nothing saved yet. Share a video from YouTube or paste a link above.
+<header class="today-head">
+  <div>
+    <p class="eyebrow">Daily capture</p>
+    <h1>Today</h1>
+  </div>
+  <p>
+    Save the signal. The summary, visual map, and useful details arrive
+    together.
   </p>
+</header>
+
+<section class="capture">
+  <div class="capture-copy">
+    <span class="step">01</span>
+    <div>
+      <h2>Add a video</h2>
+      <p>
+        Paste one YouTube link. You can keep browsing while the note is made.
+      </p>
+    </div>
+  </div>
+  <form onsubmit={submit}>
+    <label class="field grow">
+      <span class="visually-hidden">Add YouTube link</span>
+      <input
+        type="url"
+        bind:value={url}
+        placeholder="Paste a YouTube link"
+        required
+      />
+    </label>
+    <button
+      class="primary"
+      type="submit"
+      disabled={busy || session.status !== "signed-in"}
+      >{busy ? "Adding…" : "Add note"}</button
+    >
+  </form>
+  {#if message}<p class="capture-message" role="status">{message}</p>{/if}
+</section>
+
+{#if loading}
+  <div class="today-loading">
+    <span class="skeleton"></span><span class="skeleton"></span>
+  </div>
+{:else if groups.length === 0}
+  <div class="empty">
+    <h2>No notes yet</h2>
+    <p>Share a video from YouTube or paste its link above.</p>
+  </div>
 {/if}
 
 {#each groups as group (group.day)}
   <section class="day">
-    <h2>{group.day}</h2>
-    <div class="stack">
+    <div class="day-heading">
+      <h2>{group.day}</h2>
+      <span
+        >{group.cards.length}
+        {group.cards.length === 1 ? "note" : "notes"}</span
+      >
+    </div>
+    <div class="notes">
       {#each group.cards as card (card.id)}
         <NoteCardView {card} />
       {/each}
@@ -155,11 +187,124 @@
 {/each}
 
 <style>
+  .today-head {
+    display: grid;
+    grid-template-columns: 1fr minmax(16rem, 30rem);
+    align-items: end;
+    gap: 2rem;
+    margin: 0.5rem 0 2rem;
+  }
+  .today-head > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1rem;
+  }
+  .eyebrow {
+    margin: 0 0 0.25rem;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+  .capture {
+    display: grid;
+    grid-template-columns: 4fr 6fr;
+    gap: clamp(1rem, 4vw, 3rem);
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .capture-copy {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 0.8rem;
+  }
+  .capture-copy h2,
+  .capture-copy p {
+    margin: 0;
+  }
+  .capture-copy p {
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+  .step {
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
   .grow {
-    flex: 1;
-    min-width: 16rem;
+    min-width: 0;
+  }
+  .capture-message {
+    grid-column: 2;
+    margin: -1rem 0 0;
+    color: var(--accent);
+    font-size: 0.82rem;
   }
   .day {
-    margin-top: 1.5rem;
+    margin-top: clamp(2rem, 5vw, 3.6rem);
+  }
+  .day-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .day-heading h2 {
+    font-size: 0.9rem;
+  }
+  .day-heading span {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .notes {
+    display: grid;
+  }
+  .empty {
+    margin: 4rem auto;
+    text-align: center;
+  }
+  .empty p {
+    color: var(--muted);
+  }
+  .today-loading {
+    display: grid;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .today-loading span {
+    display: block;
+    width: 70%;
+    height: 1rem;
+  }
+  @media (max-width: 720px) {
+    .today-head,
+    .capture {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    form {
+      grid-template-columns: 1fr;
+    }
+    form button {
+      width: 100%;
+    }
+    .capture-message {
+      grid-column: 1;
+      margin: 0;
+    }
   }
 </style>

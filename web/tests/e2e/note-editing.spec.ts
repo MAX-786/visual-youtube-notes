@@ -166,6 +166,7 @@ test("editing a key point sends set_block_text against the Active Revision", asy
   page,
 }) => {
   const { diagram } = example("mind-map");
+  if (diagram.type !== "mind_map") throw new Error("mind-map fixture changed");
   const note = noteFor(diagram, grid(diagram.nodes)) as unknown as Json;
   const calls = await mockEditing(page, note);
   await page.goto(`/notes/${noteId}`);
@@ -195,6 +196,59 @@ test("editing a key point sends set_block_text against the Active Revision", asy
     "Recall after a day, a week, then a month.",
   );
   await expect(point.getByText("edited")).toBeVisible();
+});
+
+test("the graph edits labels and adds branches on the canvas", async ({
+  page,
+}) => {
+  const { diagram } = example("mind-map");
+  if (diagram.type !== "mind_map") throw new Error("mind-map fixture changed");
+  const nodes = diagram.nodes as { id: string; label: string; kind?: string }[];
+  const note = noteFor(diagram, grid(nodes)) as unknown as Json;
+  const calls = await mockEditing(page, note);
+  const root = nodes.find((node) => node.kind === "root")!;
+  await page.goto(`/notes/${noteId}`);
+  await page.getByRole("button", { name: "Edit" }).click();
+
+  const field = page.getByRole("textbox", {
+    name: "Diagram element Review schedule",
+  });
+  await field.fill("Review cadence");
+  await field.press("Tab");
+  await expect
+    .poll(() => calls.filter((call) => call.path.endsWith("/mutations")).length)
+    .toBe(1);
+  expect(
+    calls.find((call) => call.path.endsWith("/mutations"))?.body,
+  ).toMatchObject({
+    ops: [
+      {
+        op: "set_element_label",
+        element_id: "schedule",
+        label: "Review cadence",
+      },
+    ],
+  });
+
+  await page
+    .getByRole("group", { name: `${root.label}, editable diagram element` })
+    .click();
+  await page.getByRole("button", { name: "Add branch" }).click();
+  await expect
+    .poll(() => calls.filter((call) => call.path.endsWith("/mutations")).length)
+    .toBe(2);
+  expect(
+    calls.filter((call) => call.path.endsWith("/mutations"))[1].body,
+  ).toMatchObject({
+    ops: [
+      {
+        op: "insert_element",
+        collection: "nodes",
+        label: "New branch",
+        parent_id: root.id,
+      },
+    ],
+  });
 });
 
 test("a Conflict Revision can be compared with the current one and discarded", async ({

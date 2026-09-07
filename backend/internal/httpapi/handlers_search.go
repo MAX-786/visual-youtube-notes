@@ -40,8 +40,13 @@ func (s *Server) Search(ctx context.Context, req SearchRequestObject) (SearchRes
 		id := uuid.UUID(*req.Params.TopicId)
 		filters.TopicID = &id
 	}
-	vector, unavailable := s.queryEmbedding(ctx, session, q)
-	request := search.Request{UserID: session.UserID, Query: q, Vector: vector, Filters: filters}
+	caseSensitive := req.Params.CaseSensitive != nil && *req.Params.CaseSensitive
+	vector := ""
+	var unavailable *SemanticUnavailableReason
+	if !caseSensitive {
+		vector, unavailable = s.queryEmbedding(ctx, session, q)
+	}
+	request := search.Request{UserID: session.UserID, Query: q, Vector: vector, CaseSensitive: caseSensitive, Filters: filters}
 	if req.Params.Cursor != nil {
 		request.Cursor = string(*req.Params.Cursor)
 	}
