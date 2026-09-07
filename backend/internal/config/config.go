@@ -57,6 +57,10 @@ type Worker struct {
 	FFprobeBin string
 	// YtDlpCacheDir persists Deno's solved player challenges across runs.
 	YtDlpCacheDir string
+	// YtDlpCookiesFile is an optional Netscape cookies file for YouTube, for a
+	// host whose address YouTube meets with a sign-in demand; empty or absent
+	// means none (docs/ops/runbook.md, "YouTube's bot check").
+	YtDlpCookiesFile string
 	// TempMinFreeBytes is the preflight floor for the transcribing Stage.
 	TempMinFreeBytes int64
 	// BackupStatusURL is the backup sidecar's /status; the two staleness
@@ -152,12 +156,13 @@ func Load() (*Config, error) {
 	}
 
 	cfg.Worker = Worker{
-		TempDir:       get("TEMP_DIR", "/var/lib/vyn/tmp"),
-		HealthListen:  get("HEALTH_LISTEN", ":8081"),
-		YtDlpBin:      get("YTDLP_BIN", "yt-dlp"),
-		FFmpegBin:     get("FFMPEG_BIN", "ffmpeg"),
-		FFprobeBin:    get("FFPROBE_BIN", "ffprobe"),
-		YtDlpCacheDir: get("YTDLP_CACHE_DIR", "/var/cache/yt-dlp"),
+		TempDir:          get("TEMP_DIR", "/var/lib/vyn/tmp"),
+		HealthListen:     get("HEALTH_LISTEN", ":8081"),
+		YtDlpBin:         get("YTDLP_BIN", "yt-dlp"),
+		FFmpegBin:        get("FFMPEG_BIN", "ffmpeg"),
+		FFprobeBin:       get("FFPROBE_BIN", "ffprobe"),
+		YtDlpCacheDir:    get("YTDLP_CACHE_DIR", "/var/cache/yt-dlp"),
+		YtDlpCookiesFile: get("YTDLP_COOKIES_FILE", "/run/secrets/youtube_cookies"),
 	}
 	cfg.Worker.QueueDefaultWorkers = intSetting(get("QUEUE_DEFAULT_WORKERS", "2"), &problems, "VYN_QUEUE_DEFAULT_WORKERS")
 	cfg.Worker.QueueMediaWorkers = intSetting(get("QUEUE_MEDIA_WORKERS", "1"), &problems, "VYN_QUEUE_MEDIA_WORKERS")

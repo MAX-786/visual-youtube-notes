@@ -115,7 +115,7 @@ func classifyStderr(stderr string) classified {
 	lower := strings.ToLower(stderr)
 	switch {
 	case strings.Contains(lower, "not a bot"), strings.Contains(lower, "too many requests"), strings.Contains(lower, "http error 429"):
-		return classified{Transient, "youtube_rate_limited", "YouTube is rate-limiting the server's address and asked it to sign in. It will be retried."}
+		return classified{Transient, "youtube_rate_limited", "YouTube asked the server's address to sign in before serving this video. It will be retried; if it keeps happening, the server needs a YouTube cookies file (runbook: YouTube's bot check)."}
 	case strings.Contains(lower, "[pyi-"):
 		// The exact code notes_blocked_by_tooling selects on (ADR 0009).
 		return classified{ExtractorBreakage, string(ExtractorBreakage), "The extraction tool could not start on the server."}
@@ -136,18 +136,67 @@ func ClassifyStderr(stderr string) Verdict { return classifyStderr(stderr).verdi
 type ytdlp struct {
 	bin      string
 	cacheDir string
+	cookies  string
 	once     sync.Once
 	http     *http.Client
+}
+
+// YtDlpOption configures the real extractor.
+type YtDlpOption func(*ytdlp)
+
+// YtDlpCookies names a Netscape cookies file yt-dlp presents to YouTube, the
+// remedy for a datacenter address YouTube meets with "Sign in to confirm
+// you're not a bot". An absent or empty file means no cookies.
+func YtDlpCookies(path string) YtDlpOption {
+	return func(y *ytdlp) { y.cookies = path }
 }
 
 // NewYtDlp builds the real extractor. bin is the binary to run; cacheDir is
 // yt-dlp's cache, persisted across runs so Deno is not re-solving player
 // challenges every time.
-func NewYtDlp(bin, cacheDir string) Extractor {
+func NewYtDlp(bin, cacheDir string, opts ...YtDlpOption) Extractor {
 	if bin == "" {
 		bin = "yt-dlp"
 	}
-	return &ytdlp{bin: bin, cacheDir: cacheDir}
+	y := &ytdlp{bin: bin, cacheDir: cacheDir}
+	for _, opt := range opts {
+		opt(y)
+	}
+	return y
+}
+
+// cookiesArgs copies the operator's cookies file, when one is configured and
+// non-empty, to a private per-run copy and points yt-dlp at it: the secret
+// mount is read-only and yt-dlp rewrites the jar it is given, and two
+// concurrent runs must not share one. cleanup removes the copy.
+func (y *ytdlp) cookiesArgs() (args []string, cleanup func()) {
+	cleanup = func() {}
+	if y.cookies == "" {
+		return nil, cleanup
+	}
+	data, err := os.ReadFile(y.cookies)
+	if err != nil || len(bytes.TrimSpace(data)) == 0 {
+		return nil, cleanup
+	}
+	dir := y.cacheDir
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	f, err := os.CreateTemp(dir, "cookies-*.txt")
+	if err != nil {
+		return nil, cleanup
+	}
+	path := f.Name()
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
+		return nil, cleanup
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
+		return nil, cleanup
+	}
+	return []string{"--cookies", path}, func() { _ = os.Remove(path) }
 }
 
 // passThrough is the allowlist of environment variables yt-dlp's process
@@ -167,6 +216,9 @@ func (y *ytdlp) run(ctx context.Context, dir string, args ...string) ([]byte, er
 	if y.cacheDir != "" {
 		full = append(full, "--cache-dir", y.cacheDir)
 	}
+	cookies, cleanup := y.cookiesArgs()
+	defer cleanup()
+	full = append(full, cookies...)
 	full = append(full, args...)
 	cmd := exec.CommandContext(ctx, y.bin, full...)
 	cmd.Dir = dir

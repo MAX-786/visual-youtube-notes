@@ -256,6 +256,7 @@ services:
       - postgres_password
       - master_key
       - vapid_private_key
+      - youtube_cookies
     volumes:
       - worker_tmp:/var/lib/vyn/tmp
       - ytdlp_cache:/var/cache/yt-dlp
@@ -520,3 +521,9 @@ secrets:
     file: ./secrets/restic_sftp_password
   vapid_private_key:
     file: ./secrets/vapid_private_key
+  # Optional: a Netscape cookies.txt from a browser signed in to YouTube, for
+  # a host whose address YouTube meets with "Sign in to confirm you're not a
+  # bot" (runbook: YouTube's bot check). Keep the file present and empty
+  # until it is needed; empty means no cookies.
+  youtube_cookies:
+    file: ./secrets/youtube_cookies

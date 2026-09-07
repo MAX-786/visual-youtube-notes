@@ -17,6 +17,11 @@ export function setCsrfToken(token: string | null): void {
   csrfToken = token;
 }
 
+/** Whether a token is in memory; a fresh page load has none until recovered. */
+export function hasCsrfToken(): boolean {
+  return csrfToken !== null;
+}
+
 /** Registers what to do when a refresh fails: the session is gone. */
 export function setSessionLostHandler(handler: (() => void) | null): void {
   onSessionLost = handler;
@@ -57,8 +62,31 @@ const refreshOn401: Middleware = {
   },
 };
 
+// A csrf_rejected after a full page load means memory lost the token; ADR
+// 0003's recovery path exists for exactly this. Recover it from the refresh
+// cookie once and retry, rather than telling the user to reload.
+const recoverOnCsrfRejected: Middleware = {
+  async onResponse({ request, response }) {
+    if (response.status !== 403) return response;
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/auth/")) return response;
+    let code: string | undefined;
+    try {
+      code = ((await response.clone().json()) as ErrorResponse).error.code;
+    } catch {
+      return response;
+    }
+    if (code !== "csrf_rejected") return response;
+    if (!(await recoverCsrfToken()) || !csrfToken) return response;
+    const retry = request.clone();
+    retry.headers.set("X-CSRF-Token", csrfToken);
+    return fetch(retry);
+  },
+};
+
 api.use(csrf);
 api.use(refreshOn401);
+api.use(recoverOnCsrfRejected);
 
 /**
  * Rotates the Token family once, serialized across tabs with a Web Lock:

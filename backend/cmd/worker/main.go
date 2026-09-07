@@ -61,7 +61,7 @@ func run(logger *slog.Logger) error {
 
 	deps := &pipeline.Deps{
 		Pool:      pool,
-		Extractor: pipeline.NewYtDlp(cfg.Worker.YtDlpBin, cfg.Worker.YtDlpCacheDir),
+		Extractor: pipeline.NewYtDlp(cfg.Worker.YtDlpBin, cfg.Worker.YtDlpCacheDir, pipeline.YtDlpCookies(cfg.Worker.YtDlpCookiesFile)),
 		TempDir:   cfg.Worker.TempDir,
 		Logger:    logger,
 		AI:        ai.NewStore(pool, ring),

@@ -6,6 +6,7 @@ import type { components } from "@visual-notes/api-client";
 import {
   api,
   recoverCsrfToken,
+  hasCsrfToken,
   setCsrfToken,
   setSessionLostHandler,
 } from "./api";
@@ -62,6 +63,9 @@ export async function checkSession(): Promise<void> {
     session.account = data.account;
     session.device = data.session;
     session.syncCursor = data.sync_cursor;
+    // A full page load has no CSRF token in memory; recover it now rather
+    // than at the first mutation (ADR 0003).
+    if (!hasCsrfToken()) await recoverCsrfToken();
     await prune();
     return;
   }

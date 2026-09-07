@@ -94,6 +94,7 @@ holds `compose.yaml`, `.env`, and `secrets/` and never the source tree (ADR 0008
    openssl rand -hex 24 > secrets/restic_sftp_password
    ssh-keygen -t ed25519 -N '' -C vyn-backup -f secrets/restic_sftp_key   # its .pub goes on the laptop
    openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > secrets/vapid_private_key
+   : > secrets/youtube_cookies   # empty until YouTube demands cookies; see "YouTube's bot check"
    sudo chgrp 65534 secrets/* && chmod 640 secrets/*
    ```
 
@@ -239,8 +240,9 @@ never started.
 
 Every push to `main` deploys itself, the way the host's other projects do. The "Build images"
 workflow's last job waits for the "Check" workflow on the same commit, then copies
-`deploy/ops/deploy.sh` to `~/vyn/deploy/deploy.sh` over SSH and runs it with that commit's
-`APP_VERSION`. The script is the Forward migration procedure below: the pre-migration backup, the
+`deploy/compose.yaml` and `deploy/ops/deploy.sh` into `~/vyn/deploy/` over SSH and runs the script
+with that commit's `APP_VERSION`, so the host's compose file always matches the images it runs
+(host-only settings stay in `compose.override.yaml` and `.env`). The script is the Forward migration procedure below: the pre-migration backup, the
 tag in `.env`, `pull`, `up`, both one-shots at exit 0, then api, worker and Caddy healthy and the
 API's unauthenticated envelope answering through nginx. A failure stops the job with the logs in
 the run and leaves the host on whatever the last successful step produced; Rollback applies.
@@ -607,6 +609,35 @@ webpage` is a network failure and retries on its own.
 Redeploy the previous worker tag. The yt-dlp CalVer travels in the tag, so there is nothing else to
 undo. Note that rolling back yt-dlp rarely fixes extractor breakage — the old version is the one
 YouTube broke — so this is for the case where a _new_ pin regressed something that previously worked.
+
+## YouTube's bot check on a datacenter address
+
+**Symptom**: every new Note stalls in _captions_ or _transcribing_ and its Attempts read
+`youtube_rate_limited` with `Sign in to confirm you're not a bot`; `docker compose exec worker
+yt-dlp --skip-download <url>` says the same for every player client. YouTube refuses the host's
+address outright (the OCI address was refused from the first request), so retries cannot help and
+the Note fails once the ladder is exhausted, with Retry on the note.
+
+**Remedy**: give yt-dlp a cookies file from a browser signed in to YouTube. Use a throwaway Google
+account, never the Owner's: YouTube can flag or lock an account it sees behaving like a server.
+
+1. In a private window, sign in to YouTube with that account and open any video.
+2. Export the cookies as a Netscape `cookies.txt` (the "Get cookies.txt LOCALLY" extension does
+   this), then close the private window without signing out, so the browser does not rotate the
+   session yt-dlp now holds.
+3. Copy the file to the host as `~/vyn/deploy/secrets/youtube_cookies`, group 65534 and mode 640
+   like the other secrets, then recreate the worker so the bind mount picks up the new inode:
+
+   ```bash
+   docker compose up -d --force-recreate worker
+   ```
+
+4. Retry the stalled Notes from their pages, or Settings → Health → Retry blocked notes if they
+   ended as extractor breakage.
+
+The worker copies the file to a private per-run jar and never writes the secret back; a rotated or
+expired cookie shows up as the same symptom again, and the fix is a fresh export. An empty file
+means no cookies, which is the state of a fresh deploy.
 
 ## Rate limits
 

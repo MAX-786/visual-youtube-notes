@@ -154,7 +154,7 @@ jobs:
           APP_VERSION: ${{ needs.versions.outputs.app_version }}
         run: |
           set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o BatchMode=yes deploy/ops/deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:vyn/deploy/deploy.sh"
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes deploy/compose.yaml deploy/ops/deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:vyn/deploy/"
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "APP_VERSION='$APP_VERSION' bash ~/vyn/deploy/deploy.sh"
       - shell: bash
         run: echo "deployed ${{ needs.versions.outputs.app_version }} to https://yt-track.mkhismkh.com" >> "$GITHUB_STEP_SUMMARY"
