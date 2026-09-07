@@ -97,3 +97,64 @@ jobs:
       - shell: bash
         run: |
           echo "${{ matrix.image }}: ${{ steps.tags.outputs.tags }} (pushed: ${{ needs.versions.outputs.push }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # Continuous deployment (docs/ops/runbook.md, "Continuous deployment"):
+  # once every image for this commit is in GHCR, wait for the Check
+  # workflow on the same commit, then roll the OCI host forward through
+  # deploy/ops/deploy.sh over SSH, the way the host's other projects deploy.
+  deploy:
+    name: Deploy to the OCI host
+    needs: [versions, images]
+    if: needs.versions.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://yt-track.mkhismkh.com
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Wait for Check on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Check --commit "$GITHUB_SHA" \
+              --json status,conclusion --jq 'map(select(.status == "completed")) | .[0].conclusion // ""')"
+            if [ "$conclusion" = success ]; then
+              echo "Check passed on $GITHUB_SHA"
+              exit 0
+            fi
+            if [ -n "$conclusion" ]; then
+              echo "Check concluded '$conclusion' on $GITHUB_SHA; not deploying" >&2
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "Check did not finish within 30 minutes" >&2
+          exit 1
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Roll the host forward
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          APP_VERSION: ${{ needs.versions.outputs.app_version }}
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes deploy/ops/deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:vyn/deploy/deploy.sh"
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "APP_VERSION='$APP_VERSION' bash ~/vyn/deploy/deploy.sh"
+      - shell: bash
+        run: echo "deployed ${{ needs.versions.outputs.app_version }} to https://yt-track.mkhismkh.com" >> "$GITHUB_STEP_SUMMARY"

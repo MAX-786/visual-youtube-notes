@@ -235,9 +235,30 @@ never started.
 
 ---
 
+## Continuous deployment
+
+Every push to `main` deploys itself, the way the host's other projects do. The "Build images"
+workflow's last job waits for the "Check" workflow on the same commit, then copies
+`deploy/ops/deploy.sh` to `~/vyn/deploy/deploy.sh` over SSH and runs it with that commit's
+`APP_VERSION`. The script is the Forward migration procedure below: the pre-migration backup, the
+tag in `.env`, `pull`, `up`, both one-shots at exit 0, then api, worker and Caddy healthy and the
+API's unauthenticated envelope answering through nginx. A failure stops the job with the logs in
+the run and leaves the host on whatever the last successful step produced; Rollback applies.
+
+The repository secrets are `DEPLOY_HOST`, `DEPLOY_USER` and `DEPLOY_SSH_KEY`, a dedicated
+ed25519 key whose public half sits in the host's `~/.ssh/authorized_keys` as
+`github-actions-deploy-visual-youtube-notes` with port, agent and X11 forwarding disabled. The host
+pulls from GHCR with the login its other projects established; a fresh host needs step 3 of First
+deploy first. By hand, the same script deploys or rolls back any tag:
+
+```bash
+APP_VERSION=<tag> bash ~/vyn/deploy/deploy.sh
+```
+
 ## Forward migration
 
-Deploying a new version. The schema only ever moves forward.
+Deploying a new version. The schema only ever moves forward. Continuous deployment runs exactly
+these steps; this is what you do when running them by hand.
 
 1. **Back up first, and wait for it.** A forward-only schema has no down migration to escape
    through, so this backup _is_ the rollback for the schema.
