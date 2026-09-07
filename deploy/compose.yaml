@@ -208,10 +208,14 @@ services:
       dockerfile: deploy/images/worker/Dockerfile
       args:
         # From versions.env; CI passes the same pins as --build-arg.
-        YTDLP_VERSION: ${YTDLP_VERSION:?set from deploy/versions.env}
-        YTDLP_SHA256: ${YTDLP_SHA256:?set from deploy/versions.env}
-        DENO_VERSION: ${DENO_VERSION:?set from deploy/versions.env}
-        DENO_SHA256: ${DENO_SHA256:?set from deploy/versions.env}
+        # From deploy/versions.env, one checksum per architecture. Empty on
+        # a host that only pulls; the Dockerfile refuses to build with them empty.
+        YTDLP_VERSION: ${YTDLP_VERSION:-}
+        YTDLP_SHA256_AMD64: ${YTDLP_SHA256_AMD64:-}
+        YTDLP_SHA256_ARM64: ${YTDLP_SHA256_ARM64:-}
+        DENO_VERSION: ${DENO_VERSION:-}
+        DENO_SHA256_AMD64: ${DENO_SHA256_AMD64:-}
+        DENO_SHA256_ARM64: ${DENO_SHA256_ARM64:-}
     restart: unless-stopped
     logging: *logging
     depends_on:
@@ -372,12 +376,17 @@ services:
       context: ..
       dockerfile: deploy/images/backup/Dockerfile
       args:
-        RESTIC_VERSION: ${RESTIC_VERSION:?set from deploy/versions.env}
-        RESTIC_SHA256: ${RESTIC_SHA256:?set from deploy/versions.env}
-        AGE_VERSION: ${AGE_VERSION:?set from deploy/versions.env}
-        AGE_SHA256: ${AGE_SHA256:?set from deploy/versions.env}
-        SUPERCRONIC_VERSION: ${SUPERCRONIC_VERSION:?set from deploy/versions.env}
-        SUPERCRONIC_SHA256: ${SUPERCRONIC_SHA256:?set from deploy/versions.env}
+        # From deploy/versions.env, one checksum per architecture. Empty on
+        # a host that only pulls; the Dockerfile refuses to build with them empty.
+        RESTIC_VERSION: ${RESTIC_VERSION:-}
+        RESTIC_SHA256_AMD64: ${RESTIC_SHA256_AMD64:-}
+        RESTIC_SHA256_ARM64: ${RESTIC_SHA256_ARM64:-}
+        AGE_VERSION: ${AGE_VERSION:-}
+        AGE_SHA256_AMD64: ${AGE_SHA256_AMD64:-}
+        AGE_SHA256_ARM64: ${AGE_SHA256_ARM64:-}
+        SUPERCRONIC_VERSION: ${SUPERCRONIC_VERSION:-}
+        SUPERCRONIC_SHA256_AMD64: ${SUPERCRONIC_SHA256_AMD64:-}
+        SUPERCRONIC_SHA256_ARM64: ${SUPERCRONIC_SHA256_ARM64:-}
     restart: unless-stopped
     logging: *logging
     depends_on:

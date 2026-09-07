@@ -22,12 +22,14 @@ host only ever pulls, so it carries `compose.yaml`, `.env`, and `secrets/` and n
 
 ## Images
 
-`.github/workflows/build.yml` builds all five images on every push and pushes them to GHCR from
-`main`, tagged `<YYYY.MM.DD>-<sha8>` (the `APP_VERSION` to put in `.env`) and `sha-<commit>`; the
+`.github/workflows/build.yml` builds all five images for linux/amd64 and linux/arm64 on every push
+and pushes them to GHCR from `main`, tagged `<YYYY.MM.DD>-<sha8>` (the `APP_VERSION` to put in `.env`) and `sha-<commit>`; the
 worker also carries `ytdlp-<CalVer>`. The pins come from `versions.env`, River's CLI version from
 `backend/go.mod`. The packages are private, so the host logs in to GHCR with a token that has
 `read:packages` before its first pull. A local build from a checkout is
-`docker compose --env-file .env --env-file versions.env build`.
+`docker compose --env-file .env --env-file versions.env build`; it produces the host's own
+architecture, which is how the arm64 OCI host was first brought up before the multi-arch images
+existed.
 
 ## Before the first `up`
 

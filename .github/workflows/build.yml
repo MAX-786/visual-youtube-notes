@@ -60,6 +60,12 @@ jobs:
         image: [api, worker, migrate, caddy, backup]
     steps:
       - uses: actions/checkout@v7
+      # Two architectures: the OCI host is an Ampere A1 (arm64). Go and the
+      # web build cross-compile on the runner; only the runtime stages'
+      # apt installs and binary fetches run under QEMU.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       - uses: docker/setup-buildx-action@v3
       - if: needs.versions.outputs.push == 'true'
         uses: docker/login-action@v3
@@ -82,6 +88,7 @@ jobs:
         with:
           context: .
           file: deploy/images/${{ matrix.image }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: ${{ needs.versions.outputs.push == 'true' }}
           tags: ${{ steps.tags.outputs.tags }}
           build-args: ${{ needs.versions.outputs.build_args }}
