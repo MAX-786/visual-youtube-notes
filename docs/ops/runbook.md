@@ -82,7 +82,9 @@ holds `compose.yaml`, `.env`, and `secrets/` and never the source tree (ADR 0008
    echo "<token>" | docker login ghcr.io -u MAX-786 --password-stdin
    ```
 
-4. **Write the secrets.** One file each, no trailing newline except where noted, mode 600:
+4. **Write the secrets.** One file each, no trailing newline except where noted. The `api` and
+   `worker` images run as `nobody` (uid 65534) and read them as bind mounts, so the files are
+   group `65534` and mode `640`, not `600`:
 
    ```bash
    umask 077
@@ -92,6 +94,7 @@ holds `compose.yaml`, `.env`, and `secrets/` and never the source tree (ADR 0008
    openssl rand -hex 24 > secrets/restic_sftp_password
    ssh-keygen -t ed25519 -N '' -C vyn-backup -f secrets/restic_sftp_key   # its .pub goes on the laptop
    openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt > secrets/vapid_private_key
+   sudo chgrp 65534 secrets/* && chmod 640 secrets/*
    ```
 
    Put `restic_password` and `restic_sftp_password` in your password manager **now**: they are the
