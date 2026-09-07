@@ -27,9 +27,12 @@ const SchemaName = "visual_note"
 
 // RequestSchema is the decode-safe schema as sent to OpenAI's Responses API
 // in strict mode: minItems stripped (the counts were always the validator's
-// job), every property required, and the properties the design left
-// optional made nullable, which is how strict mode spells optional
-// (ADR 0017).
+// job), every property required, the properties the design left optional
+// made nullable, which is how strict mode spells optional (ADR 0017), and
+// every node carrying the type strict mode insists on: a const becomes a
+// one-value enum, and an enum without a type gets the type of its values.
+// The first live call found the diagram's {"const": "mind_map"} refused for
+// exactly that.
 func RequestSchema() json.RawMessage {
 	var doc map[string]any
 	if err := json.Unmarshal(requestSchema, &doc); err != nil {
@@ -50,6 +53,7 @@ func RequestSchema() json.RawMessage {
 // strict rewrites one schema node in place.
 func strict(node map[string]any) {
 	delete(node, "minItems")
+	inferType(node)
 	if props, ok := node["properties"].(map[string]any); ok {
 		required := map[string]bool{}
 		if list, ok := node["required"].([]any); ok {
@@ -95,21 +99,85 @@ func strict(node map[string]any) {
 	}
 }
 
-// nullable lets a property be null, which is strict mode's optional.
+// inferType gives a const or enum node the type strict mode insists on,
+// derived from its values, spelling a const as a one-member enum on the
+// way (strict mode knows enum; const is not on its list).
+func inferType(node map[string]any) {
+	if c, ok := node["const"]; ok {
+		delete(node, "const")
+		node["enum"] = []any{c}
+	}
+	if _, ok := node["type"]; ok {
+		return
+	}
+	enum, ok := node["enum"].([]any)
+	if !ok || len(enum) == 0 {
+		return
+	}
+	var kinds []string
+	seen := map[string]bool{}
+	add := func(k string) {
+		if !seen[k] {
+			seen[k] = true
+			kinds = append(kinds, k)
+		}
+	}
+	for _, v := range enum {
+		switch x := v.(type) {
+		case string:
+			add("string")
+		case float64:
+			if x == float64(int64(x)) {
+				add("integer")
+			} else {
+				add("number")
+			}
+		case bool:
+			add("boolean")
+		case nil:
+			add("null")
+		}
+	}
+	if len(kinds) == 1 {
+		node["type"] = kinds[0]
+		return
+	}
+	list := make([]any, 0, len(kinds))
+	for _, k := range kinds {
+		list = append(list, k)
+	}
+	node["type"] = list
+}
+
+// nullable lets a property be null, which is strict mode's optional. An
+// enum admits null explicitly as well, since a nullable type alone would
+// leave null outside the values the enum allows.
 func nullable(schema any) any {
 	m, ok := schema.(map[string]any)
 	if !ok {
 		return schema
 	}
+	if c, ok := m["const"]; ok {
+		delete(m, "const")
+		m["enum"] = []any{c}
+	}
+	if enum, ok := m["enum"].([]any); ok {
+		hasNull := false
+		for _, v := range enum {
+			if v == nil {
+				hasNull = true
+			}
+		}
+		if !hasNull {
+			m["enum"] = append(enum, nil)
+		}
+	}
 	if t, ok := m["type"].(string); ok {
 		m["type"] = []any{t, "null"}
 		return m
 	}
-	if _, ok := m["$ref"]; ok {
-		return map[string]any{"anyOf": []any{m, map[string]any{"type": "null"}}}
-	}
-	if enum, ok := m["enum"].([]any); ok {
-		m["enum"] = append(enum, nil)
+	if _, ok := m["enum"]; ok {
+		// The type, null included, is inferred from the values by strict().
 		return m
 	}
 	return map[string]any{"anyOf": []any{m, map[string]any{"type": "null"}}}
