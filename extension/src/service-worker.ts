@@ -11,6 +11,7 @@ import {
   type SubmitResponse,
   type UndoResponse,
 } from "./lib/messages.js";
+import { apiRequestInit } from "./lib/request.js";
 import { videoIdFromUrl } from "./lib/video-id.js";
 
 declare const __APP_ORIGIN__: string;
@@ -60,16 +61,12 @@ async function call<T>(
   body?: unknown,
   token?: string,
 ): Promise<ApiResult<T>> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
   let response: globalThis.Response;
   try {
-    response = await fetch(`${API}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    response = await fetch(
+      `${API}${path}`,
+      apiRequestInit(method, body, token),
+    );
   } catch {
     return {
       status: 0,
