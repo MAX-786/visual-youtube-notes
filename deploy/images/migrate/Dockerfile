@@ -40,5 +40,9 @@ COPY --from=river-cli /out/river /usr/local/bin/river
 # drill can run the schema's own assertions against a restored database.
 COPY deploy/migrations /migrations
 COPY deploy/images/migrate/entrypoint.sh /usr/local/bin/entrypoint.sh
+# The mode bit is set here rather than trusted from the checkout: a Windows
+# checkout commits scripts as 644, and Docker Desktop hid that by sending
+# every file as 755 until the first build on a Linux host.
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["app"]

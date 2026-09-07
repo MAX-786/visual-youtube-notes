@@ -135,6 +135,35 @@ holds `compose.yaml`, `.env`, and `secrets/` and never the source tree (ADR 0008
 
 Then continue with the numbered steps below; step 3 is the one that produces a fact nobody has yet.
 
+### 0b. A host that already runs a reverse proxy
+
+The OCI host is an Ampere A1 (arm64, Oracle Linux 9) that already serves other sites from nginx on
+80 and 443, so the stack cannot own those ports. Two host-only files, neither committed, adapt it:
+
+- `~/vyn/deploy/compose.override.yaml` moves Caddy to a loopback port. Compose merges lists by
+  default, so the `!override` tag is what drops the 80 and 443 mappings from `compose.yaml`:
+
+  ```yaml
+  services:
+    caddy:
+      ports: !override
+        - "127.0.0.1:8443:443"
+  ```
+
+- `/etc/nginx/conf.d/yt-track.conf` terminates Cloudflare's connection with a self-signed
+  certificate like the host's other sites (Cloudflare Full, not strict) and forwards to Caddy over
+  TLS with SNI (`proxy_ssl_server_name on; proxy_ssl_name yt-track.mkhismkh.com;
+proxy_ssl_verify off;`). `/api/events` gets `proxy_buffering off` and a 24-hour
+  `proxy_read_timeout`; everything else keeps the defaults. Reload with
+  `sudo nginx -t && sudo systemctl reload nginx`.
+
+The images are built for arm64 as well as amd64. Before that build existed the host built them
+itself from a `git archive` of the commit in `/mnt/repos_drive/projects/visual-youtube-notes`, with
+`docker compose --env-file ~/vyn/deploy/.env --env-file ./versions.env build` from its `deploy/`
+directory; that tags them exactly as CI would, so `docker compose up -d` in `~/vyn/deploy` runs
+them without a pull. Once the host is logged in to GHCR, `docker compose pull` replaces them with
+CI's.
+
 ### 1. Initialise the backup repositories
 
 Nothing creates these automatically. The daily script refuses to start against a missing repository,
