@@ -20,6 +20,7 @@ import (
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/ai"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/config"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/db"
+	"github.com/MAX-786/visual-youtube-notes/backend/internal/health"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/keys"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/pipeline"
 	"github.com/MAX-786/visual-youtube-notes/backend/internal/push"
@@ -74,6 +75,19 @@ func run(logger *slog.Logger) error {
 		deps.Push = push.NewSender(keys, cfg.PublicOrigin, logger)
 	}
 	deps.Hooks.BeforePaidStage = pipeline.CostGate
+	// The worker's system_health pass (ADR 0009): backups from the sidecar,
+	// free space on the volumes this container can see, extractor breakage.
+	deps.Health = &health.Worker{
+		Pool:               pool,
+		StatusURL:          cfg.Worker.BackupStatusURL,
+		StaleLocal:         cfg.Worker.BackupStaleLocal,
+		StaleOffsite:       cfg.Worker.BackupStaleOffsite,
+		DiskMinFreeBytes:   cfg.Worker.DiskMinFreeBytes,
+		DiskMinFreePercent: float64(cfg.Worker.DiskMinFreePercent),
+		DiskPaths:          []string{cfg.Worker.TempDir, cfg.Worker.YtDlpCacheDir},
+		Cadence:            cfg.Worker.HealthCheckInterval,
+		Log:                logger,
+	}
 	// A restart means no Attempt of this worker is running: whatever is
 	// left in its temporary volume is media a crashed job did not remove.
 	if err := pipeline.RemoveAllTemp(cfg.Worker.TempDir); err != nil {
@@ -89,7 +103,7 @@ func run(logger *slog.Logger) error {
 			pipeline.QueueMedia:   {MaxWorkers: max(cfg.Worker.QueueMediaWorkers, 1)},
 		},
 		Workers:      workers,
-		PeriodicJobs: pipeline.PeriodicJobs(),
+		PeriodicJobs: append(pipeline.PeriodicJobs(), pipeline.HealthPeriodicJob(cfg.Worker.HealthCheckInterval)),
 		Logger:       logger,
 		// Per-Stage timeouts come from each worker's Timeout(); a job stuck
 		// past its timeout is rescued five minutes later, not River's
@@ -106,7 +120,7 @@ func run(logger *slog.Logger) error {
 		logger.Warn("startup temp sweep failed", "err", err)
 	}
 
-	health := &http.Server{
+	probe := &http.Server{
 		Addr:              cfg.Worker.HealthListen,
 		ReadHeaderTimeout: 5 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +139,7 @@ func run(logger *slog.Logger) error {
 		}),
 	}
 	go func() {
-		if err := health.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := probe.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("health server", "err", err)
 		}
 	}()
@@ -138,7 +152,7 @@ func run(logger *slog.Logger) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	_ = health.Shutdown(shutdownCtx)
+	_ = probe.Shutdown(shutdownCtx)
 	if err := client.Stop(shutdownCtx); err != nil {
 		hard, cancelHard := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelHard()

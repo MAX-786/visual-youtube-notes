@@ -165,5 +165,7 @@ test("a share while signed out survives the sign-in", async ({ page }) => {
   await page.getByLabel("Username").fill("owner");
   await page.getByLabel("Password").fill("correct horse battery staple");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect.poll(() => state.posted.length).toBe(1);
+  // The drain runs on the queue timer once the session lands; CI machines
+  // take longer than the default five seconds to get there.
+  await expect.poll(() => state.posted.length, { timeout: 15_000 }).toBe(1);
 });

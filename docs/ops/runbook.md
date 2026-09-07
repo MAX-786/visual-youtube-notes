@@ -436,7 +436,9 @@ the RTO figure and the only one this project has.
       just a lexical one, which would pass with no embeddings at all.
    5. One provider key decrypts with the **recovered** master key from step 2, not the live one.
 
-8. **Record it**, both places:
+8. **Record it**, both places. In the app, Settings → Health → **Record a drill** writes the row
+   through `POST /settings/health/drills` and shows which repository is due next; from the host,
+   the same row by hand:
 
    ```bash
    docker compose exec -T postgres psql -U vyn -d vyn -c \

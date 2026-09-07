@@ -42,6 +42,8 @@ type Deps struct {
 	MaxUploadBytes   int64
 	// Push sends note notifications (ADR 0014); nil sends none.
 	Push *push.Sender
+	// Health is the worker's system_health pass (ADR 0009); nil writes none.
+	Health HealthChecker
 	// Hooks let later slices plug the paid Stages in without the runner
 	// knowing them: the cost gate after captions, and the providers.
 	Hooks Hooks

@@ -59,6 +59,16 @@ type Worker struct {
 	YtDlpCacheDir string
 	// TempMinFreeBytes is the preflight floor for the transcribing Stage.
 	TempMinFreeBytes int64
+	// BackupStatusURL is the backup sidecar's /status; the two staleness
+	// thresholds and the health cadence follow ADR 0009.
+	BackupStatusURL     string
+	BackupStaleLocal    time.Duration
+	BackupStaleOffsite  time.Duration
+	HealthCheckInterval time.Duration
+	// The disk alarm fires below max(DiskMinFreeBytes, DiskMinFreePercent)
+	// free, chosen to precede the transcribing preflight's own floor.
+	DiskMinFreeBytes   int64
+	DiskMinFreePercent int
 }
 
 // Database is the PostgreSQL connection, with the password read from a file.
@@ -152,6 +162,12 @@ func Load() (*Config, error) {
 	cfg.Worker.QueueDefaultWorkers = intSetting(get("QUEUE_DEFAULT_WORKERS", "2"), &problems, "VYN_QUEUE_DEFAULT_WORKERS")
 	cfg.Worker.QueueMediaWorkers = intSetting(get("QUEUE_MEDIA_WORKERS", "1"), &problems, "VYN_QUEUE_MEDIA_WORKERS")
 	cfg.Worker.TempMinFreeBytes = int64(intSetting(get("TEMP_MIN_FREE_BYTES", "2147483648"), &problems, "VYN_TEMP_MIN_FREE_BYTES"))
+	cfg.Worker.BackupStatusURL = get("BACKUP_STATUS_URL", "http://backup:8080/status")
+	cfg.Worker.BackupStaleLocal = durationSetting(get("BACKUP_STALE_LOCAL", "48h"), &problems, "VYN_BACKUP_STALE_LOCAL")
+	cfg.Worker.BackupStaleOffsite = durationSetting(get("BACKUP_STALE_OFFSITE", "240h"), &problems, "VYN_BACKUP_STALE_OFFSITE")
+	cfg.Worker.HealthCheckInterval = durationSetting(get("HEALTH_CHECK_INTERVAL", "15m"), &problems, "VYN_HEALTH_CHECK_INTERVAL")
+	cfg.Worker.DiskMinFreeBytes = int64(intSetting(get("DISK_MIN_FREE_BYTES", "5368709120"), &problems, "VYN_DISK_MIN_FREE_BYTES"))
+	cfg.Worker.DiskMinFreePercent = intSetting(get("DISK_MIN_FREE_PERCENT", "10"), &problems, "VYN_DISK_MIN_FREE_PERCENT")
 	if !isExtensionID(cfg.ExtensionID) {
 		problems = append(problems, "VYN_EXTENSION_ID must be 32 characters a-p")
 	}
@@ -174,6 +190,14 @@ func ReadSecretFile(path string) (string, error) {
 		return "", fmt.Errorf("secret %s is empty", path)
 	}
 	return value, nil
+}
+
+func durationSetting(raw string, problems *[]string, name string) time.Duration {
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		*problems = append(*problems, name+" must be a positive duration")
+	}
+	return d
 }
 
 func intSetting(raw string, problems *[]string, name string) int {

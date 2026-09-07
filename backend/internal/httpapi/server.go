@@ -473,6 +473,6 @@ func validationError(err error) *apierr.Error {
 }
 
 // notImplemented is what an operation answers before its slice lands.
-func notImplemented(operation string) error {
+func notImplemented(operation string) error { //nolint:unused // stubgen writes calls to it whenever the contract grows a new operation
 	return apierr.Newf(apierr.InternalError, "%s is not implemented yet.", operation)
 }

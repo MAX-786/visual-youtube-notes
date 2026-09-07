@@ -53,6 +53,7 @@ func RegisterPeriodicWorkers(workers *river.Workers, d *Deps) {
 	river.AddWorker(workers, &trashPurgeWorker{deps: d})
 	river.AddWorker(workers, &pushNoteWorker{deps: d})
 	river.AddWorker(workers, &retentionPruneWorker{deps: d})
+	river.AddWorker(workers, &healthWorker{deps: d})
 }
 
 type sweepWorker struct {
