@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -273,6 +275,14 @@ func (y *ytdlp) FetchCaptions(ctx context.Context, format CaptionFormat) ([]byte
 		return nil, err
 	}
 	req.Header.Set("User-Agent", captionUserAgent)
+	// The signed URL was minted by an extraction carrying the operator's
+	// cookies, and YouTube answers the same address 429 when the fetch that
+	// follows carries none (seen on the OCI host the first time captions
+	// were listed at all). This is the only request that reaches YouTube
+	// without going through yt-dlp, so it presents the cookies itself.
+	for _, c := range y.cookiesFor(u.Host) {
+		req.AddCookie(c)
+	}
 	resp, err := y.client().Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -296,6 +306,69 @@ func (y *ytdlp) FetchCaptions(ctx context.Context, format CaptionFormat) ([]byte
 		return nil, Fail(Permanent, "captions_too_large", "The caption track is larger than this version accepts.", nil)
 	}
 	return body, nil
+}
+
+// cookiesFor is the operator's cookies that apply to host, or none when no
+// file is configured, it is absent, or it is empty. A file that cannot be
+// read is not an error here: the fetch simply goes out bare, exactly as it
+// did before a cookies file existed, and YouTube's answer decides the
+// Attempt.
+func (y *ytdlp) cookiesFor(host string) []*http.Cookie {
+	if y.cookies == "" {
+		return nil
+	}
+	data, err := os.ReadFile(y.cookies)
+	if err != nil {
+		return nil
+	}
+	return netscapeCookies(data, host, time.Now())
+}
+
+// netscapeCookies reads a Netscape cookies.txt -- the format every browser
+// extension exports and yt-dlp's --cookies takes -- and returns the cookies
+// whose domain covers host and whose expiry has not passed. Values are
+// never logged; a malformed line is skipped rather than failing the file,
+// since one bad row should not cost the whole jar.
+func netscapeCookies(data []byte, host string, now time.Time) []*http.Cookie {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	var out []*http.Cookie
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimRight(line, "\r")
+		// "#HttpOnly_" prefixes a real row; every other comment is a comment.
+		line = strings.TrimPrefix(line, "#HttpOnly_")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 7 {
+			continue
+		}
+		domain, name, value := strings.ToLower(fields[0]), fields[5], fields[6]
+		if name == "" || !domainCovers(domain, host) {
+			continue
+		}
+		// Field 4 is the expiry as a Unix time; 0 means a session cookie,
+		// which yt-dlp and browsers both keep.
+		if expiry, err := strconv.ParseInt(fields[4], 10, 64); err == nil && expiry > 0 && !time.Unix(expiry, 0).After(now) {
+			continue
+		}
+		out = append(out, &http.Cookie{Name: name, Value: value})
+	}
+	return out
+}
+
+// domainCovers is the cookie-domain rule the file's first field spells: a
+// leading dot, or the browser's implicit subdomain match, covers every
+// subdomain of the name that follows.
+func domainCovers(domain, host string) bool {
+	domain = strings.TrimPrefix(strings.TrimSuffix(domain, "."), ".")
+	if domain == "" {
+		return false
+	}
+	return host == domain || strings.HasSuffix(host, "."+domain)
 }
 
 // captionUserAgent is what yt-dlp's requests carry, so the track fetch looks

@@ -639,6 +639,11 @@ The worker copies the file to a private per-run jar and never writes the secret 
 expired cookie shows up as the same symptom again, and the fix is a fresh export. An empty file
 means no cookies, which is the state of a fresh deploy.
 
+The same jar also rides on the one request that reaches YouTube without going through yt-dlp: the
+caption track fetch, whose signed URL the extraction mints. Without it that fetch draws its own
+`429` from this address and the Note stalls in _metadata_ with `youtube_rate_limited` even though
+the extraction itself succeeded.
+
 ## Rate limits
 
 Every API operation draws on a rate-limit class declared in `docs/design/openapi.yaml` under
