@@ -1,14 +1,11 @@
-// Checks the Manifest V3 draft against the decisions in ADR 0013, and against
-// the one constraint that lives in another ticket's migration: the extension ID
-// the server allowlists is derived from this manifest's `key`, and the auth
-// schema constrains it to ^[a-p]{32}$. A manifest whose key derives an ID that
-// column cannot store is a defect nothing else would catch until pairing.
+// Checks the Manifest V3 release manifest against ADR 0013 and the Chrome Web
+// Store packaging contract. The Store owns the production extension ID, so a
+// release manifest must never carry a development `key`.
 //
 // Run: node docs/design/extension-manifest.test.mjs
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createHash } from "node:crypto";
 import path from "node:path";
 import assert from "node:assert/strict";
 
@@ -22,16 +19,6 @@ const manifest = JSON.parse(read("extension/manifest.json"));
 
 const APP_ORIGIN = "https://yt-track.mkhismkh.com/*";
 
-/** Chromium derives an extension ID from SHA-256 of the DER public key: the
- *  first 16 bytes, hex, with each nibble mapped 0-f onto a-p. */
-function deriveExtensionId(base64Key) {
-  const der = Buffer.from(base64Key, "base64");
-  const hex = createHash("sha256").update(der).digest("hex").slice(0, 32);
-  return [...hex]
-    .map((c) => String.fromCharCode(97 + parseInt(c, 16)))
-    .join("");
-}
-
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
@@ -41,25 +28,12 @@ test("is Manifest V3 with a module service worker", () => {
   assert.equal(manifest.background.type, "module");
 });
 
-test("the key derives an ID the auth schema can store", () => {
-  assert.ok(
-    manifest.key,
-    "manifest.key pins the extension ID across browsers and machines",
-  );
-
-  const id = deriveExtensionId(manifest.key);
-  const constraint = /\^\[a-p\]\{32\}\$/;
-  const migration = read("deploy/migrations/000002_auth_sessions.up.sql");
-
-  assert.ok(
-    constraint.test(migration),
-    "device_sessions no longer constrains extension_id to ^[a-p]{32}$; this check is stale",
-  );
-  assert.match(
-    id,
-    /^[a-p]{32}$/,
-    `derived id ${id} does not satisfy the device_sessions.extension_id constraint`,
-  );
+test("contains no fields rejected from a Web Store package", () => {
+  assert.ok(!("key" in manifest), "manifest.key is development-only");
+  assert.ok(!("update_url" in manifest), "the Chrome Web Store owns updates");
+  assert.match(manifest.version, /^\d+(?:\.\d+){0,3}$/);
+  assert.ok(manifest.description.length <= 132);
+  assert.equal(manifest.homepage_url, "https://yt-track.mkhismkh.com");
 });
 
 test("bearer credentials can only reach the app origin", () => {
@@ -122,6 +96,21 @@ test("the toolbar action exists alongside the in-page one", () => {
   );
 });
 
+test("every packaged entry point and icon exists", () => {
+  const files = [
+    "extension/src/service-worker.ts",
+    "extension/src/content-script.ts",
+    "extension/src/content-script.css",
+    "extension/src/popup.ts",
+    "extension/src/popup.html",
+    "extension/src/popup.css",
+    ...Object.values(manifest.icons).map((icon) => `extension/${icon}`),
+  ];
+  for (const file of files) {
+    assert.ok(existsSync(path.join(repo, file)), `missing ${file}`);
+  }
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {
@@ -135,7 +124,6 @@ for (const [name, fn] of tests) {
 }
 
 console.log(
-  `\nExtension manifest: ${tests.length - failed}/${tests.length} passed` +
-    (failed ? "" : `, id ${deriveExtensionId(manifest.key)}`),
+  `\nExtension manifest: ${tests.length - failed}/${tests.length} passed`,
 );
 if (failed > 0) process.exit(1);

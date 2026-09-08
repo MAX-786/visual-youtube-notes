@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:dev": "node build.mjs --development",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

@@ -33,9 +33,10 @@ existed.
 
 ## Before the first `up`
 
-`.env` must set `APP_VERSION`, `RIVER_VERSION` (matching `backend/go.mod`), `RESTIC_SFTP_REPO`, and
-`BACKUP_RECOVERY_RECIPIENT`; start from `.env.example`. `secrets/` must hold `postgres_password`, `master_key`,
-`restic_password`, `restic_sftp_password`, `restic_sftp_key`, and `vapid_private_key`.
+`.env` must set `APP_VERSION`, `RIVER_VERSION` (matching `backend/go.mod`), `CHROME_EXTENSION_ID`
+(the Chrome Web Store Item ID), `RESTIC_SFTP_REPO`, and `BACKUP_RECOVERY_RECIPIENT`; start from
+`.env.example`. `secrets/` must hold `postgres_password`, `master_key`, `restic_password`,
+`restic_sftp_password`, `restic_sftp_key`, and `vapid_private_key`.
 
 Then follow **First deploy** in the runbook — the backup repositories do not create themselves, and
 the service refuses to start until they exist.

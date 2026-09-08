@@ -8,20 +8,20 @@ detail. The manifest is [`extension/manifest.json`](../../extension/manifest.jso
 
 Related: [ADR 0003](../adr/0003-owner-auth-device-sessions-and-extension-pairing.md) owns Pairing,
 CORS and the token family; [ADR 0012](../adr/0012-pwa-shell-live-updates-and-offline-cache.md) owns
-the PWA side, including the `/pair/[requestId]` approval route.
+the PWA side; [ADR 0018](../adr/0018-chrome-web-store-owns-production-extension-id.md) owns Web Store
+identity and packaging.
 
 ## Identity
 
-| Fact               | Value                                                                          |
-| ------------------ | ------------------------------------------------------------------------------ |
-| Extension ID       | `fjodmlmkfifedoamachdbgigfpaldicm`                                             |
-| Allowlisted origin | `chrome-extension://fjodmlmkfifedoamachdbgigfpaldicm`                          |
-| Pinned by          | `key` in the manifest (base64 public key)                                      |
-| Private key        | `deploy/secrets/extension_signing_key.pem`, gitignored, developer machine only |
+| Fact               | Value                                                       |
+| ------------------ | ----------------------------------------------------------- |
+| Extension ID       | Assigned by the Chrome Web Store after the first upload     |
+| Allowlisted origin | `chrome-extension://<CHROME_EXTENSION_ID>`                  |
+| Release manifest   | Keyless; Web Store signing owns production identity         |
+| Local development  | Dashboard public key injected only into ignored `dist-dev/` |
 
-The ID is derived from the key: SHA-256 of the DER public key, first 16 bytes, hex, each nibble
-mapped `0-f` onto `a-p`. The manifest test re-derives it and asserts it satisfies
-`device_sessions.extension_id`'s `^[a-p]{32}$` constraint.
+The 32-character Item ID is copied into `CHROME_EXTENSION_ID` in the deployment environment. The
+API uses it as its one allowed extension origin and rejects pairing from any other ID.
 
 ## File layout
 
@@ -167,9 +167,11 @@ approval tab. There is one unpaired state, not two, and no reliance on
 
 ## Build and packaging
 
-`build.mjs` runs esbuild over three entry points (ES2022, bundled, unminified), copies the manifest
-and icons, and emits `dist/` plus a zip. `pnpm build` runs it, so CI compiles what ships rather than
-only typechecking it.
+`build.mjs` runs esbuild over three entry points (ES2022, bundled, unminified), validates and copies
+the manifest and assets, and emits a versioned ZIP under `extension/release/`. The release validator
+refuses `key`, `update_url`, unexpected permissions, insecure API origins, and malformed versions.
+`build:dev` accepts the Store public key through `VYN_EXTENSION_PUBLIC_KEY` and writes only to the
+ignored `dist-dev/` directory.
 
 Vite is rejected here: no dev server or HMR applies to an extension, and three fixed entry points do
 not need a plugin pipeline. `@crxjs/vite-plugin` is rejected as a third-party dependency on the
@@ -177,17 +179,10 @@ critical path of a build that has to keep working for years.
 
 ### Loading it
 
-Same `dist/` in all three browsers, developer mode enabled:
-
-| Browser | Path                                                     |
-| ------- | -------------------------------------------------------- |
-| Chrome  | `chrome://extensions` -> Developer mode -> Load unpacked |
-| Edge    | `edge://extensions` -> Developer mode -> Load unpacked   |
-| Brave   | `brave://extensions` -> Developer mode -> Load unpacked  |
-
-The `key` makes all three report ID `fjodmlmkfifedoamachdbgigfpaldicm`. If one reports a different
-ID, the manifest lost its `key` — that is the first thing to check, because the server will reject
-the origin.
+Production acceptance uses the Store-installed package. For an unpacked Chrome build with the same
+ID, copy **Package → View public key** from the Developer Dashboard, set
+`VYN_EXTENSION_PUBLIC_KEY`, run `build:dev`, and load `extension/dist-dev` from
+`chrome://extensions`.
 
 ## Verification
 
@@ -206,7 +201,7 @@ reason unrelated to the change.
 
 Run per browser after any manifest change:
 
-1. Extension ID reads `fjodmlmkfifedoamachdbgigfpaldicm`.
+1. Extension ID matches `CHROME_EXTENSION_ID` in the deployed environment.
 2. Pairing completes; Settings lists the new Device session with the right browser name.
 3. In-page button appears on a `/watch` page and on a `/shorts` page.
 4. **Navigate watch -> watch without reloading**, then submit: the note created matches the video on
@@ -221,4 +216,4 @@ Run per browser after any manifest change:
   the OpenAPI ticket will fix alongside every other resource. The outcomes this design renders
   (`created`, `duplicate`, `held`) must appear in that schema.
 - Rate limits on job creation, still unspecified on the map.
-- Icon assets, which are production artwork rather than a decision.
+- Additional Store screenshots and promotional artwork beyond the required launch assets.

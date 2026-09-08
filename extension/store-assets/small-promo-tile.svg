@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280" role="img" aria-labelledby="title desc">
+  <title id="title">Visual Notes</title>
+  <desc id="desc">A quiet dark promotional tile with the Visual Notes mark and a small connected-note diagram.</desc>
+  <rect width="440" height="280" fill="#142421"/>
+  <path d="M301 57C339 57 370 88 370 126V206" fill="none" stroke="#31524C" stroke-width="1.5"/>
+  <path d="M275 105H333C354 105 371 122 371 143V205" fill="none" stroke="#6DB39F" stroke-width="2"/>
+  <circle cx="275" cy="105" r="5" fill="#8BD1BC"/>
+  <circle cx="371" cy="205" r="5" fill="#8BD1BC"/>
+  <rect x="252" y="39" width="100" height="48" rx="13" fill="#203733" stroke="#3E635A"/>
+  <rect x="301" y="124" width="106" height="48" rx="13" fill="#203733" stroke="#3E635A"/>
+  <rect x="251" y="191" width="120" height="48" rx="13" fill="#203733" stroke="#3E635A"/>
+  <rect x="34" y="34" width="46" height="46" rx="13" fill="#579A87"/>
+  <path d="M46 47H52L57 66L62 47H68L60 70H54L46 47Z" fill="#F1F6F4"/>
+  <text x="34" y="126" fill="#F1F6F4" font-family="Segoe UI, Arial, sans-serif" font-size="31" font-weight="700" letter-spacing="-1.4">Visual Notes</text>
+  <text x="34" y="158" fill="#AABDB8" font-family="Segoe UI, Arial, sans-serif" font-size="16">YouTube, distilled.</text>
+  <text x="34" y="222" fill="#78B9A6" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="600" letter-spacing="1.6">SAVE  ·  SEARCH  ·  REVISIT</text>
+  <line x1="270" y1="60" x2="331" y2="60" stroke="#89A49D" stroke-width="3" stroke-linecap="round"/>
+  <line x1="270" y1="70" x2="316" y2="70" stroke="#526F68" stroke-width="3" stroke-linecap="round"/>
+  <line x1="319" y1="145" x2="386" y2="145" stroke="#89A49D" stroke-width="3" stroke-linecap="round"/>
+  <line x1="319" y1="155" x2="368" y2="155" stroke="#526F68" stroke-width="3" stroke-linecap="round"/>
+  <line x1="270" y1="212" x2="346" y2="212" stroke="#89A49D" stroke-width="3" stroke-linecap="round"/>
+  <line x1="270" y1="222" x2="327" y2="222" stroke="#526F68" stroke-width="3" stroke-linecap="round"/>
+</svg>

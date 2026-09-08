@@ -10,6 +10,7 @@ export default [
       "**/build/**",
       "**/coverage/**",
       "**/dist/**",
+      "**/dist-dev/**",
       "**/generated/**",
       "**/node_modules/**",
       "**/playwright-report/**",

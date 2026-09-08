@@ -5,6 +5,8 @@ node_modules
 build
 coverage
 dist
+dist-dev
+release
 playwright-report
 test-results
 pnpm-lock.yaml

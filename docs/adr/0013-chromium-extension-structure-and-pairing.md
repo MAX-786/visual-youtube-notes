@@ -1,5 +1,10 @@
 # Keep the token in the service worker and pin the extension ID with a committed key
 
+> **Partially superseded by [ADR 0018](0018-chrome-web-store-owns-production-extension-id.md).**
+> The service-worker and pairing boundaries remain current. The Chrome Web Store now owns the
+> production ID; the committed manifest-key and unpacked-only distribution decision below is
+> retained as historical context.
+
 The Chromium extension is submit-only. A declared content script renders the in-page action on
 YouTube and holds no credential; the Manifest V3 service worker owns every network call, every
 token, and the refresh lock. The extension's identity is pinned by a `key` committed to the

@@ -16,7 +16,7 @@ Personal, self-hosted, single-user V1. See [docs/feature-spec.md](docs/feature-s
 
 - `backend/` — one Go module with the API and worker commands
 - `web/` — SvelteKit PWA workspace
-- `extension/` — Chromium extension workspace; its MV3 structure is still to be designed
+- `extension/` — production Manifest V3 extension and Chrome Web Store release assets
 - `packages/api-client/` — TypeScript client generated from OpenAPI
 - `deploy/` — deployment artifacts
 - `docs/` — product specification, ADRs, and design contracts

@@ -17,33 +17,59 @@ const pairButton = document.getElementById("pair") as HTMLButtonElement;
 const signOutButton = document.getElementById("sign-out") as HTMLButtonElement;
 
 async function render(): Promise<void> {
-  const s = await send<StatusResponse>({ type: "status" });
-  if (s.paired) {
-    statusEl.textContent = `Paired as “${s.displayName ?? "this browser"}”. Open a YouTube video and press Save to Visual Notes.`;
-    pairButton.hidden = true;
-    signOutButton.hidden = false;
-  } else if (s.pairing) {
+  try {
+    const s = await send<StatusResponse>({ type: "status" });
+    if (s.paired) {
+      statusEl.textContent = `Connected as “${s.displayName ?? "this browser"}”. Use Save to Visual Notes on any YouTube video.`;
+      pairButton.hidden = true;
+      signOutButton.hidden = false;
+    } else if (s.pairing) {
+      statusEl.textContent =
+        "Waiting for approval. Complete pairing in the Visual Notes tab.";
+      pairButton.textContent = "Open approval again";
+      pairButton.hidden = false;
+      signOutButton.hidden = true;
+    } else {
+      statusEl.textContent =
+        "Connect this browser before saving your first video.";
+      pairButton.textContent = "Pair this browser";
+      pairButton.hidden = false;
+      signOutButton.hidden = true;
+    }
+  } catch {
     statusEl.textContent =
-      "Waiting for you to approve this browser in Visual Notes.";
-    pairButton.textContent = "Open the approval page again";
-    pairButton.hidden = false;
-    signOutButton.hidden = true;
-  } else {
-    statusEl.textContent = "This browser is not paired yet.";
-    pairButton.textContent = "Pair this browser";
-    pairButton.hidden = false;
+      "The extension could not start. Reload it from Chrome and try again.";
+    pairButton.hidden = true;
     signOutButton.hidden = true;
   }
 }
 
-pairButton.addEventListener("click", () => {
-  void send<PairResponse>({ type: "pair" }).then((r) => {
-    if (!r.ok) statusEl.textContent = r.detail;
-    else void render();
-  });
+pairButton.addEventListener("click", async () => {
+  pairButton.disabled = true;
+  pairButton.setAttribute("aria-busy", "true");
+  try {
+    const response = await send<PairResponse>({ type: "pair" });
+    if (!response.ok) statusEl.textContent = response.detail;
+    else await render();
+  } catch {
+    statusEl.textContent = "Pairing could not start. Check your connection.";
+  } finally {
+    pairButton.disabled = false;
+    pairButton.removeAttribute("aria-busy");
+  }
 });
-signOutButton.addEventListener("click", () => {
-  void send({ type: "sign-out" }).then(() => render());
+signOutButton.addEventListener("click", async () => {
+  signOutButton.disabled = true;
+  signOutButton.setAttribute("aria-busy", "true");
+  try {
+    await send({ type: "sign-out" });
+    await render();
+  } catch {
+    statusEl.textContent = "This browser could not be unpaired. Try again.";
+  } finally {
+    signOutButton.disabled = false;
+    signOutButton.removeAttribute("aria-busy");
+  }
 });
 
 void render();

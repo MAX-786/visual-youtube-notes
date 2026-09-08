@@ -110,7 +110,7 @@ function show(response: SubmitResponse): void {
         break;
       }
       case "duplicate":
-        text.textContent = "Already saved — ";
+        text.textContent = "Already saved. ";
         toast.appendChild(link("Open note", response.noteUrl));
         break;
       case "held":

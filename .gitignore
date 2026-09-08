@@ -37,5 +37,6 @@ Thumbs.db
 deploy/secrets/*
 !deploy/secrets/.gitkeep
 
-# Extension release archive, written by extension/build.mjs
-extension/dist.zip
+# Extension release archives, written by extension/build.mjs
+extension/release/
+extension/dist-dev/

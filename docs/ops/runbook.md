@@ -32,18 +32,16 @@ Read this once, now, rather than inferring it during an incident.
 | `secrets/restic_password`                  | Host **and password manager**                       | **No.** Needed to open the backups    |
 | `secrets/restic_sftp_password`             | Host **and password manager**                       | **No.** Same, for the off-server copy |
 | age recovery identity (`vyn-recovery.txt`) | **Password manager only**                           | **No.** Never on this host            |
-| `extension_signing_key.pem`                | **Developer machine and password manager**          | Regenerable, but see below            |
 
 Rotating `vapid_private_key` invalidates **every** Web Push subscription: RFC 8292 binds a
 subscription to the key that created it, so rotation means truncating `push_subscriptions` and
 re-subscribing each device from Settings. See
 [ADR 0014](../adr/0014-web-push-subscriptions-and-notification-copy.md).
 
-`extension_signing_key.pem` is the odd one out: it is **not** a Compose secret and never reaches
-this host. It pins the Chromium extension's ID (`fjodmlmkfifedoamachdbgigfpaldicm`) via the `key`
-committed to the manifest. Regenerating it is technically easy and operationally expensive — a new
-ID invalidates the server's allowlisted `chrome-extension://` origin and every paired Device
-session at once. See [ADR 0013](../adr/0013-chromium-extension-structure-and-pairing.md).
+`CHROME_EXTENSION_ID` is non-secret deployment configuration. Copy the 32-character Item ID from
+the Chrome Web Store Developer Dashboard after the first successful upload. Changing it replaces
+the API's one allowlisted `chrome-extension://` origin and requires browsers to pair the new Store
+build. See [ADR 0018](../adr/0018-chrome-web-store-owns-production-extension-id.md).
 
 The three password-manager entries above are not in any backup on purpose: they are what you need to _open_ a backup, so
 storing them inside one is circular. Losing the restic password loses the backups outright — restic

@@ -69,11 +69,20 @@
       {busy ? "Signing in…" : "Sign in"}
     </button>
   </form>
+  <a class="privacy-link" href="/privacy">Privacy</a>
 </main>
 
 <style>
   .sign-in {
     max-width: 26rem;
     padding-top: 10vh;
+  }
+
+  .privacy-link {
+    display: block;
+    width: max-content;
+    margin: 1rem auto 0;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
 </style>
