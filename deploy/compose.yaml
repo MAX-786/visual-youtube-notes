@@ -164,8 +164,9 @@ services:
       VYN_MASTER_KEY_FILE: /run/secrets/master_key
       VYN_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
       VYN_PUBLIC_ORIGIN: https://yt-track.mkhismkh.com
-      # Assigned by the Chrome Web Store after the first package upload.
-      VYN_EXTENSION_ID: ${CHROME_EXTENSION_ID:?set CHROME_EXTENSION_ID in deploy/.env}
+      # Override with the ID assigned by the Chrome Web Store. The existing
+      # unpacked-extension ID remains the migration default until then.
+      VYN_EXTENSION_ID: ${CHROME_EXTENSION_ID:-fjodmlmkfifedoamachdbgigfpaldicm}
       VYN_LISTEN: ":8080"
       # SSE comment heartbeat, comfortably inside Cloudflare's documented
       # 125 s Proxy Read Timeout (which has no free-plan override).
